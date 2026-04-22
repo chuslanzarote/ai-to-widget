@@ -1,0 +1,30 @@
+{{!-- prompt_template_version: enrich-sharpen-v1 --}}
+{{!--
+  Sharpening follow-up prompt per contracts/enrichment.md §3.
+
+  Sent to Opus after the first response fails validation. Renders the
+  specific rule that failed plus the offending string, and re-asks for a
+  corrected JSON object. No second retry if this one also fails.
+--}}
+Your previous response was rejected by the enrichment validator.
+
+Rule that failed: {{rule}}
+Details: {{detail}}
+
+{{#if offending_source}}
+The source "{{offending_source}}" does not appear as a key in the flattened
+input JSON I originally sent you. You MUST pick a source string from the
+flattened-key list below. Do NOT invent a new one.
+{{/if}}
+
+{{#if offending_label}}
+The category label "{{offending_label}}" is not in the allowed vocabulary
+for this entity type. Use only labels from the vocabulary I provided in
+the original prompt.
+{{/if}}
+
+Re-read the original input JSON and the Principle V constraints. Produce a
+corrected response in the same schema. If the input truly does not support
+a grounded description, return `{"insufficient_data": true, "reason": "..."}`.
+
+Return ONLY the JSON object. No prose outside the JSON.

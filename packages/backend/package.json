@@ -1,0 +1,20 @@
+{
+  "name": "@atw/backend",
+  "version": "0.1.0",
+  "description": "Ai to Widget backend — Handlebars templates for the runtime service + multi-stage Dockerfile. Feature 003 fills runtime behavior; this package ships compiling stubs.",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

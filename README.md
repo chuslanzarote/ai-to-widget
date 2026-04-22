@@ -33,6 +33,10 @@ claude
 Under 30 minutes end-to-end on the reference Aurelia fixture (SC-002). The
 full Feature 001 walkthrough lives at
 [`specs/001-setup-flow/quickstart.md`](specs/001-setup-flow/quickstart.md).
+The Feature 002 build-pipeline walkthrough — `/atw.build`, pgvector,
+Opus-driven enrichment, backend image, manifest — lives at
+[`specs/002-build-pipeline/quickstart.md`](specs/002-build-pipeline/quickstart.md)
+and is the reproducibility contract for the build phase (Principle VIII).
 
 ---
 

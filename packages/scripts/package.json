@@ -1,7 +1,7 @@
 {
   "name": "@atw/scripts",
   "version": "0.1.0",
-  "description": "Deterministic auxiliary scripts for the Ai to Widget setup flow (parse-schema, parse-openapi, write-artifact, load-artifact, validate-artifacts, hash-inputs).",
+  "description": "Deterministic auxiliary scripts for Ai to Widget. Feature 001 (setup flow): parse-schema, parse-openapi, write-artifact, load-artifact, validate-artifacts, hash-inputs. Feature 002 (build pipeline): start-postgres, apply-migrations, import-dump, assemble-entity-input, enrich-entity, embed-text, upsert-document, render-backend, compile-widget, build-backend-image, compose-activate, scan-pii-leaks, write-manifest, plus the /atw.build orchestrator.",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
@@ -11,7 +11,21 @@
     "atw-write-artifact": "./bin/atw-write-artifact.js",
     "atw-load-artifact": "./bin/atw-load-artifact.js",
     "atw-validate-artifacts": "./bin/atw-validate-artifacts.js",
-    "atw-hash-inputs": "./bin/atw-hash-inputs.js"
+    "atw-hash-inputs": "./bin/atw-hash-inputs.js",
+    "atw-start-postgres": "./bin/atw-start-postgres.js",
+    "atw-apply-migrations": "./bin/atw-apply-migrations.js",
+    "atw-import-dump": "./bin/atw-import-dump.js",
+    "atw-assemble-entity-input": "./bin/atw-assemble-entity-input.js",
+    "atw-enrich-entity": "./bin/atw-enrich-entity.js",
+    "atw-embed-text": "./bin/atw-embed-text.js",
+    "atw-upsert-document": "./bin/atw-upsert-document.js",
+    "atw-render-backend": "./bin/atw-render-backend.js",
+    "atw-compile-widget": "./bin/atw-compile-widget.js",
+    "atw-build-backend-image": "./bin/atw-build-backend-image.js",
+    "atw-compose-activate": "./bin/atw-compose-activate.js",
+    "atw-scan-pii-leaks": "./bin/atw-scan-pii-leaks.js",
+    "atw-write-manifest": "./bin/atw-write-manifest.js",
+    "atw-orchestrate": "./bin/atw-orchestrate.js"
   },
   "files": [
     "dist",
@@ -26,17 +40,31 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.27.0",
     "@apidevtools/swagger-parser": "^10.1.0",
+    "@xenova/transformers": "^2.17.0",
+    "debug": "^4.3.4",
+    "dockerode": "^4.0.2",
+    "esbuild": "^0.20.2",
     "gray-matter": "^4.0.3",
+    "handlebars": "^4.7.8",
+    "p-limit": "^5.0.0",
+    "pg": "^8.11.5",
     "pgsql-ast-parser": "^12.0.1",
     "remark-frontmatter": "^5.0.0",
     "remark-parse": "^11.0.0",
     "remark-stringify": "^11.0.0",
+    "tar-fs": "^3.0.5",
     "unified": "^11.0.4",
     "write-file-atomic": "^5.0.1",
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@testcontainers/postgresql": "^10.7.2",
+    "@types/debug": "^4.1.12",
+    "@types/dockerode": "^3.3.28",
+    "@types/pg": "^8.11.5",
+    "@types/tar-fs": "^2.0.4",
     "@types/write-file-atomic": "^4.0.3"
   }
 }

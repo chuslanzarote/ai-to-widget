@@ -1,0 +1,20 @@
+{
+  "name": "@atw/widget",
+  "version": "0.1.0",
+  "description": "Ai to Widget frontend — embeddable widget UI. Feature 003 fills the actual widget; this package is an empty shell that compiles to an IIFE bundle.",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
