@@ -6,7 +6,10 @@
       "PowerShell(& .\\\\.specify\\\\extensions\\\\git\\\\scripts\\\\powershell\\\\create-new-feature.ps1 -Json -ShortName \"build-pipeline\" \"Feature 002 build pipeline — /atw.build stands up Postgres+pgvector, ingests SQL dump, enriches entities with Opus, embeds, renders backend templates, compiles widget bundle, builds Docker image.\")",
       "PowerShell(.specify/scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly)",
       "PowerShell(.specify/scripts/powershell/setup-plan.ps1 -Json)",
-      "PowerShell(& .specify/extensions/git/scripts/powershell/auto-commit.ps1 after_plan)"
+      "PowerShell(& .specify/extensions/git/scripts/powershell/auto-commit.ps1 after_plan)",
+      "PowerShell(& .specify/scripts/powershell/setup-plan.ps1 -Json)",
+      "PowerShell(& .specify/scripts/powershell/check-prerequisites.ps1 -Json)",
+      "PowerShell(& .specify/extensions/git/scripts/powershell/auto-commit.ps1 after_tasks)"
     ]
   }
 }
