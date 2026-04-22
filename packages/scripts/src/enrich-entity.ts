@@ -343,6 +343,7 @@ export async function callWithHttpRetries<T>(
   let retried5xx = false;
   // Outer loop: only 429 retries via `continue`; 408/409/5xx use a single
   // retry and any subsequent failure is propagated.
+  // eslint-disable-next-line no-constant-condition -- intentional retry loop; every branch either `return`s or `throw`s.
   while (true) {
     try {
       const out = await fn();

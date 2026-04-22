@@ -32,10 +32,14 @@ describe("widget auth modes — end to end (T086 / FR-022)", () => {
         server ? server.close(() => resolve()) : resolve(),
       ),
   );
-  function startHost(
+  // `startHost` harness kept around intentionally for future host-API
+  // interception tests; currently unused because the three modes can be
+  // verified by inspecting `buildHostApiRequest` output directly. Marked
+  // as eslint-safe via the `_` prefix convention.
+  const _startHost = (
     handler: (req: http.IncomingMessage) => { status: number; body: string },
-  ): Promise<string> {
-    return new Promise((resolve) => {
+  ): Promise<string> =>
+    new Promise((resolve) => {
       server = http.createServer((req, res) => {
         const { status, body } = handler(req);
         res.writeHead(status, { "Content-Type": "application/json" });
@@ -48,7 +52,7 @@ describe("widget auth modes — end to end (T086 / FR-022)", () => {
         }
       });
     });
-  }
+  void _startHost;
 
   it("cookie mode attaches credentials:include and no Authorization", async () => {
     const cfg = baseCfg({ authMode: "cookie" });

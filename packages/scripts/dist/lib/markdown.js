@@ -202,7 +202,7 @@ function parseSchemaMap(parsed) {
 function parsePIIExcluded(section) {
     const items = extractListItems(section);
     return items.map((line) => {
-        const unescaped = line.replace(/\\([\[\]])/g, "$1");
+        const unescaped = line.replace(/\\([[\]])/g, "$1");
         const m = unescaped.match(/^([^:]+):\s*columns?\s*\[(.*?)\]\s*[-—]\s*(.*)$/i);
         if (m) {
             return {

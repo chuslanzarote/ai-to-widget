@@ -111,6 +111,8 @@ describe.skipIf(!DOCKER_AVAILABLE)("build --force flag (T103 / Clarifications Q2
     const totalEntities = run1.manifest.totals.total_entities;
     expect(totalEntities).toBeGreaterThan(0);
     expect(run1.manifest.totals.enriched).toBe(totalEntities);
+    // On a fresh build every entity must have hit the Opus stub exactly once.
+    expect(run1Calls).toBe(totalEntities);
 
     // Snapshot the atw_migrations ledger size BEFORE --force.
     const { Client } = await import("pg");
