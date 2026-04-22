@@ -27,6 +27,27 @@ Nothing in this feature serves HTTP traffic or renders a UI — those are
 Feature 003. This feature produces the running database and the compiled
 artifacts that Feature 003 consumes.
 
+## Clarifications
+
+### Session 2026-04-22
+
+- Q: What matching rule should the post-build PII compliance scan use when
+  comparing a raw PII value against generated `document` / `facts` text?
+  → A: Case-insensitive substring match, whitespace-normalized (leading,
+  trailing, and collapsed internal whitespace stripped on both sides
+  before comparison). False positives halt the build with an actionable
+  diagnostic; false negatives are unacceptable per Principle I.
+- Q: What exactly does `--force` force? → A: Re-enrich every entity
+  regardless of `source_hash` match. The flag MUST NOT drop migrations,
+  replace `client_ref` contents, invalidate the embedding model cache,
+  delete the Docker volume, or bypass image-layer caching. Destructive
+  resets remain opt-in via separate future flags.
+- Q: What reference hardware baseline should the duration SCs be
+  measured against? → A: GitHub Actions `ubuntu-latest` runner
+  (4-core / 16 GB RAM / SSD), the same class used by the Feature 001
+  CI matrix. SCs hold on that runner; Builder-laptop performance is
+  expected to be at least as good.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — One-command build from markdown artifacts (Priority: P1)
@@ -344,7 +365,12 @@ unchanged from a default-concurrency run.
   installer into the Builder's `.claude/commands/` directory.
 - **FR-052**: `/atw.build` MUST accept the following flags:
   `--concurrency <n>`, `--force`, `--entities-only`, `--no-enrich`,
-  `--dry-run`, `--backup`, `--postgres-port <n>`.
+  `--dry-run`, `--backup`, `--postgres-port <n>`. `--force` scope is
+  limited to re-enrichment only: it MUST re-invoke Opus for every
+  indexable entity regardless of `source_hash` match, and MUST NOT
+  drop migrations, replace `client_ref` contents, invalidate the
+  embedding model cache, delete the Postgres volume, or bypass
+  Docker image-layer caching.
 - **FR-053**: `/atw.build` MUST validate, before any container,
   migration, or Opus call, that `project.md`, `brief.md`,
   `schema-map.md`, `action-manifest.md`, and `build-plan.md` all
@@ -512,10 +538,15 @@ unchanged from a default-concurrency run.
 - **FR-087**: All writes to disk (`backend/src/*.ts`,
   `dist/widget.js`, `dist/widget.css`, `build-manifest.json`) MUST be
   atomic (write to a temporary path, fsync, rename).
-- **FR-088**: After the build, a compliance scan MUST confirm that
-  no value from a PII-flagged column appears verbatim in any
-  `atw_documents.document` or `atw_documents.facts` text. The scan
-  MUST fail the build if any match is found.
+- **FR-088**: After the build, a compliance scan MUST confirm that no
+  value from a PII-flagged column in `schema-map.md` appears in any
+  `atw_documents.document` or `atw_documents.facts` text under a
+  case-insensitive, whitespace-normalized substring comparison (both
+  the PII value and the generated text are lower-cased and have
+  leading/trailing whitespace trimmed with collapsed internal
+  whitespace before the substring check). The scan MUST fail the
+  build if any match is found and surface every matching `(entity_id,
+  pii_column, matched_snippet)` triple so the Builder can act.
 - **FR-089**: The command MUST ship auxiliary scripts under
   `packages/scripts/` covering: SQL dump import (filtered to
   schema-map primary/related tables), structured-input assembly,
@@ -564,8 +595,8 @@ unchanged from a default-concurrency run.
 
 - **SC-012**: On the Aurelia reference fixture (~342 entities), a
   fresh build from clean state completes in under 20 minutes of
-  wall-clock time on a modern developer laptop (single-run MVP
-  target).
+  wall-clock time on the reference CI runner (GitHub Actions
+  `ubuntu-latest`: 4-core / 16 GB RAM / SSD).
 - **SC-013**: Re-running the build on unchanged inputs completes in
   under 30 seconds and issues zero Opus calls.
 - **SC-014**: After any build, inspecting any ten random rows in
@@ -581,10 +612,12 @@ unchanged from a default-concurrency run.
 - **SC-017**: The actual Opus cost on the Aurelia fixture falls
   within 20 % of the estimate surfaced from `build-plan.md`.
 - **SC-018**: A post-build compliance scan confirms that zero value
-  from any PII-flagged column in `schema-map.md` appears verbatim in
-  any `atw_documents.document` or `atw_documents.facts` text.
+  from any PII-flagged column in `schema-map.md` appears in any
+  `atw_documents.document` or `atw_documents.facts` text under a
+  case-insensitive, whitespace-normalized substring match.
 - **SC-019**: On the small-project fixture (< 50 entities), a fresh
-  build completes in under 5 minutes.
+  build completes in under 5 minutes on the reference CI runner
+  (GitHub Actions `ubuntu-latest`: 4-core / 16 GB RAM / SSD).
 - **SC-020**: On at least one failing-input scenario (e.g., missing
   `build-plan.md`, Docker not running, bad `ANTHROPIC_API_KEY`), the
   command surfaces a one-line actionable diagnostic rather than a
