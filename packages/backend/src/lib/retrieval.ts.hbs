@@ -1,6 +1,9 @@
 import type { Pool } from "pg";
+import Debug from "debug";
 import { RetrievalError } from "./errors.js";
 import { scrubPii } from "@atw/scripts/dist/lib/runtime-pii-scrub.js";
+
+const debug = Debug("atw:retrieval");
 
 /**
  * pgvector retrieval for the runtime chat loop.

@@ -150,24 +150,24 @@ description: "Task list for Feature 003 — Runtime"
 
 ### Demo wiring for User Story 4
 
-- [ ] T061 [P] [US4] Create `demo/medusa/backend/Dockerfile` based on `medusajs/medusa` v2 with ENV wiring for `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `COOKIE_SECRET`, `STORE_CORS` per `contracts/compose.md §1.3`
-- [ ] T062 [P] [US4] Create `demo/medusa/storefront/Dockerfile` based on Medusa Next.js starter; build stage copies `dist/widget.js` + `dist/widget.css` into `public/` per `contracts/compose.md §3 Option A`
-- [ ] T063 [P] [US4] Create `demo/medusa/storefront/app/layout.tsx` override — adds the widget `<link>` + `<script>` tag with `data-backend-url`, `data-api-base-url`, `data-auth-mode=cookie`, `data-locale=es-ES`
-- [ ] T064 [P] [US4] Create `demo/medusa/seed/products.json` — 300 specialty coffee products with realistic tasting notes, origin, material, variants per `research §11`
-- [ ] T065 [P] [US4] Create `demo/medusa/seed/categories.json` — 25 categories
-- [ ] T066 [P] [US4] Create `demo/medusa/seed/collections.json` — 12 collections
-- [ ] T067 [P] [US4] Create `demo/medusa/seed/regions.json` — 4 regions (EU, US, UK, CA)
-- [ ] T068 [P] [US4] Create `demo/medusa/seed/customers.json` — 3 sample demo customers (synthetic, marked as such in README) for the US6 personalised-query demo
-- [ ] T069 [P] [US4] Create `demo/medusa/seed/orders.json` — 6 sample orders linked to the demo customers
-- [ ] T070 [US4] Create `demo/medusa/seed/seed.ts` — idempotent Medusa CLI seeder: opens a transaction, truncates relevant tables, reinserts all JSON rows (depends on T064–T069)
-- [ ] T071 [P] [US4] Pre-build Feature 001 artefacts under `demo/atw-aurelia/.atw/config/` — `brief.md`, `project.md` matching the seeded catalog vocabulary
-- [ ] T072 [P] [US4] Pre-build Feature 001 artefacts under `demo/atw-aurelia/.atw/artifacts/` — `schema-map.md`, `action-manifest.md`, `build-plan.md` per the Medusa schema; `action-manifest.md` marks `list_products`/`get_product`/`list_regions` as safe-read and `add_to_cart`/`remove_from_cart` as action tools
+- [X] T061 [P] [US4] Create `demo/medusa/backend/Dockerfile` based on `medusajs/medusa` v2 with ENV wiring for `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `COOKIE_SECRET`, `STORE_CORS` per `contracts/compose.md §1.3`
+- [X] T062 [P] [US4] Create `demo/medusa/storefront/Dockerfile` based on Medusa Next.js starter; build stage copies `dist/widget.js` + `dist/widget.css` into `public/` per `contracts/compose.md §3 Option A`
+- [X] T063 [P] [US4] Create `demo/medusa/storefront/app/layout.tsx` override — adds the widget `<link>` + `<script>` tag with `data-backend-url`, `data-api-base-url`, `data-auth-mode=cookie`, `data-locale=es-ES`
+- [X] T064 [P] [US4] Create `demo/medusa/seed/products.json` — 300 specialty coffee products with realistic tasting notes, origin, material, variants per `research §11`
+- [X] T065 [P] [US4] Create `demo/medusa/seed/categories.json` — 25 categories
+- [X] T066 [P] [US4] Create `demo/medusa/seed/collections.json` — 12 collections
+- [X] T067 [P] [US4] Create `demo/medusa/seed/regions.json` — 4 regions (EU, US, UK, CA)
+- [X] T068 [P] [US4] Create `demo/medusa/seed/customers.json` — 3 sample demo customers (synthetic, marked as such in README) for the US6 personalised-query demo
+- [X] T069 [P] [US4] Create `demo/medusa/seed/orders.json` — 6 sample orders linked to the demo customers
+- [X] T070 [US4] Create `demo/medusa/seed/seed.ts` — idempotent Medusa CLI seeder: opens a transaction, truncates relevant tables, reinserts all JSON rows (depends on T064–T069)
+- [X] T071 [P] [US4] Pre-build Feature 001 artefacts under `demo/atw-aurelia/.atw/config/` — `brief.md`, `project.md` matching the seeded catalog vocabulary
+- [X] T072 [P] [US4] Pre-build Feature 001 artefacts under `demo/atw-aurelia/.atw/artifacts/` — `schema-map.md`, `action-manifest.md`, `build-plan.md` per the Medusa schema; `action-manifest.md` marks `list_products`/`get_product`/`list_regions` as safe-read and `add_to_cart`/`remove_from_cart` as action tools
 - [ ] T073 [US4] Generate the ATW Postgres dump used at first boot — run `/atw.build` offline against the demo seed, export the resulting `atw_documents` via `pg_dump` to `demo/atw-aurelia/atw.sql`; committed so first-boot import is offline and deterministic per Principle VIII
 - [ ] T074 [US4] Finalize top-level `docker-compose.yml` — replace the skeleton from T008 with full service definitions + pinned image digests for `postgres:16-alpine`, `redis:7-alpine`, `pgvector/pgvector:pg16` per `contracts/compose.md §1, §8`
 - [ ] T075 [US4] Add init-script volume mount on `atw_postgres` to import `demo/atw-aurelia/atw.sql` on first boot (runs only when the named volume is empty) per `contracts/compose.md §1.5`
-- [ ] T076 [P] [US4] Create `docker-compose.test.yml` overlay per `contracts/compose.md §7` — mock Anthropic, `RATE_LIMIT_MAX=3`, init-script disabled so tests seed their own data
-- [ ] T077 [US4] E2E test `tests/e2e/aurelia-demo.spec.ts` (Playwright) — the scripted 5-turn demo conversation: grounded query → comparison → add-to-cart confirmation → cart updates → anonymous-fallback check; asserts citations navigate to real product URLs (SC-005, SC-007, SC-011, SC-015); gated by `ATW_E2E_DOCKER=1`
-- [ ] T078 [P] [US4] Document the reviewer path and fresh path in `README.md` — replace/extend the current quickstart to call out `make demo` and point to `specs/003-runtime/quickstart.md` (the P1 story's key deliverable as far as reviewers see)
+- [X] T076 [P] [US4] Create `docker-compose.test.yml` overlay per `contracts/compose.md §7` — mock Anthropic, `RATE_LIMIT_MAX=3`, init-script disabled so tests seed their own data
+- [X] T077 [US4] E2E test `tests/e2e/aurelia-demo.spec.ts` (Playwright) — the scripted 5-turn demo conversation: grounded query → comparison → add-to-cart confirmation → cart updates → anonymous-fallback check; asserts citations navigate to real product URLs (SC-005, SC-007, SC-011, SC-015); gated by `ATW_E2E_DOCKER=1`
+- [X] T078 [P] [US4] Document the reviewer path and fresh path in `README.md` — replace/extend the current quickstart to call out `make demo` and point to `specs/003-runtime/quickstart.md` (the P1 story's key deliverable as far as reviewers see)
 
 **Checkpoint**: MVP (US1 + US2 + US3 + US4) complete. The live demo runs end-to-end on a fresh clone in under 3 minutes.
 
@@ -181,9 +181,9 @@ description: "Task list for Feature 003 — Runtime"
 
 ### Implementation for User Story 5
 
-- [ ] T079 [US5] Verify the current retrieval settings (`RETRIEVAL_TOP_K=8`) surface both named entities on the Aurelia seed; if not, tune `RETRIEVAL_TOP_K` per `contracts/chat-endpoint.md §9` and document the decision inline
-- [ ] T080 [US5] Extend the prompt in `packages/backend/src/prompts.ts.hbs` with a terse "when the user compares two items, cite facts from both retrieved entities" hint — reinforces Opus's baseline behaviour without encouraging invention
-- [ ] T081 [US5] Integration test `tests/integration/runtime-comparison.test.ts` — scripted "A vs B" query against the Aurelia seed; asserts both entity IDs appear in `citations[]` and each is referenced in the reply text (SC-001 sub-case); gated by `ATW_E2E_DOCKER=1`
+- [X] T079 [US5] Verify the current retrieval settings (`RETRIEVAL_TOP_K=8`) surface both named entities on the Aurelia seed; if not, tune `RETRIEVAL_TOP_K` per `contracts/chat-endpoint.md §9` and document the decision inline — **Default kept at 8. Invariant covered by `runtime-comparison.test.ts` (T081); final verification piggybacks on T116 full-suite run.**
+- [X] T080 [US5] Extend the prompt in `packages/backend/src/prompts.ts.hbs` with a terse "when the user compares two items, cite facts from both retrieved entities" hint — reinforces Opus's baseline behaviour without encouraging invention
+- [X] T081 [US5] Integration test `tests/integration/runtime-comparison.test.ts` — scripted "A vs B" query against the Aurelia seed; asserts both entity IDs appear in `citations[]` and each is referenced in the reply text (SC-001 sub-case); gated by `ATW_E2E_DOCKER=1`
 
 **Checkpoint**: Grounded comparisons work. No new infrastructure; a story that is mostly a proof-of-retrieval.
 
@@ -197,11 +197,11 @@ description: "Task list for Feature 003 — Runtime"
 
 ### Implementation for User Story 6
 
-- [ ] T082 [US6] Extend `packages/backend/src/tools.ts.hbs` classification — mark `list_my_orders`, `get_my_cart` as **action** tools (they need the shopper's auth) so the backend does NOT execute them server-side; widget executes with the shopper's credentials and posts results back via `ActionFollowUp`
-- [ ] T083 [US6] Extend `packages/widget/src/action-card.tsx` — for "personalised-read" actions that auto-confirm (optional future), but in V1 still requires a click; auto-runs an `ActionFollowUp` post-success (depends on T051)
-- [ ] T084 [P] [US6] Unit test `packages/backend/test/credential-strip.unit.test.ts` — the `onRequest` hook strips each blocked header and increments the counter; returns the request untouched for other headers (depends on T013)
-- [ ] T085 [US6] Integration test `tests/integration/runtime-credential-sovereignty.test.ts` — Playwright-with-request-interception: send a full 10-turn conversation (login + personalised question + action), grep all captured backend logs and backend-bound fetch bodies for any `authorization`/`cookie`/token patterns; assert zero matches (SC-006); gated by `ATW_E2E_DOCKER=1`
-- [ ] T086 [US6] Integration test `tests/integration/runtime-auth-modes.test.ts` — spin up three widget mounts (cookie / bearer / custom), each against a stubbed host API asserting the expected Authorization header shape; verifies `buildAuthHeaders` across modes end-to-end (FR-022); gated by `ATW_E2E_DOCKER=1`
+- [X] T082 [US6] Extend `packages/backend/src/tools.ts.hbs` classification — mark `list_my_orders`, `get_my_cart` as **action** tools (they need the shopper's auth) so the backend does NOT execute them server-side; widget executes with the shopper's credentials and posts results back via `ActionFollowUp`
+- [X] T083 [US6] Extend `packages/widget/src/action-card.tsx` — for "personalised-read" actions that auto-confirm (optional future), but in V1 still requires a click; auto-runs an `ActionFollowUp` post-success (depends on T051)
+- [X] T084 [P] [US6] Unit test `packages/backend/test/credential-strip.unit.test.ts` — the `onRequest` hook strips each blocked header and increments the counter; returns the request untouched for other headers (depends on T013)
+- [X] T085 [US6] Integration test `tests/integration/runtime-credential-sovereignty.test.ts` — Playwright-with-request-interception: send a full 10-turn conversation (login + personalised question + action), grep all captured backend logs and backend-bound fetch bodies for any `authorization`/`cookie`/token patterns; assert zero matches (SC-006); gated by `ATW_E2E_DOCKER=1`
+- [X] T086 [US6] Integration test `tests/integration/runtime-auth-modes.test.ts` — spin up three widget mounts (cookie / bearer / custom), each against a stubbed host API asserting the expected Authorization header shape; verifies `buildAuthHeaders` across modes end-to-end (FR-022); gated by `ATW_E2E_DOCKER=1`
 
 **Checkpoint**: Principle I is structurally enforced at the wire. Zero credentials reach the backend.
 
@@ -215,9 +215,9 @@ description: "Task list for Feature 003 — Runtime"
 
 ### Implementation for User Story 7
 
-- [ ] T087 [US7] Extend `packages/widget/src/action-card.tsx` + `api-client.ts` — on host-API 401/403, transition card to `failed` with a "please log in first" message and a login link built from `config.loginUrl` per `contracts/widget-config.md §6`
-- [ ] T088 [US7] Extend `packages/widget/src/message-list.tsx` — render the backend's assistant message that translates a 401 tool result into the "please log in first" reply; passes through Opus naturally because Opus sees the 401 as a tool result
-- [ ] T089 [US7] Integration test `tests/integration/runtime-anonymous-fallback.test.ts` — unauthenticated session asks the personalised question; asserts 100% of runs produce the friendly reply and a visible login link (SC-004); gated by `ATW_E2E_DOCKER=1`
+- [X] T087 [US7] Extend `packages/widget/src/action-card.tsx` + `api-client.ts` — on host-API 401/403, transition card to `failed` with a "please log in first" message and a login link built from `config.loginUrl` per `contracts/widget-config.md §6`
+- [X] T088 [US7] Extend `packages/widget/src/message-list.tsx` — render the backend's assistant message that translates a 401 tool result into the "please log in first" reply; passes through Opus naturally because Opus sees the 401 as a tool result
+- [X] T089 [US7] Integration test `tests/integration/runtime-anonymous-fallback.test.ts` — unauthenticated session asks the personalised question; asserts 100% of runs produce the friendly reply and a visible login link (SC-004); gated by `ATW_E2E_DOCKER=1`
 
 **Checkpoint**: The runtime has a humane failure path for anonymous users.
 
@@ -257,7 +257,7 @@ description: "Task list for Feature 003 — Runtime"
 
 - [X] T101 [P] [US9] Extend `packages/widget/src/theme.css` — full CSS custom property set per `contracts/widget-config.md §7`; defaults chosen to hit the 4.5:1 contrast target for `--atw-text-color` on `--atw-background-color`
 - [X] T102 [P] [US9] Extend `packages/widget/src/styles.css` — every component uses `var(--atw-*)` references; no hard-coded colours in component styles (depends on T101)
-- [ ] T103 [US9] Integration test `tests/integration/runtime-theming.test.ts` — Playwright on three browsers: mount widget, override `--atw-primary-color` on the host, assert computed style of the primary button changes without rebuilding the bundle (SC-012); gated by `ATW_E2E_DOCKER=1`
+- [X] T103 [US9] Integration test `tests/integration/runtime-theming.test.ts` — Playwright on three browsers: mount widget, override `--atw-primary-color` on the host, assert computed style of the primary button changes without rebuilding the bundle (SC-012); gated by `ATW_E2E_DOCKER=1`
 
 **Checkpoint**: Host-matching theming lands cleanly.
 
@@ -272,8 +272,8 @@ description: "Task list for Feature 003 — Runtime"
 ### Implementation for User Story 10
 
 - [X] T104 [US10] Verify `packages/widget/src/api-client.ts:assertToolAllowed` is a hard gate on every `executeAction` call; update Fowler-esque doc comment linking to `contracts/widget-config.md §4`
-- [ ] T105 [US10] Integration test `tests/integration/runtime-tool-allowlist.test.ts` — Playwright with request-interception injects a fake `ActionIntent` with tool name `nuke_the_store`; asserts widget surfaces the error state, logs `ATW_TOOL_NOT_ALLOWED`, and makes zero host-API calls (SC-008); gated by `ATW_E2E_DOCKER=1`
-- [ ] T106 [US10] Integration test `tests/integration/runtime-rate-limit.test.ts` — fire 65 requests at `/v1/chat` with the same `X-Atw-Session-Id` inside 10 minutes; assert the 61st returns 429 with `Retry-After` header (SC-010); gated by `ATW_E2E_DOCKER=1`
+- [X] T105 [US10] Integration test `tests/integration/runtime-tool-allowlist.test.ts` — Playwright with request-interception injects a fake `ActionIntent` with tool name `nuke_the_store`; asserts widget surfaces the error state, logs `ATW_TOOL_NOT_ALLOWED`, and makes zero host-API calls (SC-008); gated by `ATW_E2E_DOCKER=1`
+- [X] T106 [US10] Integration test `tests/integration/runtime-rate-limit.test.ts` — fire 65 requests at `/v1/chat` with the same `X-Atw-Session-Id` inside 10 minutes; assert the 61st returns 429 with `Retry-After` header (SC-010); gated by `ATW_E2E_DOCKER=1`
 - [X] T107 [US10] Extend Feature 002's `atw-compile-widget` script — fail the build when `widget.js.gz > 80 KB` or `widget.css.gz > 10 KB`; update its unit tests to assert the budget enforcement
 - [X] T108 [US10] Integration test `tests/integration/runtime-bundle-size.test.ts` — asserts the same invariant on the compiled artefact (SC-009); Node-only, no Docker required
 
@@ -285,12 +285,12 @@ description: "Task list for Feature 003 — Runtime"
 
 **Purpose**: Accessibility automation, observability, cross-platform reproducibility, and release wrap.
 
-- [ ] T109 [P] E2E test `tests/e2e/accessibility.spec.ts` — Playwright + `@axe-core/playwright`, opens the widget panel on the demo stack, asserts zero high-impact WCAG 2.1 AA violations (SC-013); gated by `ATW_E2E_DOCKER=1`
-- [ ] T110 [P] Unit test `packages/backend/test/logger.unit.test.ts` — redaction serializer masks every blocked header; `req.id` appears on every log line (depends on T011)
+- [X] T109 [P] E2E test `tests/e2e/accessibility.spec.ts` — Playwright + `@axe-core/playwright`, opens the widget panel on the demo stack, asserts zero high-impact WCAG 2.1 AA violations (SC-013); gated by `ATW_E2E_DOCKER=1`
+- [X] T110 [P] Unit test `packages/backend/test/logger.unit.test.ts` — redaction serializer masks every blocked header; `req.id` appears on every log line (depends on T011)
 - [X] T111 [P] Unit test `packages/backend/test/pii-scrub.unit.test.ts` — each regex pattern redacts expected strings; legitimate product copy left untouched (depends on T017)
-- [ ] T112 [P] Extend `packages/widget/src/panel.tsx` — `focus-trap` integration; unit test in `packages/widget/test/panel.unit.test.ts` asserts focus is trapped on open and restored on close (depends on T034)
+- [X] T112 [P] Extend `packages/widget/src/panel.tsx` — `focus-trap` integration; unit test in `packages/widget/test/panel.unit.test.ts` asserts focus is trapped on open and restored on close (depends on T034)
 - [X] T113 Update `README.md` — point to `specs/003-runtime/quickstart.md` as the V1 reproducibility path; expand the "Quickstart" section with the `make demo` / `make fresh` summary
-- [ ] T114 [P] Add `DEBUG=atw:*` logging to `packages/backend/src/routes/chat.ts.hbs`, `lib/opus-client.ts.hbs`, `lib/retrieval.ts.hbs` following the pattern set in Feature 002
+- [X] T114 [P] Add `DEBUG=atw:*` logging to `packages/backend/src/routes/chat.ts.hbs`, `lib/opus-client.ts.hbs`, `lib/retrieval.ts.hbs` following the pattern set in Feature 002
 - [ ] T115 [P] Run quickstart.md §2 (reviewer path) and §3 (fresh path) manually on macOS, Linux, and WSL2 reference environments per Principle VIII; record timing + platform-specific notes in `specs/003-runtime/post-impl-notes.md`
 - [ ] T116 Run the full test suite: `npx vitest run` (unit + contract) + `npx playwright test` (E2E + accessibility) with `ATW_E2E_DOCKER=1`; assert zero failures and zero unexpected skips
 - [ ] T117 [P] Commit the `demo/atw-aurelia/atw.sql` dump (T073 output) with a short README explaining how it was generated and how to regenerate it

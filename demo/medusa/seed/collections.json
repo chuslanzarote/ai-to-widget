@@ -1,0 +1,14 @@
+[
+  { "id": "col_cup_of_excellence", "handle": "cup-of-excellence",  "title": "Cup of Excellence",         "description": "Awarded coffees from the annual Cup of Excellence competition." },
+  { "id": "col_microlots",         "handle": "microlots",          "title": "Microlots",                 "description": "Small, traceable lots from individual farms or mills." },
+  { "id": "col_new_arrivals",      "handle": "new-arrivals",       "title": "New Arrivals",              "description": "The latest coffees to land on our roasting schedule." },
+  { "id": "col_starter_packs",     "handle": "starter-packs",      "title": "Starter Packs",             "description": "Curated bundles for people new to specialty coffee." },
+  { "id": "col_gift_ready",        "handle": "gift-ready",         "title": "Gift-Ready",                "description": "Pre-wrapped sets for every coffee-loving occasion." },
+  { "id": "col_seasonal_espresso", "handle": "seasonal-espresso",  "title": "Seasonal Espresso",         "description": "Rotating espresso blends crafted for the current harvest." },
+  { "id": "col_filter_focus",      "handle": "filter-focus",       "title": "Filter Focus",              "description": "Lighter roasts tuned for V60, Chemex, and AeroPress." },
+  { "id": "col_low_caffeine",      "handle": "low-caffeine",       "title": "Low Caffeine",              "description": "Half-caf and decaf selections without compromise." },
+  { "id": "col_best_sellers",      "handle": "best-sellers",       "title": "Best Sellers",              "description": "Our most-loved coffees from the past six months." },
+  { "id": "col_chocolate_notes",   "handle": "chocolate-notes",    "title": "Chocolate & Cocoa",         "description": "Coffees with rich, chocolatey cupping notes." },
+  { "id": "col_fruit_forward",     "handle": "fruit-forward",      "title": "Fruit-Forward",             "description": "Bright, fruity single origins." },
+  { "id": "col_limited_releases",  "handle": "limited-releases",   "title": "Limited Releases",          "description": "Numbered runs — once they're gone, they're gone." }
+]

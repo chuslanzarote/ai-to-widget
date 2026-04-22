@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import Anthropic from "@anthropic-ai/sdk";
+import Debug from "debug";
 import {
   ChatRequestSchema,
   type ChatRequest,
@@ -15,6 +16,8 @@ import { runTurn } from "../lib/opus-client.js";
 import { SYSTEM_PROMPT } from "../prompts.js";
 import { ValidationError } from "../lib/errors.js";
 import { ACTION_TOOLS } from "../tools.js";
+
+const debug = Debug("atw:chat");
 
 /**
  * POST /v1/chat — runtime handler.

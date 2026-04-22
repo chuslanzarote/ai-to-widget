@@ -31,6 +31,9 @@ export function ChatPanel(props: { config: WidgetConfig }): JSX.Element | null {
     const trap = createFocusTrap(rootRef.current, {
       escapeDeactivates: true,
       clickOutsideDeactivates: false,
+      fallbackFocus: rootRef.current,
+      returnFocusOnDeactivate: true,
+      tabbableOptions: { displayCheck: "none" },
       onDeactivate: () => {
         open.value = false;
       },

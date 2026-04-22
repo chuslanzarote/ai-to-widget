@@ -1,4 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import Debug from "debug";
 import type { ActionIntent, SessionContext } from "@atw/scripts/dist/lib/types.js";
 import { ModelUnavailableError } from "./errors.js";
 import { buildActionIntent } from "./action-intent.js";
@@ -12,6 +13,8 @@ import {
   findTool,
   toolsForAnthropic,
 } from "../tools.js";
+
+const debug = Debug("atw:opus");
 
 /**
  * Single-turn + tool-use loop. Source:
@@ -65,6 +68,13 @@ export async function runTurn(input: OpusTurnInput): Promise<OpusTurnResult> {
   const tools = toolsForAnthropic();
 
   while (true) {
+    debug(
+      "opus call: model=%s tool_calls_so_far=%d/%d messages=%d",
+      input.model,
+      toolCalls,
+      input.maxToolCalls,
+      messages.length,
+    );
     let resp;
     try {
       resp = await input.client.messages.create({
