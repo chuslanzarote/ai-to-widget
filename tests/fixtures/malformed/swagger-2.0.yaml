@@ -1,0 +1,30 @@
+swagger: "2.0"
+info:
+  title: Legacy Aurelia API
+  version: 0.1.0
+  description: |
+    Swagger 2.0 fixture. /atw.api must detect this version
+    and instruct the Builder to convert to OpenAPI 3.x rather
+    than attempting to parse it (FR-033).
+host: api.legacy.example.com
+basePath: /v1
+schemes:
+  - https
+paths:
+  /products:
+    get:
+      operationId: listProducts
+      responses:
+        "200":
+          description: OK
+  /products/{id}:
+    get:
+      operationId: getProduct
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: string
+      responses:
+        "200":
+          description: OK

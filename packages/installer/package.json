@@ -1,0 +1,54 @@
+{
+  "name": "create-atw",
+  "version": "0.1.0",
+  "description": "Scaffold a new Ai to Widget project — installs the five /atw.* slash commands and the .atw/ skeleton.",
+  "type": "module",
+  "bin": {
+    "create-atw": "./bin/create-atw.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "bin",
+    "assets"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.0.0",
+    "fs-extra": "^11.2.0",
+    "write-file-atomic": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/write-file-atomic": "^4.0.3"
+  },
+  "keywords": [
+    "ai",
+    "widget",
+    "claude",
+    "scaffold",
+    "cli",
+    "atw"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chus/ai-to-widget",
+    "directory": "packages/installer"
+  },
+  "homepage": "https://github.com/chus/ai-to-widget#readme",
+  "bugs": {
+    "url": "https://github.com/chus/ai-to-widget/issues"
+  },
+  "license": "MIT"
+}

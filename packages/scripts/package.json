@@ -1,0 +1,42 @@
+{
+  "name": "@atw/scripts",
+  "version": "0.1.0",
+  "description": "Deterministic auxiliary scripts for the Ai to Widget setup flow (parse-schema, parse-openapi, write-artifact, load-artifact, validate-artifacts, hash-inputs).",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "atw-parse-schema": "./bin/atw-parse-schema.js",
+    "atw-parse-openapi": "./bin/atw-parse-openapi.js",
+    "atw-write-artifact": "./bin/atw-write-artifact.js",
+    "atw-load-artifact": "./bin/atw-load-artifact.js",
+    "atw-validate-artifacts": "./bin/atw-validate-artifacts.js",
+    "atw-hash-inputs": "./bin/atw-hash-inputs.js"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@apidevtools/swagger-parser": "^10.1.0",
+    "gray-matter": "^4.0.3",
+    "pgsql-ast-parser": "^12.0.1",
+    "remark-frontmatter": "^5.0.0",
+    "remark-parse": "^11.0.0",
+    "remark-stringify": "^11.0.0",
+    "unified": "^11.0.4",
+    "write-file-atomic": "^5.0.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/write-file-atomic": "^4.0.3"
+  }
+}
