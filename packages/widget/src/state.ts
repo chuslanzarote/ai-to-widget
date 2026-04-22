@@ -1,4 +1,5 @@
 import { signal, computed } from "@preact/signals";
+import type { ActionIntent } from "@atw/scripts/dist/lib/types.js";
 
 /**
  * Reactive conversation store backed by @preact/signals.
@@ -10,14 +11,9 @@ export interface ConversationTurn {
   timestamp: string;
 }
 
-export interface PendingAction {
-  id: string;
-  tool: string;
-  description: string;
-  summary?: Record<string, string>;
-  http: { method: string; path: string };
-  arguments: Record<string, unknown>;
-}
+// The widget's pending action is exactly the backend's ActionIntent. Re-export
+// under the historical name so existing imports keep working.
+export type PendingAction = ActionIntent;
 
 export const MAX_CONVERSATION_TURNS = 20;
 

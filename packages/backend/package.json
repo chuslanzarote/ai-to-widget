@@ -10,7 +10,8 @@
     "src"
   ],
   "scripts": {
-    "build": "tsc -b",
+    "build": "node -e \"console.log('[@atw/backend] skipping host-side build — rendered inside /atw.build + Dockerfile (templates are .ts.hbs)')\"",
+    "build:ci": "tsc -b",
     "clean": "rm -rf dist",
     "test": "vitest run"
   },
