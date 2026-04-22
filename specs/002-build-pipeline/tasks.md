@@ -102,7 +102,7 @@ description: "Task list for Feature 002 — Build Pipeline"
 - [ ] T049 [P] [US1] Contract test for `atw-compose-activate` in `packages/scripts/test/compose-activate.contract.test.ts`
 - [ ] T050 [P] [US1] Contract test for `atw-scan-pii-leaks` in `packages/scripts/test/scan-pii-leaks.contract.test.ts`
 - [ ] T051 [P] [US1] Contract test for `atw-write-manifest` in `packages/scripts/test/write-manifest.contract.test.ts`
-- [ ] T052 [US1] Integration test `tests/integration/build-full-flow.test.ts` — runs `/atw.build` against the Aurelia fixture with Opus stubbed to fixture responses; asserts: Postgres up, `atw_documents` row-per-entity, `backend/src/*.ts` present, `dist/widget.{js,css}` present, `atw_backend:latest` in daemon, `.atw/state/build-manifest.json` with `result: "success"` (SC-012)
+- [ ] T052 [US1] Integration test `tests/integration/build-full-flow.test.ts` — runs `/atw.build` against the Aurelia fixture with Opus stubbed to fixture responses; asserts: Postgres up, `atw_documents` row-per-entity, `backend/src/*.ts` present, `dist/widget.{js,css}` present, `atw_backend:latest` in daemon, `.atw/state/build-manifest.json` with `result: "success"` (SC-012), AND `Math.abs(manifest.opus.cost_variance_pct) <= 20` to enforce SC-017 on the real fixture run
 
 **Checkpoint**: `/atw.build` completes end-to-end on the Aurelia fixture. MVP baseline achieved.
 
@@ -237,7 +237,7 @@ description: "Task list for Feature 002 — Build Pipeline"
 - [ ] T093 [US8] Implement `--backup` logic in `render-backend.ts`: when flag is set AND target exists AND content differs AND not a pristine render, write `<path>.bak` sibling before overwriting per FR-074
 - [ ] T094 [US8] Make `compile-widget.ts` deterministic: set esbuild `banner`, `footer`, `define` values statically; ensure output order is stable; assert byte-equality on repeated runs
 - [ ] T095 [US8] Make `build-backend-image.ts` layer-cacheable: order Dockerfile stages so source-file changes don't invalidate dependency layers; rely on Docker's native caching for determinism
-- [ ] T096 [P] [US8] Integration test `tests/integration/build-determinism.test.ts` — run `/atw.build` twice on an unchanged fixture; assert byte-identity of every rendered `.ts` file and of `dist/widget.js` + `dist/widget.css` (SC-016)
+- [ ] T096 [P] [US8] Integration test `tests/integration/build-determinism.test.ts` — run `/atw.build` twice on an unchanged fixture; assert byte-identity of every rendered `.ts` file and of `dist/widget.js` + `dist/widget.css` (SC-016), AND byte-compare (bytea equality) a sample of `atw_documents.embedding` vectors across the two runs to enforce FR-063 (embeddings bit-identical)
 - [ ] T097 [P] [US8] Unit test for `--backup` flow in `render-backend.ts`: hand-edited file + unchanged template → preserved; hand-edited file + changed template + `--backup` → `.bak` written then overwrite, in `packages/scripts/test/render-backend-backup.unit.test.ts`
 
 **Checkpoint**: Principle VIII (Reproducibility) holds on generated code.
@@ -272,6 +272,7 @@ description: "Task list for Feature 002 — Build Pipeline"
 - [ ] T106 [P] Add `--help` and `--version` output to every `atw-*` shim per `contracts/scripts.md` cross-cutting
 - [ ] T107 Update root `README.md` with a top-level pointer to `specs/002-build-pipeline/quickstart.md` as the Principle VIII reproducibility path
 - [ ] T108 Run full `vitest` suite at repo root, ensure all unit + contract + integration tests pass green, zero skips except the opt-in `ATW_E2E_REAL_OPUS=1` smoke
+- [ ] T109 [P] Create small-project fixture (~20 entities, single entity type, minimal `.atw/` artifacts) under `tests/fixtures/mini/` and integration test `tests/integration/build-small-project.test.ts` — runs `/atw.build` against the fixture with Opus stubbed; asserts `manifest.result === "success"` AND `manifest.duration_seconds < 300` to enforce SC-019 (small-project wall-clock < 5 min on reference hardware)
 
 ---
 
@@ -361,7 +362,7 @@ With three developers:
 
 ## Notes
 
-- Tests in this feature ARE first-class: Feature 002 ships with one unit test + one contract test per auxiliary script (24 tests), plus eight integration tests. This is stricter than the tasks-template default, driven by Principle VIII and the explicit test enumeration in `plan.md` and `contracts/scripts.md`.
+- Tests in this feature ARE first-class: Feature 002 ships with one unit test + one contract test per auxiliary script (24 tests), plus nine integration tests (the eight enumerated in `plan.md` plus `build-small-project` added for SC-019 coverage). This is stricter than the tasks-template default, driven by Principle VIII and the explicit test enumeration in `plan.md` and `contracts/scripts.md`.
 - Every task references a concrete file path. Tasks that extend or upgrade an existing file (e.g., T056 "Upgrade `enrich-entity.ts`") name the file that must be edited, not duplicated.
 - `[P]` tasks within a phase touch different files and have no ordering dependency within that group — safe for parallel execution.
 - Commit after each logical group (setup done, foundational done, US1 script group done, orchestrator wired, integration test green, etc.).

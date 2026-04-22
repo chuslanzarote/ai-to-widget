@@ -9,7 +9,9 @@
       "PowerShell(& .specify/extensions/git/scripts/powershell/auto-commit.ps1 after_plan)",
       "PowerShell(& .specify/scripts/powershell/setup-plan.ps1 -Json)",
       "PowerShell(& .specify/scripts/powershell/check-prerequisites.ps1 -Json)",
-      "PowerShell(& .specify/extensions/git/scripts/powershell/auto-commit.ps1 after_tasks)"
+      "PowerShell(& .specify/extensions/git/scripts/powershell/auto-commit.ps1 after_tasks)",
+      "PowerShell(& .specify/scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)",
+      "PowerShell(& .specify/extensions/git/scripts/powershell/auto-commit.ps1 after_analyze)"
     ]
   }
 }
