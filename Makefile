@@ -2,7 +2,7 @@
 # See specs/003-runtime/contracts/compose.md and specs/003-runtime/quickstart.md
 # for the authoritative behaviour.
 
-.PHONY: demo fresh seed down logs test help
+.PHONY: demo fresh seed down logs test help check-image check-env stage-widget
 
 help:
 	@echo "AI to Widget — top-level targets:"
@@ -16,22 +16,92 @@ help:
 	@echo "  make test    Run unit + contract tests locally (no Docker)."
 	@echo ""
 
-demo:
-	@if [ ! -f .env ]; then cp .env.example .env && echo "Created .env from .env.example — edit it to set ANTHROPIC_API_KEY." && exit 1; fi
-	docker compose pull
+demo: check-env check-image stage-widget
+	docker compose pull --ignore-pull-failures medusa_postgres medusa_redis atw_postgres
 	docker compose up -d --wait
 	@echo ""
 	@echo "Aurelia storefront:  http://localhost:8000"
 	@echo "ATW backend:         http://localhost:3100/health"
 
-fresh:
+# The storefront Dockerfile COPYs `public/widget.js` + `public/widget.css`
+# from its own build context. Stage them here so `docker build` sees them.
+# - If the compiled bundle exists at dist/, copy it in.
+# - Otherwise, write a minimal placeholder (so the storefront image can
+#   still build; the launcher just won't render until /atw.build runs).
+stage-widget:
+	@mkdir -p demo/medusa/storefront/public
+	@if [ -f dist/widget.js ] && [ -f dist/widget.css ]; then \
+	  cp dist/widget.js  demo/medusa/storefront/public/widget.js; \
+	  cp dist/widget.css demo/medusa/storefront/public/widget.css; \
+	  echo "[stage-widget] copied real widget bundle into demo/medusa/storefront/public/"; \
+	else \
+	  echo "/* widget bundle not built yet — run /atw.build to replace this stub */" > demo/medusa/storefront/public/widget.js; \
+	  echo "/* widget css stub */" > demo/medusa/storefront/public/widget.css; \
+	  echo "[stage-widget] real bundle not found in dist/ — wrote placeholder stubs."; \
+	  echo "[stage-widget] After /atw.build finishes, re-run 'make stage-widget && docker compose build medusa_storefront && docker compose up -d medusa_storefront' to pick up the real widget."; \
+	fi
+
+check-env:
+	@if [ ! -f .env ]; then \
+	  cp .env.example .env; \
+	  echo ""; \
+	  echo "────────────────────────────────────────────────────────────────"; \
+	  echo "Created .env from .env.example."; \
+	  echo "Open it and set ANTHROPIC_API_KEY before re-running 'make demo'."; \
+	  echo "────────────────────────────────────────────────────────────────"; \
+	  exit 1; \
+	fi
+	@if ! grep -E "^ANTHROPIC_API_KEY=.+" .env | grep -v "your-key-here" >/dev/null; then \
+	  echo ""; \
+	  echo "ERROR: ANTHROPIC_API_KEY is unset or still the placeholder in .env."; \
+	  echo "Edit .env and set a real key from https://console.anthropic.com/, then re-run 'make demo'."; \
+	  exit 1; \
+	fi
+
+check-image:
+	@if ! docker image inspect atw_backend:latest >/dev/null 2>&1; then \
+	  echo ""; \
+	  echo "────────────────────────────────────────────────────────────────"; \
+	  echo "ERROR: atw_backend:latest is not built yet."; \
+	  echo ""; \
+	  echo "The runtime backend image is produced locally by /atw.build —"; \
+	  echo "it is NOT published on Docker Hub, so 'docker compose up' cannot"; \
+	  echo "pull it. Choose one of these paths (see TESTING-GUIDE.md §5.1):"; \
+	  echo ""; \
+	  echo "  1) Cheapest ('\$$0'): build it without enrichment (widget works"; \
+	  echo "     but retrieval replies 'not in catalog'):"; \
+	  echo ""; \
+	  echo "       make fresh"; \
+	  echo "       cd demo/atw-aurelia && claude"; \
+	  echo "       > /atw.build --no-enrich"; \
+	  echo ""; \
+	  echo "  2) Full (~\$$14 Opus, one-time): full enrichment pass, bake"; \
+	  echo "     the atw.sql dump for offline reviewer path:"; \
+	  echo ""; \
+	  echo "       make fresh"; \
+	  echo "       cd demo/atw-aurelia && claude"; \
+	  echo "       > /atw.build"; \
+	  echo ""; \
+	  echo "  3) Skip ATW entirely and see only the Medusa storefront:"; \
+	  echo ""; \
+	  echo "       docker compose up medusa_postgres medusa_redis medusa_backend medusa_storefront"; \
+	  echo ""; \
+	  echo "────────────────────────────────────────────────────────────────"; \
+	  exit 1; \
+	fi
+
+fresh: stage-widget
 	docker compose down -v
 	@if [ -d demo/atw-aurelia/.atw/state ]; then rm -rf demo/atw-aurelia/.atw/state/*; fi
 	docker compose up medusa_postgres medusa_redis medusa_backend medusa_storefront -d --wait
 	@echo ""
 	@echo "Medusa is up. ATW runtime is NOT started."
 	@echo "Run /atw.init, /atw.brief, /atw.schema, /atw.api, /atw.plan,"
-	@echo "then /atw.build, then /atw.embed, then 'docker compose up atw_postgres atw_backend -d --wait'."
+	@echo "then /atw.build (or --no-enrich), then /atw.embed."
+	@echo "After /atw.build produces dist/widget.{js,css}, re-run 'make stage-widget' then"
+	@echo "'docker compose build medusa_storefront && docker compose up -d medusa_storefront'"
+	@echo "to ship the real widget into the storefront. Finally:"
+	@echo "  docker compose up atw_postgres atw_backend -d --wait"
 
 seed:
 	docker compose exec medusa_backend node /app/seed/seed.js

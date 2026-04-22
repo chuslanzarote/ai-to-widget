@@ -33,12 +33,13 @@ RUN corepack enable \
     && yarn install --production=false \
     && yarn build
 
-# The seed JSON and seeder script ship from our repo.
+# The seed JSON and seeder script ship from our repo. Build context is
+# `demo/medusa/` so we COPY from the sibling `seed/` directory.
 COPY seed /work/seed
 
 # Pre-seed the database schema during image build is not possible (no DB
 # yet). The seeder runs at container start via entrypoint.sh.
-COPY entrypoint.sh /work/entrypoint.sh
+COPY backend/entrypoint.sh /work/entrypoint.sh
 RUN chmod +x /work/entrypoint.sh
 
 # -------------------- Stage 2: runtime ---------------------------------------

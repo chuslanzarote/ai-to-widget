@@ -36,7 +36,10 @@ services:
 
   medusa_backend:
     build:
-      context: ./demo/medusa/backend
+      # Context widened to demo/medusa/ so the Dockerfile can COPY the
+      # sibling `seed/` tree.
+      context: ./demo/medusa
+      dockerfile: backend/Dockerfile
     environment:
       DATABASE_URL: postgres://medusa:medusa_local@medusa_postgres:5432/medusa
       REDIS_URL: redis://medusa_redis:6379

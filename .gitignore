@@ -38,3 +38,8 @@ dev-out/
 # Temp
 *.tmp
 *.tmp.*
+
+# Staged widget bundle — copied here from dist/ by `make stage-widget`.
+# Not committed because it's a derived artefact.
+demo/medusa/storefront/public/widget.js
+demo/medusa/storefront/public/widget.css
