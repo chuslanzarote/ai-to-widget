@@ -1,0 +1,440 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Aurelia Storefront API",
+    "version": "0.3.2",
+    "description": "Medusa-style commerce API for the Aurelia ceramic shop fixture."
+  },
+  "servers": [
+    { "url": "https://api.aurelia.example.com", "description": "Production" }
+  ],
+  "tags": [
+    { "name": "product", "description": "Catalog reads" },
+    { "name": "variant", "description": "Product variants" },
+    { "name": "price", "description": "Price lists" },
+    { "name": "cart", "description": "Shopping cart" },
+    { "name": "cart-item", "description": "Line items" },
+    { "name": "customer", "description": "Customer profile" },
+    { "name": "address", "description": "Customer addresses" },
+    { "name": "order", "description": "Order lifecycle" },
+    { "name": "payment", "description": "Payment methods" },
+    { "name": "region", "description": "Regional config" },
+    { "name": "admin", "description": "Admin-only operations — excluded by default" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer" },
+      "adminKey": { "type": "apiKey", "in": "header", "name": "x-admin-key" }
+    },
+    "schemas": {
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "handle": { "type": "string" },
+          "status": { "type": "string", "enum": ["draft", "published"] }
+        }
+      },
+      "Variant": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "product_id": { "type": "string" },
+          "sku": { "type": "string" },
+          "inventory_quantity": { "type": "integer" }
+        }
+      },
+      "Cart": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "region_id": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/CartItem" } }
+        }
+      },
+      "CartItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "variant_id": { "type": "string" },
+          "quantity": { "type": "integer" }
+        }
+      },
+      "Customer": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "first_name": { "type": "string" },
+          "last_name": { "type": "string" }
+        }
+      },
+      "Address": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "customer_id": { "type": "string" },
+          "address_1": { "type": "string" },
+          "city": { "type": "string" },
+          "postal_code": { "type": "string" },
+          "country_code": { "type": "string" }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "display_id": { "type": "integer" },
+          "cart_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["pending", "paid", "cancelled", "fulfilled"] }
+        }
+      },
+      "Payment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "amount": { "type": "integer" },
+          "currency_code": { "type": "string" },
+          "captured": { "type": "boolean" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/store/products": {
+      "get": {
+        "tags": ["product"],
+        "operationId": "listProducts",
+        "summary": "List products",
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer" } },
+          { "name": "q", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "products": { "type": "array", "items": { "$ref": "#/components/schemas/Product" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/store/products/{id}": {
+      "get": {
+        "tags": ["product"],
+        "operationId": "getProduct",
+        "summary": "Get a product",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "ok" },
+          "404": { "description": "not found" }
+        }
+      }
+    },
+    "/store/products/{id}/variants": {
+      "get": {
+        "tags": ["variant"],
+        "operationId": "listProductVariants",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "ok" } }
+      }
+    },
+    "/store/carts": {
+      "post": {
+        "tags": ["cart"],
+        "operationId": "createCart",
+        "summary": "Create a cart",
+        "responses": { "201": { "description": "created" } }
+      }
+    },
+    "/store/carts/{id}": {
+      "get": {
+        "tags": ["cart"],
+        "operationId": "getCart",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "ok" } }
+      },
+      "patch": {
+        "tags": ["cart"],
+        "operationId": "updateCart",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Cart" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "ok" } }
+      },
+      "delete": {
+        "tags": ["cart"],
+        "operationId": "deleteCart",
+        "summary": "Delete a cart",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "204": { "description": "deleted" } }
+      }
+    },
+    "/store/carts/{id}/line-items": {
+      "post": {
+        "tags": ["cart-item"],
+        "operationId": "addCartItem",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "ok" } }
+      }
+    },
+    "/store/carts/{id}/line-items/{item_id}": {
+      "patch": {
+        "tags": ["cart-item"],
+        "operationId": "updateCartItem",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "item_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "ok" } }
+      },
+      "delete": {
+        "tags": ["cart-item"],
+        "operationId": "removeCartItem",
+        "summary": "Remove a line item",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "item_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "204": { "description": "removed" } }
+      }
+    },
+    "/store/carts/{id}/complete": {
+      "post": {
+        "tags": ["cart"],
+        "operationId": "completeCart",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "ok" } }
+      }
+    },
+    "/store/customers/me": {
+      "get": {
+        "tags": ["customer"],
+        "operationId": "getMe",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "ok" } }
+      },
+      "patch": {
+        "tags": ["customer"],
+        "operationId": "updateMe",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "ok" } }
+      }
+    },
+    "/store/customers/me/addresses": {
+      "get": {
+        "tags": ["address"],
+        "operationId": "listMyAddresses",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "ok" } }
+      },
+      "post": {
+        "tags": ["address"],
+        "operationId": "createAddress",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "201": { "description": "created" } }
+      }
+    },
+    "/store/customers/me/addresses/{id}": {
+      "patch": {
+        "tags": ["address"],
+        "operationId": "updateAddress",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "ok" } }
+      },
+      "delete": {
+        "tags": ["address"],
+        "operationId": "deleteAddress",
+        "summary": "Delete an address",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "204": { "description": "deleted" } }
+      }
+    },
+    "/store/orders/{id}": {
+      "get": {
+        "tags": ["order"],
+        "operationId": "getOrder",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "ok" } }
+      }
+    },
+    "/store/orders/{id}/cancel": {
+      "post": {
+        "tags": ["order"],
+        "operationId": "cancelOrder",
+        "summary": "Cancel an order",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "ok" } }
+      }
+    },
+    "/store/regions": {
+      "get": {
+        "tags": ["region"],
+        "operationId": "listRegions",
+        "responses": { "200": { "description": "ok" } }
+      }
+    },
+    "/store/regions/{id}": {
+      "get": {
+        "tags": ["region"],
+        "operationId": "getRegion",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "ok" } }
+      }
+    },
+    "/admin/products": {
+      "get": {
+        "tags": ["admin"],
+        "operationId": "adminListProducts",
+        "security": [{ "adminKey": [] }],
+        "responses": { "200": { "description": "ok" } }
+      },
+      "post": {
+        "tags": ["admin"],
+        "operationId": "adminCreateProduct",
+        "security": [{ "adminKey": [] }],
+        "responses": { "201": { "description": "created" } }
+      }
+    },
+    "/admin/products/{id}": {
+      "get": {
+        "tags": ["admin"],
+        "operationId": "adminGetProduct",
+        "security": [{ "adminKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "ok" } }
+      },
+      "patch": {
+        "tags": ["admin"],
+        "operationId": "adminUpdateProduct",
+        "security": [{ "adminKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "ok" } }
+      },
+      "delete": {
+        "tags": ["admin"],
+        "operationId": "adminDeleteProduct",
+        "summary": "Delete a product (admin)",
+        "security": [{ "adminKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "204": { "description": "deleted" } }
+      }
+    },
+    "/admin/customers": {
+      "get": {
+        "tags": ["admin"],
+        "operationId": "adminListCustomers",
+        "security": [{ "adminKey": [] }],
+        "responses": { "200": { "description": "ok" } }
+      }
+    },
+    "/admin/customers/{id}": {
+      "delete": {
+        "tags": ["admin"],
+        "operationId": "adminDeleteCustomer",
+        "security": [{ "adminKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "204": { "description": "deleted" } }
+      }
+    },
+    "/admin/orders/{id}/cancel": {
+      "post": {
+        "tags": ["admin"],
+        "operationId": "adminCancelOrder",
+        "security": [{ "adminKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "ok" } }
+      }
+    },
+    "/admin/orders/{id}/refund": {
+      "post": {
+        "tags": ["admin"],
+        "operationId": "adminRefundOrder",
+        "security": [{ "adminKey": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "ok" } }
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "tags": ["admin"],
+        "operationId": "adminListUsers",
+        "security": [{ "adminKey": [] }],
+        "responses": { "200": { "description": "ok" } }
+      },
+      "post": {
+        "tags": ["admin"],
+        "operationId": "adminCreateUser",
+        "security": [{ "adminKey": [] }],
+        "responses": { "201": { "description": "created" } }
+      }
+    },
+    "/admin/users/{id}": {
+      "delete": {
+        "tags": ["admin"],
+        "operationId": "adminDeleteUser",
+        "security": [{ "adminKey": [] }],
+        "x-admin": true,
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "204": { "description": "deleted" } }
+      }
+    }
+  }
+}

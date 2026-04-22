@@ -1,0 +1,37 @@
+{
+  "name": "ai-to-widget",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AI to Widget — open-source toolkit for embedding conversational AI agents into existing web apps via Claude Code slash commands.",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . --ext .ts,.tsx,.js,.mjs",
+    "format": "prettier --write .",
+    "dev:install": "tsx scripts/dev-install.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^7.2.0",
+    "@typescript-eslint/parser": "^7.2.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.2.5",
+    "tsx": "^4.7.1",
+    "typescript": "^5.4.5",
+    "vitest": "^1.4.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chus/ai-to-widget"
+  },
+  "license": "MIT"
+}
