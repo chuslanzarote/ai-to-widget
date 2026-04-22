@@ -36,18 +36,16 @@ services:
 
   medusa_backend:
     build:
-      # Context widened to demo/medusa/ so the Dockerfile can COPY the
-      # sibling `seed/` tree.
-      context: ./demo/medusa
-      dockerfile: backend/Dockerfile
+      context: ./demo/medusa/backend
     environment:
-      DATABASE_URL: postgres://medusa:medusa_local@medusa_postgres:5432/medusa
+      DATABASE_URL: postgres://medusa:medusa_local@medusa_postgres:5432/medusa?sslmode=disable
+      PGSSLMODE: disable
       REDIS_URL: redis://medusa_redis:6379
       JWT_SECRET: dev_jwt_secret_change_me
       COOKIE_SECRET: dev_cookie_secret_change_me
       STORE_CORS: http://localhost:8000
       ADMIN_CORS: http://localhost:7001
-      MEDUSA_ADMIN_ONBOARDING_TYPE: ""
+      AUTH_CORS: http://localhost:8000,http://localhost:7001
     depends_on:
       medusa_postgres:
         condition: service_healthy
@@ -55,24 +53,35 @@ services:
         condition: service_healthy
     ports:
       - "9000:9000"
+    volumes:
+      # start.sh writes the seeded publishable key here so the host tooling
+      # can pass it into the storefront build as MEDUSA_PUBLISHABLE_KEY.
+      - ./demo/medusa/.runtime:/runtime
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O- http://localhost:9000/health || exit 1"]
+      test: ["CMD-SHELL", "node -e \"require('net').connect(9000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))\""]
       interval: 10s
-      timeout: 3s
-      retries: 12
+      timeout: 5s
+      retries: 30
+      start_period: 60s
 
   medusa_storefront:
     build:
       context: ./demo/medusa/storefront
     environment:
-      NEXT_PUBLIC_MEDUSA_BACKEND_URL: http://localhost:9000
-      NEXT_PUBLIC_ATW_BACKEND_URL: http://localhost:3100
-      NEXT_PUBLIC_DEFAULT_REGION: eu
+      # Storefront entrypoint prefers MEDUSA_PUBLISHABLE_KEY from the env,
+      # otherwise falls back to /runtime/publishable-key.txt (minted by the
+      # backend seed in the shared volume below). Rotating the key requires
+      # only a `docker compose up -d medusa_storefront` — no rebuild.
+      MEDUSA_PUBLISHABLE_KEY: ${MEDUSA_PUBLISHABLE_KEY:-}
+      MEDUSA_BACKEND_URL: http://localhost:9000
+      ATW_BACKEND_URL: http://localhost:3100
     depends_on:
       medusa_backend:
         condition: service_healthy
     ports:
       - "8000:8000"
+    volumes:
+      - ./demo/medusa/.runtime:/runtime:ro
 
   atw_postgres:
     image: pgvector/pgvector:pg16  # TODO(compose-digest): pin @sha256:<digest>

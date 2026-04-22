@@ -43,3 +43,10 @@ dev-out/
 # Not committed because it's a derived artefact.
 demo/medusa/storefront/public/widget.js
 demo/medusa/storefront/public/widget.css
+
+# Runtime state written by the backend seed (PK, seed marker) and shared
+# with the storefront via volume mount. Regenerated on every `make fresh`.
+demo/medusa/.runtime/
+
+# Claude Code scheduler artifacts.
+.claude/scheduled_tasks.lock

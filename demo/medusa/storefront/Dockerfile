@@ -1,49 +1,35 @@
 # syntax=docker/dockerfile:1.6
 #
-# T062 / US4 — Aurelia Next.js storefront with the embedded widget.
+# T062 / US4 — Aurelia demo storefront.
 # Contract: specs/003-runtime/contracts/compose.md §1.4, §3 (Option A).
 #
-# The image copies the widget bundle from the repo's dist/ (produced by
-# Feature 002 /atw.build) at build time. Re-run `docker compose build
-# medusa_storefront` after re-building the widget to pick up changes.
+# Static HTML served by nginx. The Medusa publishable key is a RUNTIME env
+# (not a build arg): entrypoint substitutes it into index.html on container
+# start, so rotating the key only requires a restart — no rebuild, no cache
+# of a stale PK in the bundle.
+#
+# Widget assets (widget.js, widget.css) are copied in at build time from
+# demo/medusa/storefront/public/ (staged by `make stage-widget`).
 
-FROM node:20-bookworm-slim AS builder
+FROM nginx:1.27-alpine
 
-ARG STOREFRONT_COMMIT_SHA=v2.0.0
-WORKDIR /work
+# Drop the default nginx welcome page.
+RUN rm -f /usr/share/nginx/html/*
 
-RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# Static HTML template with ${MEDUSA_PUBLISHABLE_KEY} and ${MEDUSA_BACKEND_URL}
+# placeholders. envsubst resolves them at container start.
+COPY index.html.template /etc/aurelia/index.html.template
 
-RUN git clone --depth 1 --branch "${STOREFRONT_COMMIT_SHA}" https://github.com/medusajs/nextjs-starter-medusa.git /work/storefront \
-    || git clone https://github.com/medusajs/nextjs-starter-medusa.git /work/storefront \
-       && (cd /work/storefront && git checkout "${STOREFRONT_COMMIT_SHA}")
+# Widget bundle, served at /widget.js and /widget.css. `make stage-widget`
+# either copies the real build from dist/ or writes a stub here.
+COPY public/widget.js /usr/share/nginx/html/widget.js
+COPY public/widget.css /usr/share/nginx/html/widget.css
 
-WORKDIR /work/storefront
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# Aurelia branding overlay — our layout.tsx with the widget <script>.
-# Any file under storefront-overlay/ replaces its counterpart in the
-# checked-out starter.
-COPY app/ /work/storefront-overlay/app/
-RUN if [ -d /work/storefront-overlay ]; then cp -R /work/storefront-overlay/* /work/storefront/; fi
-
-# Drop the compiled widget into public/ so it's served at /widget.js and
-# /widget.css. The compose build context copies it in before `docker build`.
-COPY public/widget.js /work/storefront/public/widget.js
-COPY public/widget.css /work/storefront/public/widget.css
-
-RUN corepack enable \
-    && yarn install --production=false \
-    && yarn build
-
-# -------------------- Stage 2: runtime ---------------------------------------
-FROM node:20-bookworm-slim AS runtime
-
-WORKDIR /app
-COPY --from=builder /work/storefront /app/storefront
-
-ENV NODE_ENV=production
-ENV PORT=8000
 EXPOSE 8000
 
-CMD ["sh", "-c", "cd /app/storefront && yarn start -p 8000"]
+# Nginx listens on 80 by default; the entrypoint generates a minimal
+# server block on :8000 so the compose port mapping is a straight pass-through.
+CMD ["/entrypoint.sh"]

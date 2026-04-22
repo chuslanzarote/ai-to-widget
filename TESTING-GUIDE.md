@@ -1,27 +1,30 @@
 # AI to Widget — Complete Testing Guide
 
-This guide takes you from a **fresh clone** to a **working widget answering grounded
-questions on a real storefront**, walking through all three features (001 setup flow,
-002 build pipeline, 003 runtime). Self-contained: after following it you will have
-the Aurelia storefront at `http://localhost:8000` with a chat widget that cites real
-products, executes confirmed cart actions, and never leaks shopper credentials to the
-ATW backend — or, on the alternative path, the same widget embedded in **your own
-host app** pointing at **your own database**.
+This guide takes you from a **fresh clone** to a **working widget**. It covers
+all three features (001 setup flow, 002 build pipeline, 003 runtime) and
+offers three paths depending on how far you want to go.
 
-> **Current repo state.** 111 / 118 Feature 003 tasks shipped (94%). Tests: 381
-> passing, 16 Docker-gated. The Aurelia demo scaffolding is fully in place: every
-> Dockerfile, every seed file, the Playwright E2E, `/atw.embed`, and the
-> `docker-compose.yml` all ship. **Seven tasks remain** and are the ones you,
-> the human, perform once on your machine before the demo runs the first time:
-> pull pinned image digests, run `/atw.build` once to generate the indexed
-> database dump, and commit the result. §5.1 walks through each step.
-
-> **Want to test the whole circuit without spending $14?** Read §3.5 first.
-> There is a `--no-enrich` mode that costs **$0** and exercises every piece of
-> the stack — Docker, Postgres, widget bundle, panel UI, confirmation cards,
-> host-API round-trip, credential sovereignty — just without the Opus-enriched
-> retrieval documents. Use it to validate the wiring end-to-end, then decide
-> later whether to spend on enrichment.
+> **Honest status (updated 2026-04-22).**
+>
+> - **Code**: 111 / 118 Feature 003 tasks shipped. 381 tests pass, 16 Docker-gated.
+>   The widget bundle, the ATW backend service, the `/v1/chat` pipeline, the
+>   `/atw.embed` slash command, the Fastify scaffold, the auth + CORS +
+>   rate-limit plumbing, credential-strip hook, PII scrubber — **all of this works**.
+> - **Canonical Aurelia Medusa demo (Path C)**: **not** plug-and-play yet. The
+>   Dockerfiles under `demo/medusa/backend/` and `demo/medusa/storefront/`
+>   clone the wrong thing — they clone the Medusa **monorepo source**, which
+>   is not a runnable Medusa app. Getting the Aurelia demo running requires
+>   real scaffolding work (§6.1) that wasn't completed. Plan on **3–5 hours**
+>   of hands-on work the first time.
+> - **What you can test today with zero setup beyond `make fresh` + widget
+>   bundle**: widget loads in a plain HTML host, panel opens, chat round-trips
+>   to the ATW backend, confirmation cards render, DevTools shows zero
+>   shopper credentials reaching the backend. This is **Path B (§5)** and
+>   works today.
+>
+> If your goal is "see the widget work end-to-end", follow Path B. If your
+> goal is the full-fidelity Aurelia coffee-store demo on `localhost:8000`,
+> Path C lists the remaining bootstrap work honestly.
 
 ---
 
@@ -35,29 +38,32 @@ On your machine:
 | npm | 10+ | `npm --version` | Ships with Node 20 |
 | Git | recent | `git --version` | For cloning |
 | Docker | 24+ | `docker --version` | Desktop (Mac/Win) or Engine (Linux/WSL2) |
-| Claude Code | current | `claude --version` | Authenticated — https://claude.com/claude-code |
+| Claude Code | current | `claude --version` | Authenticated at https://claude.com/claude-code |
 | Anthropic API key | — | — | With access to `claude-opus-4-7` |
-| Postgres (your client's DB) | 12+ | — | **Not needed for the demo.** Only if you're integrating with your own real host app (Path A) |
+| Postgres (your client's DB, Path A only) | 12+ | — | **Not needed** for Paths B or C |
+| Python 3 (optional) | 3.8+ | `python --version` | Tiny static HTTP server for Path B |
 
-Export the API key in the shell that will launch Claude Code:
+Export the key in the shell that will launch Claude Code:
 
 ```bash
+# Linux / macOS / Git Bash
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 ```cmd
-set ANTHROPIC_API_KEY=sk-ant...
+:: Windows cmd
+set ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-```PowerShell
-$env:ANTHROPIC_API_KEY="tu_clave"
+```powershell
+# Windows PowerShell
+$env:ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
-**Budget estimate** for the one-time Aurelia demo build (the bootstrap step in §5.1):
-**~$14 USD** in Opus calls, billed once. Subsequent `make demo` runs replay the
-committed dump offline — zero Anthropic cost. For your own projects, enrichment
-cost scales with entity count (a ~20-entity demo costs under $1; a 1 000-entity
-catalog costs ~$40).
+**Budget estimate.** See §4 (enrichment modes) before you commit to spending.
+Path B can cost $0. Path A scales with your catalog. Path C's final Aurelia
+bootstrap costs ~$14 in Opus calls, but you only pay it once if the Medusa
+scaffold is working — which it isn't yet without §6 below.
 
 ---
 
@@ -66,99 +72,69 @@ catalog costs ~$40).
 ```bash
 git clone https://github.com/<owner>/ai-to-widget.git
 cd ai-to-widget
-npm install        # installs deps across the four workspaces (scripts / backend / widget / installer)
+npm install        # ~750 packages, ~30 s
 npm run build      # compiles packages/scripts/dist and packages/installer/dist
 ```
 
-`npm install` pulls ~750 packages in ~30 s. `npm run build` is near-instant and is
-required because every `atw-*` bin shim reads from a compiled `dist/`.
-
-Sanity-check:
+Sanity check:
 
 ```bash
 npm test
 ```
 
-Expected: **381 tests passing, 16 skipped** (the 16 are `ATW_E2E_DOCKER=1`-gated
-integration and Playwright specs — they unlock once the demo stack is up).
+Expected: **381 passing, 16 skipped, 0 failing**. The 16 skipped need
+`ATW_E2E_DOCKER=1` + a running Docker stack.
 
 ---
 
 ## 3. Choose your path
 
-Pick based on what you want to achieve:
+| Path | Goal | Cost | Time first-time | State |
+|------|------|------|----------------:|-------|
+| **A** | Integrate widget into **your own** host app (Shopify, Django, Rails, custom) | f(catalog size). ~$1 at 20 entities | ~30 min + /atw.build time | Works today |
+| **B** | See the widget work end-to-end against a **plain HTML host** | $0 | ~15 min | Works today |
+| **C** | The canonical **Aurelia Medusa** coffee-store showcase | ~$14 one-time | 3–5 h first time | Bootstrap incomplete (§6) |
 
-### Path A — Embed the widget into your own host app
+- **Want to see the widget working fast**: Path B.
+- **Want to embed in your real app**: Path A.
+- **Want the full filmed-demo experience**: Path C (be prepared for the
+  bootstrap work).
 
-You have a real application (your own Medusa store, Shopify, Django, Rails, a plain
-HTML site — anything) and you want to index its catalog and ship a chat widget on
-its pages. **Go to §4.**
-
-### Path B — Run the canonical Aurelia Medusa demo
-
-You want the showcase: `docker compose up` → coffee storefront at
-`http://localhost:8000` → chat widget citing 300 real coffee products → add-to-cart
-flowing through Medusa → reproducible on any machine with Docker. **Go to §5.**
-
-You can do both: Path B first to see the system working end-to-end, then Path A to
-integrate it into your own stack.
+You can do them in any order. Path B is the lowest commitment and proves
+every piece of the stack works.
 
 ---
 
-## 3.5 Enrichment modes — test the circuit for free first
+## 4. Enrichment modes — test the circuit without spending money
 
-Most of the $14 Path B budget (and all the per-entity cost in Path A) comes from
-**one** phase inside `/atw.build`: **enrichment** — one Opus 4.7 call per
-indexable entity to produce the grounded document + cited facts + semantic
-categories that later power retrieval and citations.
+Most of the "$14 Aurelia" budget — and all the per-entity cost in Path A —
+comes from **one** phase inside `/atw.build`: enrichment. One Opus 4.7 call
+per indexable entity to produce the grounded document + cited facts +
+semantic categories that power retrieval and citations.
 
-You **don't have to pay that up front to test the circuit**. Three tiers, from
-free to full quality. You can always start on Tier 1, confirm every moving part
-works (Docker, Postgres, embedding, widget, CORS, confirmation card, host-API
-round-trip), and only then spend on enrichment to get the real answers.
+You can test the circuit **without paying** first.
 
-| Tier | Cost for Aurelia (342 entities) | What you lose | Use when |
-|------|-------------------------------|----------------|----------|
-| **1 — No enrichment** (`--no-enrich`) | **$0** | Retrieval quality drops materially; no `fact.source` citations; no semantic categories; Principle V (anti-fabrication) degrades from structural to "Opus-promises" | Smoke-test the whole circuit end-to-end without spending anything |
-| **2 — Haiku instead of Opus** | **~$1.40** | Slightly higher validator retry rate; lower anchoring rigour; some answers less crisp | Small catalogs (Path A), iterations during development, non-critical demos |
-| **3 — Opus + reduced seed** | scales linearly (~$1 for 30 entities, ~$2 for 60, ~$14 for 342) | Less catalog breadth on screen in the demo | You want real Principle V quality but at a smaller scale |
+| Tier | Cost | What you lose | Use when |
+|------|------|---------------|----------|
+| **1 — `--no-enrich`** | **$0** | Retrieval returns nothing; agent replies "catalog does not cover that topic". Still proves the widget↔backend wiring, auth invariants, action-confirmation gate. | Smoke-testing the whole system |
+| **2 — Haiku 4.5** | ~$1.40 for 342 entities | Slightly looser anchoring; more validator retries | Small catalogs, dev iterations |
+| **3 — Opus + small seed** | ~$1 for 30 entities | Catalog breadth on screen | Real quality at small scale |
 
 ### Tier 1 — `--no-enrich` ($0)
 
-Everything runs **except** the Opus calls. The pipeline boots Postgres, applies
-migrations, imports your SQL dump, builds the backend image, compiles the
-widget — and leaves `atw_documents` empty-ish (the dump is in `client_ref` but
-no enriched documents exist yet).
-
-Run:
-
-```bash
-# Inside Claude Code, same flow as normal, but pass the flag:
+```text
 > /atw.build --no-enrich
 ```
 
-What works:
-- `/health` returns 200 once Postgres is up.
-- The widget bundle is built; the launcher appears; the panel opens.
-- `POST /v1/chat` runs end-to-end: embeddings, retrieval, Opus call at
-  **runtime** (one cheap call per shopper message, not per entity).
-- Confirmation cards render.
-- Host-API calls go out with shopper credentials; Principle I still holds.
+Everything runs except Opus enrichment calls. `atw_documents` stays empty;
+the agent falls back to *"I don't have that in the catalog"* for every
+question. The crucial thing that **still works**: widget bundle, launcher,
+panel, markdown rendering, action-confirmation gate, auth-mode separation,
+credential-strip at the backend, DevTools invariants.
 
-What doesn't:
-- Retrieval returns nothing meaningful because `atw_documents` is empty. Opus
-  falls back to *"the catalog does not cover that topic"* for every question.
-  That's actually **a useful test** — it proves the anti-fabrication floor is
-  honoured even when retrieval fails.
+### Tier 2 — Haiku 4.5
 
-When to graduate: once you've seen the widget appear, send a message, render an
-action card, and click confirm — at that point you know every piece of wiring
-is sound and **then** you can pay for enrichment to make the agent actually
-useful.
-
-### Tier 2 — Haiku 4.5 enrichment (~$1.40 for Aurelia)
-
-Same pipeline, cheaper model. Edit one constant:
+Edit one constant:
 
 ```ts
 // packages/scripts/src/orchestrator.ts:47
@@ -166,79 +142,476 @@ Same pipeline, cheaper model. Edit one constant:
 + const DEFAULT_OPUS_MODEL = "claude-haiku-4-5-20251001";
 ```
 
-Then `npm run build` inside `packages/scripts` and re-run `/atw.build`.
-Pricing drops from $15 / $75 per 1M input/output tokens to roughly $1 / $5 —
-about **10× cheaper per call**.
+Then `cd packages/scripts && npm run build && cd ../..` and re-run
+`/atw.build`. ~10× cheaper per call; expect slightly lower anchoring
+quality.
 
-Trade-off: Haiku's anti-fabrication discipline is looser. The validator
-(`packages/scripts/src/lib/enrichment-validator.ts`) rejects its responses more
-often than Opus's, and each rejection triggers a sharpening retry that burns
-tokens. Net cost is ~10× cheaper, not 15×, because of the retries.
+### Tier 3 — Opus + reduced seed
 
-Quality-wise the retrieved documents read more mechanically and the category
-tagging is less nuanced. Fine for development and for catalogs where product
-descriptions are already rich; weaker when the source data is sparse.
-
-### Tier 3 — Opus 4.7 on a reduced seed (scaled cost)
-
-Keep the quality, pay less by enriching fewer entities. Edit the generator:
-
-```bash
-# packages/scripts edits are not needed. Only touch the seed generator:
-$EDITOR demo/medusa/seed/generate-products.mjs
-```
-
-Inside, find the four loops at the bottom and scale them down:
+In `demo/medusa/seed/generate-products.mjs`, scale the loops:
 
 ```js
-// Current (matches demo/atw-aurelia/.atw/artifacts/build-plan.md totals):
+// From
 for (let i = 0; i < 160; i++) { /* single-origins */ }
 for (let i = 0; i <  40; i++) { /* blends */ }
 for (let i = 0; i <  10; i++) { /* decaf */ }
 for (let i = 0; i <  90; i++) { /* gear */ }
 
-// Smaller: 20 coffees + 10 gear = 30 total
+// To (30 entities total)
 for (let i = 0; i <  15; i++) { /* single-origins */ }
 for (let i = 0; i <   5; i++) { /* blends */ }
-for (let i = 0; i <   0; i++) { /* decaf */ }   // skip
+for (let i = 0; i <   0; i++) { /* decaf */ }
 for (let i = 0; i <  10; i++) { /* gear */ }
 ```
 
-Regenerate:
+Regenerate: `node demo/medusa/seed/generate-products.mjs > demo/medusa/seed/products.json`.
 
-```bash
-node demo/medusa/seed/generate-products.mjs > demo/medusa/seed/products.json
-```
+### Subscription vs API billing (one-liner)
 
-Then `make fresh` (re-seeds Medusa) and `/atw.build`. With 30 entities, total
-Opus cost drops to ~$1.20. You still get real Principle V, real citations, real
-semantic facets — just on a smaller catalog.
-
-### The testing workflow this guide is organised around
-
-1. **Tier 1 first** (`--no-enrich`) — confirm the whole circuit is wired:
-   Docker up, Postgres healthy, widget loads, panel opens, confirmation cards
-   render, host-API executes on confirm, Principle I invariant holds in
-   DevTools. Zero dollars.
-2. Once everything moves: **Tier 2 or Tier 3** on a reduced scope — see real
-   grounded answers on a small catalog. About $1–2.
-3. When you're ready to ship or film: **full Opus + full seed** for Aurelia,
-   paid once, dump committed to `atw.sql`, replayed offline forever after (§5.1
-   Step 4–5). That's where the $14 comes from.
-
-### Subscription vs API billing (answered up front to avoid confusion)
-
-The Anthropic Pro / Max subscription covers Claude Code and claude.ai; it does
-**not** cover programmatic API calls. `/atw.build` uses your
-`ANTHROPIC_API_KEY` against the API billing rail — the two are separate
-accounts at Anthropic. There is no flag that redirects API calls to your Pro
-balance. Tier 1 (`--no-enrich`) is the only $0 path available today.
+The Anthropic Pro / Max subscription does **not** pay for API calls.
+`/atw.build` uses `ANTHROPIC_API_KEY` against the API billing rail, which is
+separate from your subscription. Tier 1 is the only true $0 path.
 
 ---
 
-## 4. Path A — Embed the widget into your own host app
+## 5. Path B — Widget working against a plain HTML host ($0, 15 min)
 
-### 4.1 Scaffold an agent project
+This is the shortest path to "I see the widget, the panel opens, I can chat
+with the agent, everything wires up correctly". No Medusa. No host app.
+Just enough to verify the runtime is sound.
+
+### 5.1 Start the ATW Postgres
+
+```powershell
+# Windows PowerShell (adjust for your shell):
+.\scripts\make.ps1 stage-widget   # writes placeholder widget.{js,css}
+docker compose up atw_postgres -d --wait
+```
+
+Or directly without the script:
+
+```bash
+docker compose up atw_postgres -d --wait
+```
+
+Wait for `docker ps | grep atw_postgres` to show "healthy".
+
+### 5.2 Build `atw_backend:latest` with `--no-enrich`
+
+Use the pre-built Aurelia `.atw/` artefacts so you skip Feature 001 commands:
+
+```bash
+cd demo/atw-aurelia
+claude
+```
+
+Inside Claude Code:
+
+```text
+> /atw.build --no-enrich
+```
+
+This runs ~3 minutes, makes **zero Opus calls**, and produces:
+
+- `atw_backend:latest` in `docker images`.
+- `dist/widget.js` and `dist/widget.css` under the repo root.
+- `.atw/state/build-manifest.json` with `result: "success"`.
+- `atw_documents` exists but is empty.
+
+Important: the SQL dump input at `.atw/inputs/*.sql` can be **any valid SQL
+file** — `--no-enrich` doesn't care about the content since no enrichment
+runs. If you want to skip the dump question entirely, create an empty one:
+
+```bash
+mkdir -p .atw/inputs
+echo "-- placeholder dump for --no-enrich smoke test" > .atw/inputs/placeholder.sql
+```
+
+### 5.3 Start the ATW backend
+
+Back at the repo root:
+
+```bash
+cd ../..
+cp .env.example .env
+# Edit .env and set ANTHROPIC_API_KEY (any non-empty string works with --no-enrich)
+docker compose up atw_backend -d --wait
+```
+
+Verify:
+
+```bash
+curl http://localhost:3100/health
+# {"status":"ok"}
+```
+
+### 5.4 Create a minimum-viable host page
+
+```bash
+mkdir test-host
+cd test-host
+cp ../dist/widget.js  widget.js
+cp ../dist/widget.css widget.css
+```
+
+Create `test-host/index.html`:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Widget test host</title>
+  <link rel="stylesheet" href="widget.css">
+</head>
+<body style="font-family: system-ui; padding: 32px;">
+  <h1>Widget test host</h1>
+  <p>Click the launcher in the bottom-right to open the chat panel.</p>
+
+  <script
+    src="widget.js"
+    defer
+    data-backend-url="http://localhost:3100"
+    data-api-base-url="http://localhost:3000"
+    data-auth-mode="cookie"
+    data-launcher-position="bottom-right"
+    data-locale="en-US"></script>
+</body>
+</html>
+```
+
+Serve it with any static server. Python is ubiquitous:
+
+```bash
+python -m http.server 3000
+```
+
+Or Node:
+
+```bash
+npx http-server -p 3000
+```
+
+### 5.5 Configure CORS (one-shot)
+
+The ATW backend needs to allow your host's origin. Edit `.env`:
+
+```env
+ALLOWED_ORIGINS=http://localhost:3000
+```
+
+Restart the backend:
+
+```bash
+docker compose restart atw_backend
+```
+
+### 5.6 Open the browser and verify the invariants
+
+Open `http://localhost:3000` in any modern browser.
+
+**What you should see:**
+
+1. The page loads with "Widget test host" at the top.
+2. A circular launcher appears in the bottom-right corner.
+3. Clicking the launcher slides in a chat panel.
+4. Typing a message and pressing Enter sends it to the backend.
+5. The agent responds (after ~2–4 s) with *"I don't have that in the
+   catalog — could you rephrase?"*. This is the correct behaviour for
+   `--no-enrich`: no fabrication, honest "not found".
+
+**Invariants to check in DevTools → Network:**
+
+- Requests to `http://localhost:3100` (ATW backend) have:
+  - `X-Atw-Session-Id` header present.
+  - **No** `Cookie` header. **No** `Authorization` header.
+  - `credentials` is NOT "include" (visible in the Network row).
+- The request body is JSON with `message`, `history`, `context`.
+- The response has the structure `{ message, citations: [], actions: [],
+  request_id }`.
+
+If all six boxes tick, **the runtime is verified**. Everything from here on
+is enrichment quality and host integration — the hard engineering is done.
+
+### 5.7 Optional: upgrade to real enrichment
+
+Once you've proven the circuit, if you want real grounded answers:
+
+```bash
+cd demo/atw-aurelia
+claude
+```
+
+Then either:
+
+- Tier 2 (Haiku, ~$1.40) — edit `orchestrator.ts` as per §4, rebuild, run
+  `/atw.build` without `--no-enrich`.
+- Tier 3 (Opus + small seed, ~$1) — reduce `generate-products.mjs` loops
+  as per §4, regenerate `products.json`, run `/atw.build` without
+  `--no-enrich`.
+
+But this requires a real SQL dump that reflects a real catalog. For Path B
+there isn't one — so real enrichment at this stage means switching to
+Path A (your own catalog) or completing Path C (Aurelia bootstrap).
+
+---
+
+## 6. Path C — Canonical Aurelia Medusa demo (incomplete bootstrap)
+
+**Honest framing.** This path aims for the filmed-demo experience: a coffee
+storefront at `http://localhost:8000` with the widget citing real products.
+It is the most ambitious path **and it is not plug-and-play yet**. The
+scaffolding I shipped does three things wrong and needs real work to land:
+
+1. The `demo/medusa/backend/Dockerfile` clones `medusajs/medusa` (the
+   monorepo of Medusa library **source code**), which is not a runnable
+   Medusa app.
+2. The `demo/medusa/storefront/Dockerfile` clones
+   `medusajs/nextjs-starter-medusa`, which is closer to a runnable app but
+   wasn't verified end-to-end.
+3. `demo/medusa/seed/seed.mjs` assumes a table schema that matches the
+   names I guessed at — Medusa v2's real schema will likely differ
+   slightly (column names, ID prefixes) and the seeder will need adaptation.
+
+Budget for first-time completion: **3–5 hours** of hands-on work. Skip
+this path if your goal is anything other than the exact filmed-demo
+experience; Paths A and B deliver the same functional verification.
+
+### 6.1 Phase 1 — Generate the Medusa backend
+
+Outside the `ai-to-widget` repo, in a scratch directory:
+
+```bash
+cd /tmp
+npx create-medusa-app@latest aurelia-backend --no-browser
+```
+
+Answer the CLI prompts. Important choices:
+
+- **Project name**: `aurelia-backend` (already passed as arg).
+- **Database**: skip (the Docker compose will provide Postgres).
+  If the CLI insists, point it at a throwaway local Postgres and trash it
+  after — the seed will populate fresh.
+- **Sample data**: say **no**. We ship our own seed from
+  `demo/medusa/seed/`.
+- **Storefront**: say **no**. We'll generate it separately in Phase 2.
+
+This scaffolds a real Medusa v2 app with `package.json`, `medusa-config.js`,
+migrations, and the required directory structure.
+
+Copy it into the repo:
+
+```bash
+rm -rf /path/to/ai-to-widget/demo/medusa/backend-generated
+cp -R /tmp/aurelia-backend /path/to/ai-to-widget/demo/medusa/backend-generated
+cd /path/to/ai-to-widget
+```
+
+Verify that `demo/medusa/backend-generated/package.json` exists and lists
+`@medusajs/medusa` as a dependency. That confirms this is a runnable app
+(not monorepo source).
+
+### 6.2 Phase 2 — Generate the Medusa storefront
+
+```bash
+cd /tmp
+npx create-medusa-app@latest aurelia-storefront --with-nextjs-starter --no-browser
+```
+
+(Or grab the starter directly via git clone — check
+https://docs.medusajs.com/resources/nextjs-starter for the current official
+path.)
+
+Copy it into the repo:
+
+```bash
+rm -rf /path/to/ai-to-widget/demo/medusa/storefront-generated
+cp -R /tmp/aurelia-storefront /path/to/ai-to-widget/demo/medusa/storefront-generated
+```
+
+Overlay the Aurelia layout (widget `<script>` tag + theming) on top of the
+generated `app/layout.tsx`:
+
+```bash
+cp demo/medusa/storefront/app/layout.tsx demo/medusa/storefront-generated/src/app/layout.tsx
+# (path may vary depending on Medusa starter version — place it over the
+# actual root layout file)
+```
+
+### 6.3 Phase 3 — Adapt the seed to the real schema
+
+Bring up only the Medusa Postgres + Redis and the Medusa backend (without
+the seed marker), run its migrations, inspect the tables it created, and
+update `demo/medusa/seed/seed.mjs` to match.
+
+```bash
+docker compose up medusa_postgres medusa_redis -d --wait
+cd demo/medusa/backend-generated
+npm install
+npx medusa db:migrate
+# Inspect what it created:
+docker exec -it ai-to-widget-medusa_postgres-1 psql -U medusa -d medusa -c "\dt"
+```
+
+Compare the table names to what `demo/medusa/seed/seed.mjs` expects:
+
+- `product`, `product_variant`, `product_category`,
+  `product_collection`, `region`, `customer`, `order`, `order_line_item`.
+
+Real Medusa v2 names may be plural (`products`) or use different foreign
+key column names. Edit `seed.mjs` accordingly. **This is the most tedious
+part**, and impossible for me to pre-write accurately without the running
+app in front of me.
+
+When the seed runs end-to-end without errors against a freshly-migrated
+Medusa, you have passed the hardest bootstrap step.
+
+### 6.4 Phase 4 — Rewrite the Dockerfiles to COPY the generated apps
+
+Replace the `git clone` approach with `COPY`:
+
+`demo/medusa/backend/Dockerfile`:
+
+```dockerfile
+# syntax=docker/dockerfile:1.6
+FROM node:20-bookworm-slim AS builder
+WORKDIR /app
+
+# Copy the committed Medusa app (generated by create-medusa-app in Phase 1).
+COPY backend-generated/ /app/
+
+RUN corepack enable && yarn install --production=false && yarn build
+
+# Bring in the seed data + seeder.
+COPY seed /app/seed
+COPY backend/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+FROM node:20-bookworm-slim AS runtime
+WORKDIR /app
+COPY --from=builder /app /app
+ENV NODE_ENV=production
+EXPOSE 9000
+ENTRYPOINT ["/app/entrypoint.sh"]
+```
+
+`demo/medusa/storefront/Dockerfile`: same pattern — `COPY
+storefront-generated/` replaces the `git clone`.
+
+Build context stays at `./demo/medusa` for both (so sibling directories
+`backend-generated/`, `storefront-generated/`, `seed/`, `backend/`,
+`storefront/` are all reachable).
+
+### 6.5 Phase 5 — Pin image digests
+
+```bash
+docker pull postgres:16-alpine
+docker pull redis:7-alpine
+docker pull pgvector/pgvector:pg16
+
+docker inspect --format='{{index .RepoDigests 0}}' postgres:16-alpine
+docker inspect --format='{{index .RepoDigests 0}}' redis:7-alpine
+docker inspect --format='{{index .RepoDigests 0}}' pgvector/pgvector:pg16
+```
+
+Paste each `@sha256:…` into `docker-compose.yml`, replacing the three
+`# TODO(compose-digest): pin @sha256:<digest>` markers.
+
+### 6.6 Phase 6 — Run `/atw.build` and export the ATW dump
+
+With Medusa seeded and healthy:
+
+```bash
+cd demo/atw-aurelia
+claude
+> /atw.build         # ~15 min, ~$14 in Opus calls
+```
+
+Export the populated `atw_documents` as the committed initial state:
+
+```bash
+pg_dump --no-owner --no-privileges \
+  --data-only --table=atw_documents --table=atw_migrations \
+  -U atw -h 127.0.0.1 -p 5433 atw > demo/atw-aurelia/atw.sql
+```
+
+Expected size: 2–3 MB.
+
+### 6.7 Phase 7 — Commit everything
+
+```bash
+git add demo/medusa/backend-generated demo/medusa/storefront-generated
+git add demo/medusa/seed/seed.mjs          # updated to real schema
+git add demo/medusa/backend/Dockerfile demo/medusa/storefront/Dockerfile
+git add docker-compose.yml                 # pinned digests
+git add demo/atw-aurelia/atw.sql
+git commit -m "US4 bootstrap: Medusa v2 scaffolded apps, real schema seed, pinned digests, ATW dump"
+```
+
+The committed scaffold will be thousands of files — that is the honest cost
+of Principle VIII for a stack that depends on generated code.
+
+### 6.8 After bootstrap — the reviewer path
+
+Once Phase 7 is committed, anyone cloning the repo runs:
+
+```bash
+git clone https://github.com/<owner>/ai-to-widget.git
+cd ai-to-widget
+cp .env.example .env && $EDITOR .env    # set ANTHROPIC_API_KEY
+make demo                                # ~2–3 min on warm Docker
+open http://localhost:8000
+```
+
+No Claude Code, no `/atw.*` commands, no Opus calls. The committed
+`atw.sql` dump replays offline.
+
+### 6.9 Scripted 5-turn demo conversation
+
+When the full stack is up and the committed `atw.sql` has been built with
+**real** enrichment (not `--no-enrich`), the five-turn conversation
+`tests/e2e/aurelia-demo.spec.ts` runs:
+
+1. **Flavour profile** in Spanish: "Estoy buscando un café chocolatoso
+   para filtro en V60, sin demasiada acidez."
+2. **Comparison**: "Compáramelo con el Ethiopia Yirgacheffe — ¿cuál para
+   V60?"
+3. **Add to cart**: "Añade 2 Colombia Huila 250 g a mi carrito." →
+   confirmation card renders, the Medusa cart does not change yet.
+4. **Confirm**: click the card's primary button → `POST
+   /store/carts/{cart_id}/line-items` fires against Medusa with the
+   shopper's cookie; cart icon updates within 2 s.
+5. **Anonymous check** (incognito tab): "What did I order last time?" →
+   friendly "please log in first" reply with a link to `/account`.
+
+Invariants verified concurrently in DevTools:
+
+- Only two outbound origins: `localhost:3100` (ATW backend) and
+  `localhost:9000` (Medusa).
+- Zero `Cookie` / `Authorization` on requests to `localhost:3100`.
+
+### 6.10 Demo customer credentials (after Phase 3 seed works)
+
+Three synthetic customers under `demo/medusa/seed/customers.json`:
+
+| Email | Password |
+|-------|----------|
+| `alice.demo@aurelia-coffee.local` | `aurelia-demo-1` |
+| `bob.demo@aurelia-coffee.local` | `aurelia-demo-2` |
+| `carmen.demo@aurelia-coffee.local` | `aurelia-demo-3` |
+
+These passwords currently exist in the JSON but **do not yet work against a
+Medusa login** because the seed hasn't been run against a real Medusa
+schema. Phase 3 is what makes them actually log you in.
+
+---
+
+## 7. Path A — Embed the widget into your own host app
+
+This is the production-shaped path: you have a real app with a real
+database and a real API, and you want to ship the widget on it.
+
+### 7.1 Scaffold an agent project
 
 Outside the `ai-to-widget` repo:
 
@@ -248,24 +621,11 @@ cd my-agent
 npx --yes create-atw@latest .
 ```
 
-For development from a local clone (before `create-atw` is on npm), run instead
-from inside the clone:
+For development from a local clone:
 
 ```bash
 cd /path/to/clone/ai-to-widget
 npm run dev:install -- /path/to/my-agent
-```
-
-You should see:
-
-```text
-✓ Created .atw/ structure
-✓ Copied slash commands to .claude/commands/
-✓ Wrote docker-compose.yml template
-✓ Wrote README-atw.md
-✓ Ensured .atw/inputs/ is in .gitignore
-
-Next: open Claude Code in this directory and run /atw.init.
 ```
 
 Resulting layout:
@@ -276,157 +636,79 @@ my-agent/
 │   ├── config/       # will hold project.md + brief.md
 │   ├── artifacts/    # schema-map.md + action-manifest.md + build-plan.md
 │   ├── inputs/       # drop your SQL dump here (git-ignored)
-│   ├── state/
-│   └── templates/
-├── .claude/
-│   └── commands/
-│       ├── atw.init.md
-│       ├── atw.brief.md
-│       ├── atw.schema.md
-│       ├── atw.api.md
-│       ├── atw.plan.md
-│       ├── atw.build.md
-│       └── atw.embed.md
-├── .gitignore
+│   └── state/
+├── .claude/commands/
+│   ├── atw.init.md
+│   ├── atw.brief.md
+│   ├── atw.schema.md
+│   ├── atw.api.md
+│   ├── atw.plan.md
+│   ├── atw.build.md
+│   └── atw.embed.md
 ├── docker-compose.yml
-├── package.json
 └── README-atw.md
 ```
 
-### 4.2 Export your client's inputs
+### 7.2 Export your client's inputs
 
-AI to Widget **never** connects to your client's production database (Principle I,
-red-line). You export two artefacts manually, once:
-
-**Schema dump** (mandatory):
+AI to Widget **never** connects to your client's production database
+(Principle I, red-line). You export two artefacts manually, once:
 
 ```bash
+# Schema — mandatory
 pg_dump --schema-only --no-owner --no-privileges \
   -U <user> -h <host> <db> > schema.sql
 
-# Optional but recommended: sample data (≤50 rows per table)
+# Sample data — recommended (≤50 rows per table)
 pg_dump --data-only --inserts --no-owner --no-privileges \
   --rows-per-insert=50 \
   -U <user> -h <host> <db> > sample-data.sql
 
-# Combined — the common case:
 cat schema.sql sample-data.sql > my-client.sql
 cp my-client.sql my-agent/.atw/inputs/
 ```
 
-**OpenAPI specification** for your client's backend: file (JSON or YAML), public URL,
-or clipboard paste when `/atw.api` asks for it.
+Plus your OpenAPI spec (file, URL, or paste when `/atw.api` asks).
 
-### 4.3 Run the five Feature 001 slash commands
-
-From the agent project directory:
+### 7.3 Run the five Feature 001 slash commands
 
 ```bash
-cd my-agent
-claude
+cd my-agent && claude
 ```
 
-Inside the Claude Code chat, run the five commands **in order**. They are
-interactive — Claude asks questions, proposes answers, and you confirm or edit:
+Inside Claude Code:
 
 ```text
-> /atw.init
+> /atw.init     # name, languages, deployment type → project.md (~1 min)
+> /atw.brief    # guided interview → brief.md (10–15 min)
+> /atw.schema   # classifies tables, excludes PII → schema-map.md
+> /atw.api      # classifies endpoints → action-manifest.md
+> /atw.plan     # cost estimate + summary → build-plan.md
 ```
-Asks project name, agent language(s), deployment type
-(`customer-facing-widget` / `internal-copilot` / `custom`). Writes
-`.atw/config/project.md`. ~1 minute.
+
+> **Hard rule**: `/atw.schema` refuses DSNs (`postgres://user:pass@…`). No
+> credentials path.
+
+### 7.4 Run `/atw.build`
 
 ```text
-> /atw.brief
-```
-A guided 10–15 minute conversation about what the business does, the agent's tone
-of voice, and what the agent **must not** do. Every claim in the final draft is
-traceable to something you said (FR-013). Writes `.atw/config/brief.md`.
-
-```text
-> /atw.schema
-```
-You point it at `.atw/inputs/my-client.sql` (relative path). Claude reads the
-schema, classifies each table (`indexable` / `reference` / `operational` /
-`infrastructure`), **auto-excludes PII** (customers, addresses, payments,
-passwords), and walks you entity-by-entity for confirmation. Writes
-`.atw/artifacts/schema-map.md`.
-
-> **Hard rule**: if you try to paste a DSN (`postgres://user:pass@host/db`) the
-> command refuses. There is no path for credentials to enter the system.
-
-```text
-> /atw.api
-```
-You hand it your OpenAPI (file, URL, or paste). Claude classifies every operation
-into one of six buckets: `safe_read` (side-effect-free GET), `action`
-(POST/PATCH/DELETE behind confirmation), `admin` (excluded), `destructive`
-(excluded), `auth` (excluded), `unclear` (asks you). Writes
-`.atw/artifacts/action-manifest.md`.
-
-```text
-> /atw.plan
-```
-Read-only on your side. Shows a prose summary plus a cost estimate; you confirm.
-Writes `.atw/artifacts/build-plan.md`.
-
-**Checkpoint.** Five markdown files in `.atw/` document every decision. Open any of
-them in your editor and change anything — the next `/atw.build` respects the edits.
-
-### 4.4 Run `/atw.build` (Feature 002)
-
-From the same Claude Code session:
-
-```text
-> /atw.build
+> /atw.build      # or /atw.build --no-enrich for $0
 ```
 
-You see a plan summary with entities to enrich, estimated cost, Opus model,
-Postgres port, etc. Confirm with `y`.
+Pipeline: boot Postgres → migrate → import dump (PII filtered) → enrich
+per entity (Opus single call) → render backend → bundle widget → build
+Docker image → PII scan → manifest.
 
-The pipeline:
-
-1. **BOOT** — starts `atw_postgres` (Docker) on `:5433` with pgvector.
-2. **MIGRATE** — applies idempotent migrations (`atw_migrations` ledger).
-3. **IMPORT** — replays your SQL dump into a `client_ref` schema with PII
-   columns stripped.
-4. **ENRICH** — per indexable entity: assembles input → calls Opus 4.7 with the
-   anti-fabrication system prompt → validates every `fact.source` exists in the
-   input → computes a local embedding (`bge-small-multilingual-v1.5`) → upserts
-   into `atw_documents`.
-5. **RENDER** — Handlebars templates → `backend/src/*.ts`.
-6. **BUNDLE** — esbuild produces `dist/widget.js` + `dist/widget.css` (fails if
-   either exceeds 80 KB / 10 KB gzipped — SC-009).
-7. **IMAGE** — multi-stage build of `atw_backend:latest` (distroless Node).
-8. **COMPOSE-ACTIVATE** — uncomments the ATW block in `docker-compose.yml`.
-9. **PII SCAN** — verifies no PII value from the dump slipped into
-   `atw_documents`.
-10. **MANIFEST** — atomic write of `.atw/state/build-manifest.json`.
-
-Typical wall-clock on a 4-core / 16 GB runner:
+Typical wall-clocks (4-core / 16 GB runner):
 
 | Size | Entities | Time | Cost |
 |------|----------|------|------|
 | Mini | ~20 | 3 min | <$1 |
-| Aurelia | ~342 | 14–18 min | ~$12 |
 | Medium | ~1 000 | 30–45 min | ~$40 |
 
-**Outputs when it finishes:**
+Outputs: `atw_backend:latest`, `dist/widget.{js,css}`, `.atw/state/build-manifest.json`.
 
-- `atw_postgres` running on `localhost:5433` with `atw_documents` populated.
-- `atw_backend:latest` in `docker images`.
-- `dist/widget.js` and `dist/widget.css`.
-- `backend/src/*.ts` rendered.
-- `docker-compose.yml` with the ATW block active.
-- `.atw/state/build-manifest.json` with `result: "success"`.
-
-If you Ctrl+C mid-run, the manifest is written with `result: "aborted"`, and the
-next `/atw.build` resumes without re-enriching already-committed entities
-(source-hash skip).
-
-### 4.5 Run `/atw.embed` (Feature 003)
-
-Same Claude Code session:
+### 7.5 Run `/atw.embed`
 
 ```text
 > /atw.embed
@@ -437,108 +719,39 @@ Claude asks:
 | Question | Options |
 |----------|---------|
 | Host framework | `next-app-router`, `next-pages-router`, `plain-html`, `custom` |
-| ATW backend URL | e.g. `http://localhost:3100` locally |
+| ATW backend URL | e.g. `http://localhost:3100` |
 | Host auth mode | `cookie` (default), `bearer`, `custom` |
 | (bearer only) localStorage token key | e.g. `my_app_token` |
 | Host API base URL | default: `window.location.origin` |
 | (optional) Login URL | for the anonymous-fallback link |
-| (optional) Theme primary / radius / font | for the widget's CSS tokens |
+| (optional) Theme primary / radius / font | widget CSS tokens |
 
-Non-interactive form:
+Writes `.atw/artifacts/embed-guide.md` — a copy-paste guide tailored to
+your framework with the exact `<script>` snippet, CORS config, theming
+example, and troubleshooting checklist.
 
-```bash
-cat > .atw/state/embed-answers.md <<'EOF'
----
-framework: next-app-router
-backend_url: http://localhost:3100
-auth_mode: cookie
-api_base_url: http://localhost:9000
-login_url: http://localhost:8000/login
-locale: en-US
-theme:
-  primary: "#8B4513"
-  radius: "4px"
-  font: "Inter, sans-serif"
----
-EOF
+### 7.6 Install the widget in your host
 
-npx atw-embed --answers-file .atw/state/embed-answers.md
-```
+Copy `dist/widget.js` and `dist/widget.css` into your host's static folder
+and paste the snippet from `embed-guide.md` into your root layout.
 
-Writes `.atw/artifacts/embed-guide.md` — a markdown document tailored to your
-framework with:
-
-1. Where to copy `widget.js` and `widget.css`.
-2. The exact `<script>` + `<link>` tags to paste.
-3. Required CORS on **both** your host API and the ATW backend.
-4. A theming snippet pre-filled with any colours / radius / font you provided.
-5. Troubleshooting checklist (launcher missing, CORS errors, 401s on actions,
-   tool-allowlist refusals).
-
-The command is **deterministic**: identical answers → byte-identical
-`embed-guide.md` (verified by SHA-256 round-trip tests).
-
-### 4.6 Install the widget in your host app
-
-Follow `embed-guide.md`. For Next.js App Router it ends up looking like:
-
-```tsx
-// app/layout.tsx
-import Script from "next/script";
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en-US">
-      <body>
-        {children}
-        <link rel="stylesheet" href="/widget.css" />
-        <Script
-          src="/widget.js"
-          strategy="afterInteractive"
-          data-backend-url="http://localhost:3100"
-          data-api-base-url="http://localhost:9000"
-          data-auth-mode="cookie"
-          data-launcher-position="bottom-right"
-          data-locale="en-US"
-          data-login-url="http://localhost:8000/login"
-        />
-      </body>
-    </html>
-  );
-}
-```
-
-Copy the compiled bundle into your host's static folder:
+Configure CORS:
 
 ```bash
-cp /path/to/my-agent/dist/widget.js /path/to/your-host/public/widget.js
-cp /path/to/my-agent/dist/widget.css /path/to/your-host/public/widget.css
-```
-
-### 4.7 Configure CORS
-
-On the **ATW backend** (env var when starting):
-
-```bash
+# On the ATW backend:
 export ALLOWED_ORIGINS=http://localhost:3000,https://your-host.example.com
 ```
 
-On your **host API**, respond to requests from the storefront origin with:
+On your host API, respond to cross-origin requests with:
 
 - `Access-Control-Allow-Origin: <storefront origin>`
 - `Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS`
 - `Access-Control-Allow-Headers: Content-Type, Authorization`
-- `Access-Control-Allow-Credentials: true` **only in cookie mode**
+- `Access-Control-Allow-Credentials: true` (cookie mode only)
 
-### 4.8 Start the runtime
+### 7.7 Start the runtime and verify
 
 ```bash
-cd my-agent
-
-# 1) atw_postgres is already running from /atw.build (port 5433). Verify:
-docker ps | grep atw_postgres
-
-# 2) Start the ATW backend:
 docker run --rm -d \
   --name atw_backend \
   -p 3100:3100 \
@@ -549,284 +762,49 @@ docker run --rm -d \
   -e HOST_API_BASE_URL=http://localhost:9000 \
   atw_backend:latest
 
-# 3) Health check:
 curl http://localhost:3100/health
 # {"status":"ok"}
-
-# 4) Start your host app however you normally do:
-cd /path/to/your-host
-npm run dev
 ```
 
-Open `http://localhost:3000`. The launcher appears in the bottom-right corner.
-Click → panel slides in → type "What products do you have for X?" → Opus responds,
-citing real entries from your catalog, with facts grounded in your data.
+Open your host on `http://localhost:3000`. Launcher in the corner, click,
+ask a question, get a grounded reply citing products from **your** catalog.
 
-### 4.9 Try an action with confirmation
+### 7.8 Try an action with confirmation
 
-Ask something state-changing: "Add 2 of the Colombia Huila to my cart." The agent
-proposes an `add_to_cart` action → the widget renders a confirmation card showing
-product, quantity, price, total. **No HTTP call to your host API runs yet.** Click
-**Confirm** → the widget sends `POST /store/carts/{cart_id}/line-items` to your
-host API using the shopper's **own** session cookie (not the backend's). The host
-responds 200 → widget shows success → agent narrates it in the next turn.
+"Add 2 of <product> to my cart." Confirmation card appears. Click
+**Confirm** → `POST /your-host-api/...` with the shopper's own cookie →
+host updates → agent narrates success.
 
-**Critical invariant**: open DevTools → Network. Requests to `localhost:3100`
-(ATW backend) carry **no** `Cookie` and **no** `Authorization`. Requests to
-`localhost:9000` (your host API) do — but with the shopper's credentials, never
-the backend's.
+DevTools invariant: zero shopper credentials ever hit `localhost:3100`.
 
 ---
 
-## 5. Path B — Run the canonical Aurelia Medusa demo
+## 8. Running the tests
 
-Goal: a reproducible, end-to-end demo anyone can run with `git clone` → one-time
-bootstrap → `make demo`. The scaffolding (300-product seed, Medusa Dockerfiles,
-widget wiring, Playwright E2E) all ships in the repo. The **one-time** human
-bootstrap is in §5.1.
-
-### 5.1 One-time bootstrap (first reviewer on a given commit)
-
-These seven steps run once per repo state. Subsequent `make demo` runs skip them
-entirely because they produce **committed** artefacts.
-
-> **Heads-up before you spend money.** Step 3 below calls Opus 4.7 ~342 times
-> and costs ~$14 in API usage. If you want to **test the circuit first without
-> spending anything**, skip to §3.5 and use Tier 1 (`--no-enrich`) or Tier 3
-> (reduced seed). Come back here only when you're ready to commit the
-> full-fidelity `atw.sql` dump.
+### 8.1 Unit + contract — fast, no Docker
 
 ```bash
-cp .env.example .env
-$EDITOR .env        # set ANTHROPIC_API_KEY
-```
-
-**Step 1 — Pin the image digests (replaces T074 placeholders):**
-
-```bash
-docker pull postgres:16-alpine
-docker pull redis:7-alpine
-docker pull pgvector/pgvector:pg16
-docker inspect --format='{{index .RepoDigests 0}}' postgres:16-alpine
-docker inspect --format='{{index .RepoDigests 0}}' redis:7-alpine
-docker inspect --format='{{index .RepoDigests 0}}' pgvector/pgvector:pg16
-```
-
-Take the `@sha256:…` suffix from each and replace the three
-`# TODO(compose-digest): pin @sha256:<digest>` placeholders in
-`docker-compose.yml`. Commit.
-
-**Step 2 — Start Medusa only (to be seeded):**
-
-```bash
-make fresh
-```
-
-This brings up `medusa_postgres`, `medusa_redis`, `medusa_backend`, and
-`medusa_storefront` — no ATW services yet. The Medusa backend's entrypoint runs
-`demo/medusa/seed/seed.mjs`, which inserts all 300 products + 25 categories +
-12 collections + 4 regions + 3 synthetic demo customers + 6 sample orders
-idempotently.
-
-Wait for `docker compose logs medusa_backend` to show `[seed] done` and the
-storefront to report listening on `:8000`.
-
-**Step 3 — Build the ATW index against the seeded catalog:**
-
-```bash
-cd demo/atw-aurelia
-claude
-> /atw.build    # ~15 min, ~$14 Opus
-```
-
-The pre-built `.atw/config/*.md` and `.atw/artifacts/*.md` are already committed
-under `demo/atw-aurelia/.atw/`, so Feature 001 is skipped. `/atw.build` reads
-them, enriches all 342 indexable entities (300 products + 25 categories +
-12 collections + 4 regions + 1 brand summary), computes embeddings, builds
-`atw_backend:latest`, and writes the manifest.
-
-**Step 4 — Export the indexed database dump (T073):**
-
-```bash
-pg_dump --no-owner --no-privileges \
-  --data-only --table=atw_documents --table=atw_migrations \
-  -U atw -h 127.0.0.1 -p 5433 atw > demo/atw-aurelia/atw.sql
-```
-
-Expected size: ~2–3 MB. This is the deterministic initial state of
-`atw_postgres` on subsequent `make demo` runs; committing it is what makes the
-demo reproducible in 3 minutes without re-running enrichment.
-
-**Step 5 — Commit the dump and the pinned compose:**
-
-```bash
-git add demo/atw-aurelia/atw.sql docker-compose.yml
-git commit -m "US4: pin compose digests and commit Aurelia atw_documents dump"
-```
-
-**Step 6 — Restart the full stack:**
-
-```bash
-docker compose down -v
-make demo
-```
-
-First `make demo` reconstructs everything from committed state; `atw_postgres`
-imports `demo/atw-aurelia/atw.sql` on first boot (init-script mount, T075); all
-six services converge to healthy in **under 3 minutes** on reference hardware.
-
-**Step 7 — Verify:**
-
-Open `http://localhost:8000`. The Aurelia storefront loads with the full catalog.
-Click the launcher (bottom-right). Type in Spanish or English:
-
-```
-Estoy buscando un café chocolatoso para filtro en V60.
-```
-
-Expected within 4 s:
-
-- A typing indicator.
-- A reply that names two or three real products from the seeded catalog with
-  real tasting notes.
-- Each cited product renders as an inline link you can click to navigate to
-  the real product page.
-
-### 5.2 The reviewer / demo path (after the bootstrap)
-
-Once Step 5 above is committed, **anyone** who clones the repo goes through this
-only:
-
-```bash
-git clone https://github.com/<owner>/ai-to-widget.git
-cd ai-to-widget
-cp .env.example .env && $EDITOR .env    # set ANTHROPIC_API_KEY
-make demo                                # ~2–3 min on a fresh Docker
-open http://localhost:8000
-```
-
-And that is it. No Claude Code, no `/atw.*` commands, no Opus calls. The
-committed `atw.sql` dump is offline-reproducible.
-
-### 5.3 The full setup-flow path (filmed for the demo video)
-
-For filming the setup portion of the demo video, or for validating that Features
-001–003 work end-to-end from zero:
-
-```bash
-make fresh                      # brings Medusa up only; wipes ATW volumes and pre-built .atw/state
-```
-
-Then in Claude Code from the repo root:
-
-```text
-> /atw.init
-> /atw.brief
-> /atw.schema      # point at demo/medusa/seed/schema.sql (exported by the first make fresh)
-> /atw.api         # point at demo/medusa/seed/openapi.json
-> /atw.plan
-> /atw.build
-> /atw.embed
-```
-
-Total ~30 min + ~$14 Opus.
-
-Then bring the ATW services up:
-
-```bash
-docker compose up atw_postgres atw_backend -d --wait
-```
-
-And the storefront at `:8000` is fully re-enriched from scratch.
-
-### 5.4 Scripted 5-turn demo conversation
-
-The exact flow the Playwright E2E (`tests/e2e/aurelia-demo.spec.ts`) runs on
-every CI lane with `ATW_E2E_DOCKER=1`:
-
-1. **Flavour profile**: "Estoy buscando un café chocolatoso para filtro en V60,
-   sin demasiada acidez." → Colombia Huila + Kenya Karundul cited with grounded
-   notes. ≤ 4 s (SC-001).
-2. **Comparison**: "Compáramelo con el Ethiopia Yirgacheffe — ¿cuál es mejor
-   para V60?" → both entities referenced with at least one fact each (SC-001
-   sub-case).
-3. **Add to cart**: "Añade 2 Colombia Huila 250 g a mi carrito." → confirmation
-   card renders; the Medusa cart does **not** update yet.
-4. **Confirm**: click the card's primary button → `POST
-   /store/carts/{cart_id}/line-items` fires against the Medusa backend with the
-   shopper's cookie; cart icon updates within 2 s (SC-002); agent acknowledges.
-5. **Anonymous check** (in a separate incognito tab): "What did I order last
-   time?" → friendly "please log in first" reply with a login link — no
-   fabricated orders (SC-004).
-
-Concurrently verified in DevTools:
-
-- Only two outbound origins appear: `localhost:3100` (ATW backend) and
-  `localhost:9000` (Medusa). No third-party origin (SC-011).
-- Zero `Cookie` / `Authorization` headers on any request to `localhost:3100`
-  (SC-006).
-
-### 5.5 Demo customer credentials
-
-Three synthetic customers ship under `demo/medusa/seed/customers.json`. Their
-credentials are intentionally public so reviewers can exercise the
-authentication-passthrough flow:
-
-| Email | Password |
-|-------|----------|
-| `alice.demo@aurelia-coffee.local` | `aurelia-demo-1` |
-| `bob.demo@aurelia-coffee.local` | `aurelia-demo-2` |
-| `carmen.demo@aurelia-coffee.local` | `aurelia-demo-3` |
-
-Log in at `/account`, open the widget, ask "What did I order last time?" — the
-widget calls the Medusa API with your session cookie, the agent summarises your
-real orders. **Do not reuse these credentials on any non-demo Medusa deployment.**
-
----
-
-## 6. Running the tests
-
-Four tiers, each layered on top of the previous:
-
-### 6.1 Unit — fast, no Docker
-
-```bash
-cd /path/to/clone/ai-to-widget
 npx vitest run
 ```
 
-Expected: **381 passing, 16 skipped, 0 failing**. Covers zod shapes, error
-codes, config loading, credential-strip predicate, logger redaction paths, PII
-scrubber, widget auth builder, markdown sanitiser, api-client, action-card tool
-allowlist, state FIFO, Preact panel, `/atw.embed` generator.
+**381 passing, 16 skipped, 0 failing.** Covers zod shapes, error codes,
+config loading, credential-strip predicate, logger redaction paths, PII
+scrubber, widget auth builder, markdown sanitiser, api-client, action-card
+tool allowlist, state FIFO, Preact panel, `/atw.embed` generator.
 
-### 6.2 Contract — fast, no Docker
-
-Runs as part of `npx vitest run`. Covers `/v1/chat` handler shape, CLI exit
-codes (`/atw.embed`), runtime-config missing-var behaviour.
-
-### 6.3 Integration — Docker-gated
+### 8.2 Integration — Docker-gated
 
 ```bash
 export ATW_E2E_DOCKER=1
-make demo   # stack must be up
+# Stack must be up via Path B or Path C
 npx vitest run tests/integration/
 ```
 
-Unlocks 13 integration tests that probe the live backend:
+Unlocks 13 tests (grounded reply, action confirmation, multi-turn,
+comparison, credential sovereignty, auth modes, anonymous fallback,
+rate-limit, bundle size).
 
-- `runtime-chat-grounded.test.ts` — SC-001 grounded reply under 4 s.
-- `runtime-action-confirmation.test.ts` — SC-002 action intent with resolved path.
-- `runtime-multi-turn.test.ts` — SC-003 pronoun resolution across 5 turns.
-- `runtime-comparison.test.ts` — "A vs B" cites both.
-- `runtime-credential-sovereignty.test.ts` — SC-006 no backend credential leak.
-- `runtime-auth-modes.test.ts` — FR-022 cookie / bearer / custom.
-- `runtime-anonymous-fallback.test.ts` — SC-004 login-link surface.
-- `runtime-rate-limit.test.ts` — SC-010 429 + Retry-After.
-- `runtime-bundle-size.test.ts` — SC-009 (this one runs even without Docker).
-- Plus three Feature 002 integration tests.
-
-### 6.4 E2E — full stack + Playwright
+### 8.3 E2E — full stack + Playwright (Path C only)
 
 ```bash
 npx playwright install chromium firefox webkit
@@ -834,201 +812,162 @@ export ATW_E2E_DOCKER=1
 npx playwright test
 ```
 
-Runs on three browsers by default:
-
-- `aurelia-demo.spec.ts` — the scripted 5-turn conversation from §5.4.
-- `accessibility.spec.ts` — axe-core scan of the open panel (SC-013 zero
-  serious/critical WCAG 2.1 AA violations).
-- `runtime-theming.spec.ts` — SC-012 CSS custom property override flows through
-  without rebuild.
-- `runtime-tool-allowlist.spec.ts` — SC-008 forged tool names are refused with
-  zero host-API calls.
+- `aurelia-demo.spec.ts` — the scripted 5-turn conversation.
+- `accessibility.spec.ts` — axe-core on the open panel.
+- `runtime-theming.spec.ts` — CSS custom property override.
+- `runtime-tool-allowlist.spec.ts` — forged tool names refused.
 
 ---
 
-## 7. Verifying Principle I in DevTools
+## 9. Verifying Principle I in DevTools
 
-The widget **never** sends shopper credentials to the ATW backend. Manual check:
+The widget **never** sends shopper credentials to the ATW backend.
 
-1. Open DevTools in the browser.
-2. Network tab → filter by `localhost:3100`.
-3. Send a message in the chat.
-4. Click any captured request → Headers.
-5. Verify there is **no** `Cookie`, **no** `Authorization`, and no header
-   matching `X-*-Token`, `X-*-Auth`, or `X-*-Session` (other than
-   `X-Atw-Session-Id`, which is a widget-issued UUID for rate limiting).
+1. Open DevTools.
+2. Network tab → filter `localhost:3100`.
+3. Send a chat message.
+4. Click a captured request → Headers.
+5. Verify **no** `Cookie`, **no** `Authorization`, no
+   `X-*-Token|Auth|Session` (other than `X-Atw-Session-Id`, which is a
+   widget-issued rate-limit UUID).
 
-If any of them appear it is a bug — open an issue. The backend's `onRequest`
-hook strips them defensively even if they did arrive, but the invariant is that
-the widget never attaches them in the first place (`buildBackendHeaders`
-in `packages/widget/src/auth.ts`).
-
----
-
-## 8. What still requires a human
-
-Seven tasks in `specs/003-runtime/tasks.md` remain `[ ]` because they are not
-reproducible in a text-only session. Six are "do once on your machine with
-Docker running" (§5.1 above), and one is the demo video:
-
-| Task | What it is |
-|------|------------|
-| T073 | Run `/atw.build` once to generate `demo/atw-aurelia/atw.sql` |
-| T074 | `docker pull` + pin the three compose digests |
-| T075 | Verify the `atw.sql` init-script mount works on fresh `make demo` |
-| T115 | Cross-platform verification of `quickstart.md` on macOS / Linux / WSL2 |
-| T116 | Run the full suite with `ATW_E2E_DOCKER=1` green |
-| T117 | Commit `demo/atw-aurelia/atw.sql` with regeneration notes |
-| T118 | Record the 3-minute demo video (filmed setup ~1 min + live widget ~1:30 + reproducibility statement ~30 s) |
-
-After T073–T075 + T117 are committed, anyone on any machine can run `make demo`
-and reach a working storefront in ~3 minutes. See
-`specs/003-runtime/post-impl-notes.md` for the exact resumption checklist.
+If any show up, it's a bug — the backend strips them defensively in
+`onRequest`, but the widget should never attach them to backend-bound
+requests in the first place (see `packages/widget/src/auth.ts`
+`buildBackendHeaders`).
 
 ---
 
-## 9. Troubleshooting
+## 10. What still requires a human
+
+Seven tasks in `specs/003-runtime/tasks.md` remain `[ ]`:
+
+| Task | What it is | Blocks |
+|------|------------|--------|
+| **Path C bootstrap** (Phase 1–4 above) | Generate Medusa apps with `create-medusa-app`, adapt seed, rewrite Dockerfiles | Path C entirely |
+| T073 | Run `/atw.build` against seeded Medusa → `atw.sql` | Path C reviewer path (§6.8) |
+| T074 | Pin the three compose image digests | Principle VIII reproducibility on Path C |
+| T075 | Verify `atw.sql` init-script mount works on fresh `make demo` | Path C reviewer warmth |
+| T115 | Cross-platform verification of the quickstart on macOS / Linux / WSL2 | Demo confidence |
+| T116 | Full suite with `ATW_E2E_DOCKER=1` green | CI readiness |
+| T117 | Commit `atw.sql` with regeneration notes | Path C reviewer path |
+| T118 | Record the 3-minute demo video | Hackathon submission |
+
+**What does NOT require a human and already works:**
+
+- All 381 unit + contract tests.
+- Widget bundle compiles under budget (80 KB js / 10 KB css gzipped).
+- `/atw.build --no-enrich` produces `atw_backend:latest` and widget bundle.
+- ATW backend runs on Docker, `/health` responds, `/v1/chat` handles
+  requests end-to-end.
+- `/atw.embed` generates deterministic integration guides for four
+  frameworks.
+
+Path B proves every one of these in ~15 minutes. **Start there.**
+
+---
+
+## 11. Troubleshooting
 
 ### The launcher does not appear
 
-1. Open the browser console. Look for an `[atw]` error.
+1. Browser console → look for `[atw]` error.
 2. Most common: `data-backend-url` missing or malformed.
-3. Confirm `widget.js` and `widget.css` actually load (200 in Network).
+3. Confirm `widget.js`/`widget.css` load (200 in Network).
 
-### `POST /v1/chat` returns 503 `retrieval_unavailable`
+### `POST /v1/chat` → 503 `retrieval_unavailable`
 
-`atw_postgres` is down or unhealthy:
+`atw_postgres` is down/unhealthy. `docker ps` + `docker logs atw_postgres`.
+If initial dump import failed: `docker compose down -v && docker compose up atw_postgres -d --wait`.
 
-```bash
-docker ps | grep atw_postgres
-docker logs atw_postgres
-```
+### `POST /v1/chat` → 503 `model_unavailable`
 
-If the initial dump import failed, run `docker compose down -v && make demo` to
-re-initialise with the committed `atw.sql`.
+`ANTHROPIC_API_KEY` unset or invalid. Edit `.env`, `docker compose
+restart atw_backend`.
 
-### `POST /v1/chat` returns 503 `model_unavailable`
+### Action doesn't change anything on the host
 
-`ANTHROPIC_API_KEY` is unset or invalid. Check `.env` and
-`docker compose restart atw_backend`.
+Network tab after clicking Confirm:
 
-### The action does not change anything on the host
+- No request → widget refused (unknown tool name; see
+  `ATW_TOOL_NOT_ALLOWED` in console).
+- Wrong origin → `data-api-base-url` misconfigured.
+- 401 → shopper not logged in / SameSite blocked cookie.
 
-Open Network tab, click **Confirm** on the card:
+### CORS error on the first request
 
-- **No request fires** → the widget refused the action. Most likely the tool
-  name is not in the allowlist — look for `ATW_TOOL_NOT_ALLOWED` in the console.
-- Request goes to `localhost:3100` instead of your host → `data-api-base-url`
-  is misconfigured.
-- Request returns 401 → shopper is not logged in, or the cookie is blocked by
-  SameSite (cookie mode only on same-site hosts unless CORS with
-  `Allow-Credentials: true`).
+`ALLOWED_ORIGINS` doesn't include the exact storefront origin (trailing
+slash / port matters). Edit `.env`, restart.
 
-### CORS error on the very first request
+### Widget says "I don't have that in the catalog" for everything
 
-`ALLOWED_ORIGINS` does not contain the exact storefront origin. Check for
-trailing slashes and port mismatches, then `docker compose restart atw_backend`.
-
-### The widget says "I don't see that in the catalog" for everything
-
-Retrieval is returning nothing above the similarity threshold (default 0.55).
-Possible causes:
-
-- The SQL dump did not import — check `.atw/state/build-manifest.json`
+- `--no-enrich` was used → this is correct behaviour.
+- Dump didn't import → check `.atw/state/build-manifest.json`
   `totals.enriched`.
-- Query language does not match catalog language. The embedding model is
-  multilingual but not magical.
-- Lower the threshold temporarily:
-  `export RETRIEVAL_SIMILARITY_THRESHOLD=0.40` on the backend and restart.
+- Query language vs catalog language mismatch. Try the same language as
+  the indexed text.
+- Lower threshold: `export RETRIEVAL_SIMILARITY_THRESHOLD=0.40` and
+  restart.
 
-### Widget tests fail in jsdom mode
+### Widget tests fail in jsdom
 
-```text
-SecurityError: localStorage is not available
-```
+`SecurityError: localStorage is not available` → verify
+`packages/widget/vitest.config.ts` has `environment: "jsdom"`.
 
-Ensure `packages/widget/vitest.config.ts` has `environment: "jsdom"`. If you
-edited it, re-run with `--clearScreen false` to see the full error.
+### Widget build fails "bundle budget exceeded"
 
-### Widget build fails with "bundle budget exceeded"
+Crossed 80 KB js / 10 KB css gzipped (SC-009). Inspect new deps;
+`--minify=false` helps diagnose. Last resort: raise budget in
+`packages/scripts/src/compile-widget.ts` (spec-level change, justify in
+PR).
 
-You've crossed the 80 KB js / 10 KB css gzipped budget (SC-009). Options:
+### `make demo` → "pull access denied for atw_backend"
 
-1. Inspect the new dependency — is it essential?
-2. Run compile with `--minify=false` and look at the unminified size to
-   diagnose which imports are heavy.
-3. Last resort: raise the budget in
-   `packages/scripts/src/compile-widget.ts`. This is a spec-level change and
-   needs a PR justification — it pushes against SC-009.
+You skipped building the backend image locally. Run Path B §5.2 first:
+`cd demo/atw-aurelia; claude; > /atw.build --no-enrich`. The image is
+never published to Docker Hub.
 
-### `make demo` fails on first run after T073 was committed
+### `make demo` → medusa_backend build fails on `git clone`
 
-Check that `demo/atw-aurelia/atw.sql` was generated against the current seed.
-If the product seed rotated since the dump was committed, the retrieval
-similarity drops because embeddings are cached on the old text.
-Regenerate per `demo/atw-aurelia/README.md` → Regenerating the `atw.sql` dump.
+This is the Path C bootstrap being incomplete (§6). Follow §6.1–6.4 or
+fall back to Path B.
+
+### `make fresh` hangs on `docker compose down -v`
+
+Your `make` is ancient (UnxUtils). Use `.\scripts\make.ps1 fresh` on
+Windows, or install Git Bash which ships a modern make.
 
 ---
 
-## 10. Quick reference
+## 12. Quick reference
 
 ```bash
 # Bootstrap the repo
 npm install && npm run build && npm test
 
-# Aurelia demo (after §5.1 bootstrap is committed)
+# Path B — free circuit test (widget on a plain HTML host)
+cd demo/atw-aurelia && claude
+> /atw.build --no-enrich
+# Then from repo root:
+docker compose up atw_postgres atw_backend -d --wait
+# And serve a minimal host (see §5.4) on localhost:3000
+
+# Path A — widget in your own host app
+cd /path/to/my-agent && claude
+> /atw.init
+> /atw.brief
+> /atw.schema
+> /atw.api
+> /atw.plan
+> /atw.build           # or --no-enrich for $0
+> /atw.embed
+
+# Path C — Aurelia Medusa bootstrap (after §6.1–6.4 Phase work)
 cp .env.example .env && $EDITOR .env
 make demo
 open http://localhost:8000
 
-# Free circuit test (Tier 1 — no enrichment, $0 Anthropic)
-make fresh
-claude
-> /atw.init
-> /atw.brief
-> /atw.schema
-> /atw.api
-> /atw.plan
-> /atw.build --no-enrich    # $0 Opus; retrieval empty but every wire is testable
-> /atw.embed
-
-# Cheap circuit test (Tier 2 — Haiku enrichment, ~$1.40 for 342 entities)
-# Edit packages/scripts/src/orchestrator.ts:47 → DEFAULT_OPUS_MODEL = "claude-haiku-4-5-20251001"
-# Then:
-cd packages/scripts && npm run build && cd ../..
-> /atw.build                # Haiku, ~10× cheaper than Opus
-
-# Full setup-flow path (filmed, ~$14 Opus)
-make fresh
-claude
-> /atw.init
-> /atw.brief
-> /atw.schema
-> /atw.api
-> /atw.plan
-> /atw.build
-> /atw.embed
-
-# Start runtime standalone (Path A, after /atw.build)
-docker run --rm -d --name atw_backend -p 3100:3100 --network host \
-  -e DATABASE_URL=postgres://atw:atw_local@localhost:5433/atw \
-  -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
-  -e ALLOWED_ORIGINS=http://localhost:3000 \
-  -e HOST_API_BASE_URL=http://localhost:9000 \
-  atw_backend:latest
-curl http://localhost:3100/health
-
-# Install widget into a custom host
-cp /path/to/my-agent/dist/widget.js /path/to/your-host/public/
-cp /path/to/my-agent/dist/widget.css /path/to/your-host/public/
-
-# Full test matrix (with Docker)
-export ATW_E2E_DOCKER=1
-make demo
-npx vitest run
-npx playwright test
-
-# Nuke everything and start over
+# Nuke and restart
 docker compose down -v
 docker rmi atw_backend:latest
 rm -rf .atw/state backend/src dist
@@ -1036,29 +975,29 @@ rm -rf .atw/state backend/src dist
 
 ---
 
-## 11. Cross-references
+## 13. Cross-references
 
 - **Feature 001 — Setup flow** —
   [`specs/001-setup-flow/quickstart.md`](specs/001-setup-flow/quickstart.md),
-  [`specs/001-setup-flow/spec.md`](specs/001-setup-flow/spec.md),
-  [`specs/001-setup-flow/contracts/`](specs/001-setup-flow/contracts/).
+  [`spec.md`](specs/001-setup-flow/spec.md),
+  [`contracts/`](specs/001-setup-flow/contracts/).
 - **Feature 002 — Build pipeline** —
   [`specs/002-build-pipeline/quickstart.md`](specs/002-build-pipeline/quickstart.md),
-  [`specs/002-build-pipeline/spec.md`](specs/002-build-pipeline/spec.md),
-  [`specs/002-build-pipeline/contracts/`](specs/002-build-pipeline/contracts/).
+  [`spec.md`](specs/002-build-pipeline/spec.md),
+  [`contracts/`](specs/002-build-pipeline/contracts/).
 - **Feature 003 — Runtime** —
   [`specs/003-runtime/quickstart.md`](specs/003-runtime/quickstart.md),
-  [`specs/003-runtime/spec.md`](specs/003-runtime/spec.md),
-  [`specs/003-runtime/contracts/`](specs/003-runtime/contracts/).
-  [`specs/003-runtime/post-impl-notes.md`](specs/003-runtime/post-impl-notes.md)
-  lists every task — done and remaining — with exact resumption commands.
+  [`spec.md`](specs/003-runtime/spec.md),
+  [`contracts/`](specs/003-runtime/contracts/).
+  [`post-impl-notes.md`](specs/003-runtime/post-impl-notes.md) lists
+  every task — done and remaining — with exact resumption commands.
 - **Constitution** —
-  [`.specify/memory/constitution.md`](.specify/memory/constitution.md). The
-  three red lines (I User Data Sovereignty, V Anchored Generation,
-  VIII Reproducibility) are non-negotiable across all three features.
+  [`.specify/memory/constitution.md`](.specify/memory/constitution.md).
+  Three red lines are non-negotiable across all features: I (User Data
+  Sovereignty), V (Anchored Generation), VIII (Reproducibility).
 - **Root README** — [`README.md`](README.md).
 
 ---
 
-**Report issues or improvements**: open a GitHub issue, or comment on the PR
-that closes whichever Feature 003 task you're exercising.
+**Report issues or improvements**: open a GitHub issue, or comment on the
+PR that closes whichever task you're exercising.

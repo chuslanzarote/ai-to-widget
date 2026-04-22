@@ -93,18 +93,34 @@ check-image:
 fresh: stage-widget
 	docker compose down -v
 	@if [ -d demo/atw-aurelia/.atw/state ]; then rm -rf demo/atw-aurelia/.atw/state/*; fi
-	docker compose up medusa_postgres medusa_redis medusa_backend medusa_storefront -d --wait
+	@rm -rf demo/medusa/.runtime && mkdir -p demo/medusa/.runtime
 	@echo ""
-	@echo "Medusa is up. ATW runtime is NOT started."
-	@echo "Run /atw.init, /atw.brief, /atw.schema, /atw.api, /atw.plan,"
-	@echo "then /atw.build (or --no-enrich), then /atw.embed."
-	@echo "After /atw.build produces dist/widget.{js,css}, re-run 'make stage-widget' then"
-	@echo "'docker compose build medusa_storefront && docker compose up -d medusa_storefront'"
-	@echo "to ship the real widget into the storefront. Finally:"
-	@echo "  docker compose up atw_postgres atw_backend -d --wait"
+	@echo "[fresh] phase 1/2: rebuild + postgres + redis + medusa backend (seed + PK export)..."
+	docker compose build medusa_backend
+	docker compose up medusa_postgres medusa_redis medusa_backend -d --wait
+	@echo "[fresh] waiting for seeded publishable key..."
+	@for i in $$(seq 1 150); do \
+	  if [ -s demo/medusa/.runtime/publishable-key.txt ]; then break; fi; \
+	  sleep 2; \
+	done
+	@if [ ! -s demo/medusa/.runtime/publishable-key.txt ]; then \
+	  echo "ERROR: publishable key not exported — see 'docker compose logs medusa_backend'"; \
+	  exit 1; \
+	fi
+	$(eval PK := $(shell cat demo/medusa/.runtime/publishable-key.txt))
+	@echo "[fresh] publishable key captured: $(PK)"
+	@echo ""
+	@echo "[fresh] phase 2/2: bringing nginx storefront up (PK injected at container start)..."
+	MEDUSA_PUBLISHABLE_KEY=$(PK) docker compose up medusa_storefront -d --wait
+	@echo ""
+	@echo "Medusa backend:     http://localhost:9000"
+	@echo "Aurelia storefront: http://localhost:8000"
+	@echo "ATW runtime is NOT started. Next: run /atw.init ... /atw.build ... /atw.embed,"
+	@echo "then 'make stage-widget && docker compose build medusa_storefront && MEDUSA_PUBLISHABLE_KEY=$(PK) docker compose up -d medusa_storefront'"
+	@echo "to pick up the new widget bundle, and finally 'docker compose up atw_postgres atw_backend -d --wait'."
 
 seed:
-	docker compose exec medusa_backend node /app/seed/seed.js
+	docker compose exec medusa_backend npm run seed
 
 down:
 	docker compose down
