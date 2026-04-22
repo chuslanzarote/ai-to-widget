@@ -79,11 +79,57 @@ export async function compileWidget(opts: CompileOptions): Promise<CompileResult
     await fs.writeFile(cssPath, "/* atw widget: no css */\n", "utf8");
   }
 
-  return {
+  const result = {
     js: await describe(jsPath),
     css: await describe(cssPath),
     noop: false,
   };
+  // T107 / US10 — enforce FR-027 / SC-009 bundle budget at build time so
+  // a size regression is caught at /atw.build, before the backend image
+  // is built.
+  await enforceBundleBudget(result);
+  return result;
+}
+
+const BUNDLE_BUDGETS_GZIP = {
+  js: 80 * 1024,
+  css: 10 * 1024,
+} as const;
+
+async function enforceBundleBudget(result: {
+  js: BundleAsset;
+  css: BundleAsset;
+}): Promise<void> {
+  const { gzipSync } = await import("node:zlib");
+  const jsBuf = await fs.readFile(result.js.path);
+  const cssBuf = await fs.readFile(result.css.path);
+  const jsGz = gzipSync(jsBuf).byteLength;
+  const cssGz = gzipSync(cssBuf).byteLength;
+  const overs: string[] = [];
+  if (jsGz > BUNDLE_BUDGETS_GZIP.js) {
+    overs.push(
+      `widget.js.gz = ${jsGz} bytes > ${BUNDLE_BUDGETS_GZIP.js} budget`,
+    );
+  }
+  if (cssGz > BUNDLE_BUDGETS_GZIP.css) {
+    overs.push(
+      `widget.css.gz = ${cssGz} bytes > ${BUNDLE_BUDGETS_GZIP.css} budget`,
+    );
+  }
+  if (overs.length > 0) {
+    const e = new Error(
+      "bundle budget exceeded (FR-027/SC-009): " + overs.join("; "),
+    );
+    (e as { code?: string }).code = "BUNDLE_BUDGET_EXCEEDED";
+    throw e;
+  }
+  log(
+    "bundle size ok: widget.js.gz=%d/%d, widget.css.gz=%d/%d",
+    jsGz,
+    BUNDLE_BUDGETS_GZIP.js,
+    cssGz,
+    BUNDLE_BUDGETS_GZIP.css,
+  );
 }
 
 async function findEntry(srcDir: string): Promise<string | null> {

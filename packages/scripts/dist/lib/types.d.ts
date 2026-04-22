@@ -10,12 +10,12 @@ export declare const ProjectArtifactSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     languages: string[];
-    deploymentType: "custom" | "customer-facing-widget" | "internal-copilot";
+    deploymentType: "customer-facing-widget" | "internal-copilot" | "custom";
     createdAt: string;
 }, {
     name: string;
     languages: string[];
-    deploymentType: "custom" | "customer-facing-widget" | "internal-copilot";
+    deploymentType: "customer-facing-widget" | "internal-copilot" | "custom";
     createdAt: string;
 }>;
 export type ProjectArtifact = z.infer<typeof ProjectArtifactSchema>;
@@ -229,25 +229,25 @@ export declare const ActionManifestToolSchema: z.ZodObject<{
     parameterSources: z.ZodArray<z.ZodString, "many">;
 }, "strip", z.ZodTypeAny, {
     name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+    requiresConfirmation: boolean;
     source: {
         path: string;
         method: string;
         security?: string | undefined;
     };
-    description: string;
-    parameters: Record<string, unknown>;
-    requiresConfirmation: boolean;
     parameterSources: string[];
 }, {
     name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+    requiresConfirmation: boolean;
     source: {
         path: string;
         method: string;
         security?: string | undefined;
     };
-    description: string;
-    parameters: Record<string, unknown>;
-    requiresConfirmation: boolean;
     parameterSources: string[];
 }>;
 export declare const ActionManifestArtifactSchema: z.ZodObject<{
@@ -275,53 +275,53 @@ export declare const ActionManifestArtifactSchema: z.ZodObject<{
             parameterSources: z.ZodArray<z.ZodString, "many">;
         }, "strip", z.ZodTypeAny, {
             name: string;
+            description: string;
+            parameters: Record<string, unknown>;
+            requiresConfirmation: boolean;
             source: {
                 path: string;
                 method: string;
                 security?: string | undefined;
             };
-            description: string;
-            parameters: Record<string, unknown>;
-            requiresConfirmation: boolean;
             parameterSources: string[];
         }, {
             name: string;
+            description: string;
+            parameters: Record<string, unknown>;
+            requiresConfirmation: boolean;
             source: {
                 path: string;
                 method: string;
                 security?: string | undefined;
             };
-            description: string;
-            parameters: Record<string, unknown>;
-            requiresConfirmation: boolean;
             parameterSources: string[];
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         entity: string;
         items: {
             name: string;
+            description: string;
+            parameters: Record<string, unknown>;
+            requiresConfirmation: boolean;
             source: {
                 path: string;
                 method: string;
                 security?: string | undefined;
             };
-            description: string;
-            parameters: Record<string, unknown>;
-            requiresConfirmation: boolean;
             parameterSources: string[];
         }[];
     }, {
         entity: string;
         items: {
             name: string;
+            description: string;
+            parameters: Record<string, unknown>;
+            requiresConfirmation: boolean;
             source: {
                 path: string;
                 method: string;
                 security?: string | undefined;
             };
-            description: string;
-            parameters: Record<string, unknown>;
-            requiresConfirmation: boolean;
             parameterSources: string[];
         }[];
     }>, "many">;
@@ -345,14 +345,14 @@ export declare const ActionManifestArtifactSchema: z.ZodObject<{
         entity: string;
         items: {
             name: string;
+            description: string;
+            parameters: Record<string, unknown>;
+            requiresConfirmation: boolean;
             source: {
                 path: string;
                 method: string;
                 security?: string | undefined;
             };
-            description: string;
-            parameters: Record<string, unknown>;
-            requiresConfirmation: boolean;
             parameterSources: string[];
         }[];
     }[];
@@ -368,14 +368,14 @@ export declare const ActionManifestArtifactSchema: z.ZodObject<{
         entity: string;
         items: {
             name: string;
+            description: string;
+            parameters: Record<string, unknown>;
+            requiresConfirmation: boolean;
             source: {
                 path: string;
                 method: string;
                 security?: string | undefined;
             };
-            description: string;
-            parameters: Record<string, unknown>;
-            requiresConfirmation: boolean;
             parameterSources: string[];
         }[];
     }[];
@@ -617,8 +617,8 @@ export declare const ParsedSQLTableSchema: z.ZodObject<{
         isPrimaryKey: boolean;
         comment: string | null;
     }[];
-    schema: string;
     comment: string | null;
+    schema: string;
     primaryKey: string[];
     foreignKeys: {
         columns: string[];
@@ -647,8 +647,8 @@ export declare const ParsedSQLTableSchema: z.ZodObject<{
         isPrimaryKey: boolean;
         comment: string | null;
     }[];
-    schema: string;
     comment: string | null;
+    schema: string;
     primaryKey: string[];
     foreignKeys: {
         columns: string[];
@@ -754,8 +754,8 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
                 isPrimaryKey: boolean;
                 comment: string | null;
             }[];
-            schema: string;
             comment: string | null;
+            schema: string;
             primaryKey: string[];
             foreignKeys: {
                 columns: string[];
@@ -784,8 +784,8 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
                 isPrimaryKey: boolean;
                 comment: string | null;
             }[];
-            schema: string;
             comment: string | null;
+            schema: string;
             primaryKey: string[];
             foreignKeys: {
                 columns: string[];
@@ -828,8 +828,8 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
                 isPrimaryKey: boolean;
                 comment: string | null;
             }[];
-            schema: string;
             comment: string | null;
+            schema: string;
             primaryKey: string[];
             foreignKeys: {
                 columns: string[];
@@ -866,8 +866,8 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
                 isPrimaryKey: boolean;
                 comment: string | null;
             }[];
-            schema: string;
             comment: string | null;
+            schema: string;
             primaryKey: string[];
             foreignKeys: {
                 columns: string[];
@@ -900,12 +900,12 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
         message: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         message: string;
-        column: number;
         line: number;
+        column: number;
     }, {
         message: string;
-        column: number;
         line: number;
+        column: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     version: 1;
@@ -922,8 +922,8 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
                 isPrimaryKey: boolean;
                 comment: string | null;
             }[];
-            schema: string;
             comment: string | null;
+            schema: string;
             primaryKey: string[];
             foreignKeys: {
                 columns: string[];
@@ -952,8 +952,8 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
     sampleRows: Record<string, Record<string, unknown>[]>;
     parseErrors: {
         message: string;
-        column: number;
         line: number;
+        column: number;
     }[];
 }, {
     version: 1;
@@ -970,8 +970,8 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
                 isPrimaryKey: boolean;
                 comment: string | null;
             }[];
-            schema: string;
             comment: string | null;
+            schema: string;
             primaryKey: string[];
             foreignKeys: {
                 columns: string[];
@@ -1000,8 +1000,8 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
     sampleRows: Record<string, Record<string, unknown>[]>;
     parseErrors: {
         message: string;
-        column: number;
         line: number;
+        column: number;
     }[];
 }>;
 export type ParsedSQLSchema = z.infer<typeof ParsedSQLSchemaSchema>;
@@ -1062,10 +1062,8 @@ export declare const ParsedOpenAPIOperationSchema: z.ZodObject<{
         schema?: unknown;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    summary: string | null;
     path: string;
-    tag: string | null;
-    id: string;
+    summary: string | null;
     description: string | null;
     parameters: {
         name: string;
@@ -1078,6 +1076,8 @@ export declare const ParsedOpenAPIOperationSchema: z.ZodObject<{
         scheme: string;
         scopes: string[];
     }[];
+    id: string;
+    tag: string | null;
     requestBody: {
         contentType: string;
         schema?: unknown;
@@ -1088,10 +1088,8 @@ export declare const ParsedOpenAPIOperationSchema: z.ZodObject<{
         schema?: unknown;
     }[];
 }, {
-    summary: string | null;
     path: string;
-    tag: string | null;
-    id: string;
+    summary: string | null;
     description: string | null;
     parameters: {
         name: string;
@@ -1104,6 +1102,8 @@ export declare const ParsedOpenAPIOperationSchema: z.ZodObject<{
         scheme: string;
         scopes: string[];
     }[];
+    id: string;
+    tag: string | null;
     requestBody: {
         contentType: string;
         schema?: unknown;
@@ -1198,10 +1198,8 @@ export declare const ParsedOpenAPISchema: z.ZodObject<{
             schema?: unknown;
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
-        summary: string | null;
         path: string;
-        tag: string | null;
-        id: string;
+        summary: string | null;
         description: string | null;
         parameters: {
             name: string;
@@ -1214,6 +1212,8 @@ export declare const ParsedOpenAPISchema: z.ZodObject<{
             scheme: string;
             scopes: string[];
         }[];
+        id: string;
+        tag: string | null;
         requestBody: {
             contentType: string;
             schema?: unknown;
@@ -1224,10 +1224,8 @@ export declare const ParsedOpenAPISchema: z.ZodObject<{
             schema?: unknown;
         }[];
     }, {
-        summary: string | null;
         path: string;
-        tag: string | null;
-        id: string;
+        summary: string | null;
         description: string | null;
         parameters: {
             name: string;
@@ -1240,6 +1238,8 @@ export declare const ParsedOpenAPISchema: z.ZodObject<{
             scheme: string;
             scopes: string[];
         }[];
+        id: string;
+        tag: string | null;
         requestBody: {
             contentType: string;
             schema?: unknown;
@@ -1265,10 +1265,8 @@ export declare const ParsedOpenAPISchema: z.ZodObject<{
         description: string | null;
     }[];
     operations: {
-        summary: string | null;
         path: string;
-        tag: string | null;
-        id: string;
+        summary: string | null;
         description: string | null;
         parameters: {
             name: string;
@@ -1281,6 +1279,8 @@ export declare const ParsedOpenAPISchema: z.ZodObject<{
             scheme: string;
             scopes: string[];
         }[];
+        id: string;
+        tag: string | null;
         requestBody: {
             contentType: string;
             schema?: unknown;
@@ -1306,10 +1306,8 @@ export declare const ParsedOpenAPISchema: z.ZodObject<{
         description: string | null;
     }[];
     operations: {
-        summary: string | null;
         path: string;
-        tag: string | null;
-        id: string;
+        summary: string | null;
         description: string | null;
         parameters: {
             name: string;
@@ -1322,6 +1320,8 @@ export declare const ParsedOpenAPISchema: z.ZodObject<{
             scheme: string;
             scopes: string[];
         }[];
+        id: string;
+        tag: string | null;
         requestBody: {
             contentType: string;
             schema?: unknown;
@@ -1418,10 +1418,10 @@ export declare const ArtifactConsistencyReportSchema: z.ZodObject<{
         kind: z.ZodEnum<["project", "brief", "schema-map", "action-manifest", "build-plan"]>;
         expectedPath: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        kind: "schema-map" | "brief" | "project" | "action-manifest" | "build-plan";
+        kind: "project" | "brief" | "schema-map" | "action-manifest" | "build-plan";
         expectedPath: string;
     }, {
-        kind: "schema-map" | "brief" | "project" | "action-manifest" | "build-plan";
+        kind: "project" | "brief" | "schema-map" | "action-manifest" | "build-plan";
         expectedPath: string;
     }>, "many">;
     inconsistencies: z.ZodArray<z.ZodObject<{
@@ -1443,7 +1443,7 @@ export declare const ArtifactConsistencyReportSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     ok: boolean;
     missing: {
-        kind: "schema-map" | "brief" | "project" | "action-manifest" | "build-plan";
+        kind: "project" | "brief" | "schema-map" | "action-manifest" | "build-plan";
         expectedPath: string;
     }[];
     inconsistencies: {
@@ -1455,7 +1455,7 @@ export declare const ArtifactConsistencyReportSchema: z.ZodObject<{
 }, {
     ok: boolean;
     missing: {
-        kind: "schema-map" | "brief" | "project" | "action-manifest" | "build-plan";
+        kind: "project" | "brief" | "schema-map" | "action-manifest" | "build-plan";
         expectedPath: string;
     }[];
     inconsistencies: {
@@ -1484,12 +1484,12 @@ export declare const ARTIFACT_SCHEMAS: {
     }, "strip", z.ZodTypeAny, {
         name: string;
         languages: string[];
-        deploymentType: "custom" | "customer-facing-widget" | "internal-copilot";
+        deploymentType: "customer-facing-widget" | "internal-copilot" | "custom";
         createdAt: string;
     }, {
         name: string;
         languages: string[];
-        deploymentType: "custom" | "customer-facing-widget" | "internal-copilot";
+        deploymentType: "customer-facing-widget" | "internal-copilot" | "custom";
         createdAt: string;
     }>;
     readonly brief: z.ZodObject<{
@@ -1662,53 +1662,53 @@ export declare const ARTIFACT_SCHEMAS: {
                 parameterSources: z.ZodArray<z.ZodString, "many">;
             }, "strip", z.ZodTypeAny, {
                 name: string;
+                description: string;
+                parameters: Record<string, unknown>;
+                requiresConfirmation: boolean;
                 source: {
                     path: string;
                     method: string;
                     security?: string | undefined;
                 };
-                description: string;
-                parameters: Record<string, unknown>;
-                requiresConfirmation: boolean;
                 parameterSources: string[];
             }, {
                 name: string;
+                description: string;
+                parameters: Record<string, unknown>;
+                requiresConfirmation: boolean;
                 source: {
                     path: string;
                     method: string;
                     security?: string | undefined;
                 };
-                description: string;
-                parameters: Record<string, unknown>;
-                requiresConfirmation: boolean;
                 parameterSources: string[];
             }>, "many">;
         }, "strip", z.ZodTypeAny, {
             entity: string;
             items: {
                 name: string;
+                description: string;
+                parameters: Record<string, unknown>;
+                requiresConfirmation: boolean;
                 source: {
                     path: string;
                     method: string;
                     security?: string | undefined;
                 };
-                description: string;
-                parameters: Record<string, unknown>;
-                requiresConfirmation: boolean;
                 parameterSources: string[];
             }[];
         }, {
             entity: string;
             items: {
                 name: string;
+                description: string;
+                parameters: Record<string, unknown>;
+                requiresConfirmation: boolean;
                 source: {
                     path: string;
                     method: string;
                     security?: string | undefined;
                 };
-                description: string;
-                parameters: Record<string, unknown>;
-                requiresConfirmation: boolean;
                 parameterSources: string[];
             }[];
         }>, "many">;
@@ -1732,14 +1732,14 @@ export declare const ARTIFACT_SCHEMAS: {
             entity: string;
             items: {
                 name: string;
+                description: string;
+                parameters: Record<string, unknown>;
+                requiresConfirmation: boolean;
                 source: {
                     path: string;
                     method: string;
                     security?: string | undefined;
                 };
-                description: string;
-                parameters: Record<string, unknown>;
-                requiresConfirmation: boolean;
                 parameterSources: string[];
             }[];
         }[];
@@ -1755,14 +1755,14 @@ export declare const ARTIFACT_SCHEMAS: {
             entity: string;
             items: {
                 name: string;
+                description: string;
+                parameters: Record<string, unknown>;
+                requiresConfirmation: boolean;
                 source: {
                     path: string;
                     method: string;
                     security?: string | undefined;
                 };
-                description: string;
-                parameters: Record<string, unknown>;
-                requiresConfirmation: boolean;
                 parameterSources: string[];
             }[];
         }[];
@@ -1921,11 +1921,11 @@ export declare const EnrichedFactSchema: z.ZodObject<{
     claim: z.ZodString;
     source: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    claim: string;
     source: string;
+    claim: string;
 }, {
-    claim: string;
     source: string;
+    claim: string;
 }>;
 export type EnrichedFact = z.infer<typeof EnrichedFactSchema>;
 export declare const EnrichedResponseSchema: z.ZodObject<{
@@ -1935,27 +1935,27 @@ export declare const EnrichedResponseSchema: z.ZodObject<{
         claim: z.ZodString;
         source: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        claim: string;
         source: string;
+        claim: string;
     }, {
-        claim: string;
         source: string;
+        claim: string;
     }>, "many">;
     categories: z.ZodRecord<z.ZodString, z.ZodArray<z.ZodString, "many">>;
 }, "strip", z.ZodTypeAny, {
     kind: "enriched";
     document: string;
     facts: {
-        claim: string;
         source: string;
+        claim: string;
     }[];
     categories: Record<string, string[]>;
 }, {
     kind: "enriched";
     document: string;
     facts: {
-        claim: string;
         source: string;
+        claim: string;
     }[];
     categories: Record<string, string[]>;
 }>;
@@ -1978,27 +1978,27 @@ export declare const EnrichmentResponseSchema: z.ZodUnion<[z.ZodObject<{
         claim: z.ZodString;
         source: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        claim: string;
         source: string;
+        claim: string;
     }, {
-        claim: string;
         source: string;
+        claim: string;
     }>, "many">;
     categories: z.ZodRecord<z.ZodString, z.ZodArray<z.ZodString, "many">>;
 }, "strip", z.ZodTypeAny, {
     kind: "enriched";
     document: string;
     facts: {
-        claim: string;
         source: string;
+        claim: string;
     }[];
     categories: Record<string, string[]>;
 }, {
     kind: "enriched";
     document: string;
     facts: {
-        claim: string;
         source: string;
+        claim: string;
     }[];
     categories: Record<string, string[]>;
 }>, z.ZodObject<{
@@ -2040,13 +2040,13 @@ export declare const ConcurrencyReductionSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     at: string;
     reason: string;
-    to: number;
     from: number;
+    to: number;
 }, {
     at: string;
     reason: string;
-    to: number;
     from: number;
+    to: number;
 }>;
 export declare const BuildManifestSchema: z.ZodObject<{
     schema_version: z.ZodLiteral<"1">;
@@ -2120,13 +2120,13 @@ export declare const BuildManifestSchema: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             at: string;
             reason: string;
-            to: number;
             from: number;
+            to: number;
         }, {
             at: string;
             reason: string;
-            to: number;
             from: number;
+            to: number;
         }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         configured: number;
@@ -2134,8 +2134,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
         reductions: {
             at: string;
             reason: string;
-            to: number;
             from: number;
+            to: number;
         }[];
     }, {
         configured: number;
@@ -2143,8 +2143,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
         reductions?: {
             at: string;
             reason: string;
-            to: number;
             from: number;
+            to: number;
         }[] | undefined;
     }>;
     input_hashes: z.ZodRecord<z.ZodString, z.ZodString>;
@@ -2158,12 +2158,12 @@ export declare const BuildManifestSchema: z.ZodObject<{
             sha256: string;
             path: string;
             bytes: number;
-            action: "unchanged" | "rewritten" | "created";
+            action: "rewritten" | "unchanged" | "created";
         }, {
             sha256: string;
             path: string;
             bytes: number;
-            action: "unchanged" | "rewritten" | "created";
+            action: "rewritten" | "unchanged" | "created";
         }>, "many">>;
         widget_bundle: z.ZodDefault<z.ZodNullable<z.ZodObject<{
             js: z.ZodObject<{
@@ -2220,12 +2220,12 @@ export declare const BuildManifestSchema: z.ZodObject<{
             image_id: z.ZodString;
             size_bytes: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
-            image_id: string;
             ref: string;
+            image_id: string;
             size_bytes: number;
         }, {
-            image_id: string;
             ref: string;
+            image_id: string;
             size_bytes: number;
         }>>>;
     }, "strip", z.ZodTypeAny, {
@@ -2233,7 +2233,7 @@ export declare const BuildManifestSchema: z.ZodObject<{
             sha256: string;
             path: string;
             bytes: number;
-            action: "unchanged" | "rewritten" | "created";
+            action: "rewritten" | "unchanged" | "created";
         }[];
         widget_bundle: {
             js: {
@@ -2248,8 +2248,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
             };
         } | null;
         backend_image: {
-            image_id: string;
             ref: string;
+            image_id: string;
             size_bytes: number;
         } | null;
     }, {
@@ -2257,7 +2257,7 @@ export declare const BuildManifestSchema: z.ZodObject<{
             sha256: string;
             path: string;
             bytes: number;
-            action: "unchanged" | "rewritten" | "created";
+            action: "rewritten" | "unchanged" | "created";
         }[] | undefined;
         widget_bundle?: {
             js: {
@@ -2272,8 +2272,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
             };
         } | null | undefined;
         backend_image?: {
-            image_id: string;
             ref: string;
+            image_id: string;
             size_bytes: number;
         } | null | undefined;
     }>;
@@ -2317,15 +2317,15 @@ export declare const BuildManifestSchema: z.ZodObject<{
             matched_snippet: string;
         }>, "many">>;
     }, "strip", z.ZodTypeAny, {
+        ran: boolean;
+        clean: boolean;
+        values_checked: number;
         matches: {
             entity_type: string;
             entity_id: string;
             pii_column: string;
             matched_snippet: string;
         }[];
-        ran: boolean;
-        clean: boolean;
-        values_checked: number;
     }, {
         ran: boolean;
         clean: boolean;
@@ -2370,8 +2370,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
         reductions: {
             at: string;
             reason: string;
-            to: number;
             from: number;
+            to: number;
         }[];
     };
     input_hashes: Record<string, string>;
@@ -2380,7 +2380,7 @@ export declare const BuildManifestSchema: z.ZodObject<{
             sha256: string;
             path: string;
             bytes: number;
-            action: "unchanged" | "rewritten" | "created";
+            action: "rewritten" | "unchanged" | "created";
         }[];
         widget_bundle: {
             js: {
@@ -2395,8 +2395,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
             };
         } | null;
         backend_image: {
-            image_id: string;
             ref: string;
+            image_id: string;
             size_bytes: number;
         } | null;
     };
@@ -2408,15 +2408,15 @@ export declare const BuildManifestSchema: z.ZodObject<{
         embedding_model: string;
     };
     compliance_scan: {
+        ran: boolean;
+        clean: boolean;
+        values_checked: number;
         matches: {
             entity_type: string;
             entity_id: string;
             pii_column: string;
             matched_snippet: string;
         }[];
-        ran: boolean;
-        clean: boolean;
-        values_checked: number;
     };
 }, {
     schema_version: "1";
@@ -2445,8 +2445,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
         reductions?: {
             at: string;
             reason: string;
-            to: number;
             from: number;
+            to: number;
         }[] | undefined;
     };
     input_hashes: Record<string, string>;
@@ -2455,7 +2455,7 @@ export declare const BuildManifestSchema: z.ZodObject<{
             sha256: string;
             path: string;
             bytes: number;
-            action: "unchanged" | "rewritten" | "created";
+            action: "rewritten" | "unchanged" | "created";
         }[] | undefined;
         widget_bundle?: {
             js: {
@@ -2470,8 +2470,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
             };
         } | null | undefined;
         backend_image?: {
-            image_id: string;
             ref: string;
+            image_id: string;
             size_bytes: number;
         } | null | undefined;
     };
@@ -2515,25 +2515,435 @@ export declare const PipelineProgressSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     skipped: number;
     failed: number;
+    ok: number;
     cost_usd: number;
-    total: number;
     phase: "BOOT" | "MIGRATE" | "IMPORT" | "ENRICH" | "RENDER" | "BUNDLE" | "IMAGE" | "SCAN" | "DONE" | "ABORT";
     processed: number;
-    ok: number;
+    total: number;
     elapsed_seconds: number;
     eta_seconds: number | null;
     message?: string | undefined;
 }, {
     skipped: number;
     failed: number;
+    ok: number;
     cost_usd: number;
-    total: number;
     phase: "BOOT" | "MIGRATE" | "IMPORT" | "ENRICH" | "RENDER" | "BUNDLE" | "IMAGE" | "SCAN" | "DONE" | "ABORT";
     processed: number;
-    ok: number;
+    total: number;
     elapsed_seconds: number;
     eta_seconds: number | null;
     message?: string | undefined;
 }>;
 export type PipelineProgress = z.infer<typeof PipelineProgressSchema>;
+export declare const ConversationTurnSchema: z.ZodObject<{
+    role: z.ZodEnum<["user", "assistant"]>;
+    content: z.ZodString;
+    timestamp: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    role: "user" | "assistant";
+    content: string;
+    timestamp: string;
+}, {
+    role: "user" | "assistant";
+    content: string;
+    timestamp: string;
+}>;
+export type ConversationTurn = z.infer<typeof ConversationTurnSchema>;
+export declare const ActionFollowUpSchema: z.ZodObject<{
+    action_id: z.ZodString;
+    outcome: z.ZodEnum<["succeeded", "cancelled", "failed"]>;
+    host_response_summary: z.ZodOptional<z.ZodString>;
+    error: z.ZodOptional<z.ZodObject<{
+        status: z.ZodOptional<z.ZodNumber>;
+        message: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        message: string;
+        status?: number | undefined;
+    }, {
+        message: string;
+        status?: number | undefined;
+    }>>;
+}, "strip", z.ZodTypeAny, {
+    action_id: string;
+    outcome: "failed" | "succeeded" | "cancelled";
+    host_response_summary?: string | undefined;
+    error?: {
+        message: string;
+        status?: number | undefined;
+    } | undefined;
+}, {
+    action_id: string;
+    outcome: "failed" | "succeeded" | "cancelled";
+    host_response_summary?: string | undefined;
+    error?: {
+        message: string;
+        status?: number | undefined;
+    } | undefined;
+}>;
+export type ActionFollowUp = z.infer<typeof ActionFollowUpSchema>;
+export declare const SessionContextSchema: z.ZodObject<{
+    cart_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    customer_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    region_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    locale: z.ZodString;
+    page_context: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnion<[z.ZodString, z.ZodNumber, z.ZodBoolean, z.ZodNull, z.ZodObject<{
+        action_id: z.ZodString;
+        outcome: z.ZodEnum<["succeeded", "cancelled", "failed"]>;
+        host_response_summary: z.ZodOptional<z.ZodString>;
+        error: z.ZodOptional<z.ZodObject<{
+            status: z.ZodOptional<z.ZodNumber>;
+            message: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            message: string;
+            status?: number | undefined;
+        }, {
+            message: string;
+            status?: number | undefined;
+        }>>;
+    }, "strip", z.ZodTypeAny, {
+        action_id: string;
+        outcome: "failed" | "succeeded" | "cancelled";
+        host_response_summary?: string | undefined;
+        error?: {
+            message: string;
+            status?: number | undefined;
+        } | undefined;
+    }, {
+        action_id: string;
+        outcome: "failed" | "succeeded" | "cancelled";
+        host_response_summary?: string | undefined;
+        error?: {
+            message: string;
+            status?: number | undefined;
+        } | undefined;
+    }>]>>>;
+}, "strip", z.ZodTypeAny, {
+    locale: string;
+    cart_id?: string | null | undefined;
+    customer_id?: string | null | undefined;
+    region_id?: string | null | undefined;
+    page_context?: Record<string, string | number | boolean | {
+        action_id: string;
+        outcome: "failed" | "succeeded" | "cancelled";
+        host_response_summary?: string | undefined;
+        error?: {
+            message: string;
+            status?: number | undefined;
+        } | undefined;
+    } | null> | undefined;
+}, {
+    locale: string;
+    cart_id?: string | null | undefined;
+    customer_id?: string | null | undefined;
+    region_id?: string | null | undefined;
+    page_context?: Record<string, string | number | boolean | {
+        action_id: string;
+        outcome: "failed" | "succeeded" | "cancelled";
+        host_response_summary?: string | undefined;
+        error?: {
+            message: string;
+            status?: number | undefined;
+        } | undefined;
+    } | null> | undefined;
+}>;
+export type SessionContext = z.infer<typeof SessionContextSchema>;
+export declare const ChatRequestSchema: z.ZodObject<{
+    message: z.ZodString;
+    history: z.ZodArray<z.ZodObject<{
+        role: z.ZodEnum<["user", "assistant"]>;
+        content: z.ZodString;
+        timestamp: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        role: "user" | "assistant";
+        content: string;
+        timestamp: string;
+    }, {
+        role: "user" | "assistant";
+        content: string;
+        timestamp: string;
+    }>, "many">;
+    context: z.ZodObject<{
+        cart_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        customer_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        region_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        locale: z.ZodString;
+        page_context: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnion<[z.ZodString, z.ZodNumber, z.ZodBoolean, z.ZodNull, z.ZodObject<{
+            action_id: z.ZodString;
+            outcome: z.ZodEnum<["succeeded", "cancelled", "failed"]>;
+            host_response_summary: z.ZodOptional<z.ZodString>;
+            error: z.ZodOptional<z.ZodObject<{
+                status: z.ZodOptional<z.ZodNumber>;
+                message: z.ZodString;
+            }, "strip", z.ZodTypeAny, {
+                message: string;
+                status?: number | undefined;
+            }, {
+                message: string;
+                status?: number | undefined;
+            }>>;
+        }, "strip", z.ZodTypeAny, {
+            action_id: string;
+            outcome: "failed" | "succeeded" | "cancelled";
+            host_response_summary?: string | undefined;
+            error?: {
+                message: string;
+                status?: number | undefined;
+            } | undefined;
+        }, {
+            action_id: string;
+            outcome: "failed" | "succeeded" | "cancelled";
+            host_response_summary?: string | undefined;
+            error?: {
+                message: string;
+                status?: number | undefined;
+            } | undefined;
+        }>]>>>;
+    }, "strip", z.ZodTypeAny, {
+        locale: string;
+        cart_id?: string | null | undefined;
+        customer_id?: string | null | undefined;
+        region_id?: string | null | undefined;
+        page_context?: Record<string, string | number | boolean | {
+            action_id: string;
+            outcome: "failed" | "succeeded" | "cancelled";
+            host_response_summary?: string | undefined;
+            error?: {
+                message: string;
+                status?: number | undefined;
+            } | undefined;
+        } | null> | undefined;
+    }, {
+        locale: string;
+        cart_id?: string | null | undefined;
+        customer_id?: string | null | undefined;
+        region_id?: string | null | undefined;
+        page_context?: Record<string, string | number | boolean | {
+            action_id: string;
+            outcome: "failed" | "succeeded" | "cancelled";
+            host_response_summary?: string | undefined;
+            error?: {
+                message: string;
+                status?: number | undefined;
+            } | undefined;
+        } | null> | undefined;
+    }>;
+}, "strip", z.ZodTypeAny, {
+    message: string;
+    history: {
+        role: "user" | "assistant";
+        content: string;
+        timestamp: string;
+    }[];
+    context: {
+        locale: string;
+        cart_id?: string | null | undefined;
+        customer_id?: string | null | undefined;
+        region_id?: string | null | undefined;
+        page_context?: Record<string, string | number | boolean | {
+            action_id: string;
+            outcome: "failed" | "succeeded" | "cancelled";
+            host_response_summary?: string | undefined;
+            error?: {
+                message: string;
+                status?: number | undefined;
+            } | undefined;
+        } | null> | undefined;
+    };
+}, {
+    message: string;
+    history: {
+        role: "user" | "assistant";
+        content: string;
+        timestamp: string;
+    }[];
+    context: {
+        locale: string;
+        cart_id?: string | null | undefined;
+        customer_id?: string | null | undefined;
+        region_id?: string | null | undefined;
+        page_context?: Record<string, string | number | boolean | {
+            action_id: string;
+            outcome: "failed" | "succeeded" | "cancelled";
+            host_response_summary?: string | undefined;
+            error?: {
+                message: string;
+                status?: number | undefined;
+            } | undefined;
+        } | null> | undefined;
+    };
+}>;
+export type ChatRequest = z.infer<typeof ChatRequestSchema>;
+export declare const CitationSchema: z.ZodObject<{
+    entity_id: z.ZodString;
+    entity_type: z.ZodString;
+    relevance: z.ZodNumber;
+    href: z.ZodOptional<z.ZodString>;
+    title: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    entity_type: string;
+    entity_id: string;
+    relevance: number;
+    title?: string | undefined;
+    href?: string | undefined;
+}, {
+    entity_type: string;
+    entity_id: string;
+    relevance: number;
+    title?: string | undefined;
+    href?: string | undefined;
+}>;
+export type Citation = z.infer<typeof CitationSchema>;
+export declare const ActionIntentSchema: z.ZodObject<{
+    id: z.ZodString;
+    tool: z.ZodString;
+    arguments: z.ZodRecord<z.ZodString, z.ZodUnknown>;
+    description: z.ZodString;
+    confirmation_required: z.ZodLiteral<true>;
+    http: z.ZodObject<{
+        method: z.ZodEnum<["GET", "POST", "PATCH", "DELETE"]>;
+        path: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        path: string;
+        method: "GET" | "POST" | "PATCH" | "DELETE";
+    }, {
+        path: string;
+        method: "GET" | "POST" | "PATCH" | "DELETE";
+    }>;
+    summary: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+}, "strip", z.ZodTypeAny, {
+    description: string;
+    id: string;
+    tool: string;
+    arguments: Record<string, unknown>;
+    confirmation_required: true;
+    http: {
+        path: string;
+        method: "GET" | "POST" | "PATCH" | "DELETE";
+    };
+    summary?: Record<string, string> | undefined;
+}, {
+    description: string;
+    id: string;
+    tool: string;
+    arguments: Record<string, unknown>;
+    confirmation_required: true;
+    http: {
+        path: string;
+        method: "GET" | "POST" | "PATCH" | "DELETE";
+    };
+    summary?: Record<string, string> | undefined;
+}>;
+export type ActionIntent = z.infer<typeof ActionIntentSchema>;
+export declare const ChatResponseSchema: z.ZodObject<{
+    message: z.ZodString;
+    citations: z.ZodArray<z.ZodObject<{
+        entity_id: z.ZodString;
+        entity_type: z.ZodString;
+        relevance: z.ZodNumber;
+        href: z.ZodOptional<z.ZodString>;
+        title: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        entity_type: string;
+        entity_id: string;
+        relevance: number;
+        title?: string | undefined;
+        href?: string | undefined;
+    }, {
+        entity_type: string;
+        entity_id: string;
+        relevance: number;
+        title?: string | undefined;
+        href?: string | undefined;
+    }>, "many">;
+    actions: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        tool: z.ZodString;
+        arguments: z.ZodRecord<z.ZodString, z.ZodUnknown>;
+        description: z.ZodString;
+        confirmation_required: z.ZodLiteral<true>;
+        http: z.ZodObject<{
+            method: z.ZodEnum<["GET", "POST", "PATCH", "DELETE"]>;
+            path: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            path: string;
+            method: "GET" | "POST" | "PATCH" | "DELETE";
+        }, {
+            path: string;
+            method: "GET" | "POST" | "PATCH" | "DELETE";
+        }>;
+        summary: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, "strip", z.ZodTypeAny, {
+        description: string;
+        id: string;
+        tool: string;
+        arguments: Record<string, unknown>;
+        confirmation_required: true;
+        http: {
+            path: string;
+            method: "GET" | "POST" | "PATCH" | "DELETE";
+        };
+        summary?: Record<string, string> | undefined;
+    }, {
+        description: string;
+        id: string;
+        tool: string;
+        arguments: Record<string, unknown>;
+        confirmation_required: true;
+        http: {
+            path: string;
+            method: "GET" | "POST" | "PATCH" | "DELETE";
+        };
+        summary?: Record<string, string> | undefined;
+    }>, "many">;
+    suggestions: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+    request_id: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    message: string;
+    citations: {
+        entity_type: string;
+        entity_id: string;
+        relevance: number;
+        title?: string | undefined;
+        href?: string | undefined;
+    }[];
+    actions: {
+        description: string;
+        id: string;
+        tool: string;
+        arguments: Record<string, unknown>;
+        confirmation_required: true;
+        http: {
+            path: string;
+            method: "GET" | "POST" | "PATCH" | "DELETE";
+        };
+        summary?: Record<string, string> | undefined;
+    }[];
+    request_id: string;
+    suggestions?: string[] | undefined;
+}, {
+    message: string;
+    citations: {
+        entity_type: string;
+        entity_id: string;
+        relevance: number;
+        title?: string | undefined;
+        href?: string | undefined;
+    }[];
+    actions: {
+        description: string;
+        id: string;
+        tool: string;
+        arguments: Record<string, unknown>;
+        confirmation_required: true;
+        http: {
+            path: string;
+            method: "GET" | "POST" | "PATCH" | "DELETE";
+        };
+        summary?: Record<string, string> | undefined;
+    }[];
+    request_id: string;
+    suggestions?: string[] | undefined;
+}>;
+export type ChatResponse = z.infer<typeof ChatResponseSchema>;
 //# sourceMappingURL=types.d.ts.map

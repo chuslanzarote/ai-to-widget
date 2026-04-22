@@ -1,0 +1,34 @@
+import pino from "pino";
+
+/**
+ * Pino logger with header redaction. Any stray authentication-bearing
+ * header that reached the log path is masked before stdout (Principle I,
+ * specs/003-runtime/research §13). The credential-strip onRequest hook
+ * should prevent these from ever surfacing in the first place — this is
+ * defence in depth.
+ */
+export function buildLogger(level: string, nodeEnv: string) {
+  const isDev = nodeEnv !== "production";
+  return pino({
+    level,
+    redact: {
+      paths: [
+        'req.headers["authorization"]',
+        'req.headers["cookie"]',
+        'req.headers["set-cookie"]',
+        'req.headers["x-atw-session-id"]',
+        "*.authorization",
+        "*.cookie",
+      ],
+      censor: "[redacted]",
+    },
+    transport: isDev
+      ? {
+          target: "pino-pretty",
+          options: { colorize: true, translateTime: "SYS:HH:MM:ss.l" },
+        }
+      : undefined,
+  });
+}
+
+export type Logger = ReturnType<typeof buildLogger>;

@@ -1,0 +1,34 @@
+/**
+ * Default theme tokens. Contract:
+ * specs/003-runtime/contracts/widget-config.md §7.
+ * Host overrides any of these on a page element the widget is nested in.
+ */
+:root,
+.atw-root {
+  --atw-primary-color: #3b5bdb;
+  --atw-primary-text-color: #ffffff;
+  --atw-background-color: #ffffff;
+  --atw-surface-color: #f7f7f8;
+  --atw-border-color: #e6e6e9;
+  --atw-text-color: #1a1a1f;
+  --atw-text-muted-color: #6a6a74;
+  --atw-radius: 8px;
+  --atw-font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu,
+    sans-serif;
+  --atw-font-size-base: 15px;
+  --atw-panel-width: 380px;
+  --atw-panel-height: 600px;
+  --atw-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+.atw-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

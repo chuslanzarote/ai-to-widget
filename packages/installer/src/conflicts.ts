@@ -13,6 +13,8 @@ const STRUCTURAL_TARGETS = [
   ".claude/commands/atw.schema.md",
   ".claude/commands/atw.api.md",
   ".claude/commands/atw.plan.md",
+  ".claude/commands/atw.build.md",
+  ".claude/commands/atw.embed.md",
   "docker-compose.yml",
   "README-atw.md",
 ];

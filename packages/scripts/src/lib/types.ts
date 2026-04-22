@@ -599,3 +599,77 @@ export const PipelineProgressSchema = z.object({
   message: z.string().optional(),
 });
 export type PipelineProgress = z.infer<typeof PipelineProgressSchema>;
+
+/* ============================================================================
+ * Feature 003 — Runtime wire types (data-model.md §1)
+ * ========================================================================= */
+
+export const ConversationTurnSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string(),
+  timestamp: z.string(),
+});
+export type ConversationTurn = z.infer<typeof ConversationTurnSchema>;
+
+export const ActionFollowUpSchema = z.object({
+  action_id: z.string().min(1),
+  outcome: z.enum(["succeeded", "cancelled", "failed"]),
+  host_response_summary: z.string().optional(),
+  error: z
+    .object({ status: z.number().int().optional(), message: z.string() })
+    .optional(),
+});
+export type ActionFollowUp = z.infer<typeof ActionFollowUpSchema>;
+
+export const SessionContextSchema = z.object({
+  cart_id: z.string().nullable().optional(),
+  customer_id: z.string().nullable().optional(),
+  region_id: z.string().nullable().optional(),
+  locale: z.string().min(1),
+  page_context: z
+    .record(
+      z.string(),
+      z.union([z.string(), z.number(), z.boolean(), z.null(), ActionFollowUpSchema]),
+    )
+    .optional(),
+});
+export type SessionContext = z.infer<typeof SessionContextSchema>;
+
+export const ChatRequestSchema = z.object({
+  message: z.string().min(1).max(4000),
+  history: z.array(ConversationTurnSchema).max(20),
+  context: SessionContextSchema,
+});
+export type ChatRequest = z.infer<typeof ChatRequestSchema>;
+
+export const CitationSchema = z.object({
+  entity_id: z.string().min(1),
+  entity_type: z.string().min(1),
+  relevance: z.number().min(0).max(1),
+  href: z.string().optional(),
+  title: z.string().optional(),
+});
+export type Citation = z.infer<typeof CitationSchema>;
+
+export const ActionIntentSchema = z.object({
+  id: z.string().min(1),
+  tool: z.string().min(1),
+  arguments: z.record(z.string(), z.unknown()),
+  description: z.string().min(1),
+  confirmation_required: z.literal(true),
+  http: z.object({
+    method: z.enum(["GET", "POST", "PATCH", "DELETE"]),
+    path: z.string().min(1),
+  }),
+  summary: z.record(z.string(), z.string()).optional(),
+});
+export type ActionIntent = z.infer<typeof ActionIntentSchema>;
+
+export const ChatResponseSchema = z.object({
+  message: z.string().min(1),
+  citations: z.array(CitationSchema),
+  actions: z.array(ActionIntentSchema),
+  suggestions: z.array(z.string()).optional(),
+  request_id: z.string().min(1),
+});
+export type ChatResponse = z.infer<typeof ChatResponseSchema>;

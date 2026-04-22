@@ -38,6 +38,21 @@ Opus-driven enrichment, backend image, manifest — lives at
 [`specs/002-build-pipeline/quickstart.md`](specs/002-build-pipeline/quickstart.md)
 and is the reproducibility contract for the build phase (Principle VIII).
 
+### Run the demo (Feature 003)
+
+```bash
+cp .env.example .env          # set ANTHROPIC_API_KEY
+make demo                     # docker compose up the Aurelia storefront + ATW runtime
+# open http://localhost:8000, click the launcher, ask a catalog question
+```
+
+Full reviewer and fresh-install paths:
+[`specs/003-runtime/quickstart.md`](specs/003-runtime/quickstart.md). The
+runtime layer ships the embedded widget, the `/v1/chat` backend with
+structural Principle-I enforcement (no shopper credentials ever reach
+the backend), and the `/atw.embed` slash command for integrating the
+widget into any host app.
+
 ---
 
 ## Cross-platform support

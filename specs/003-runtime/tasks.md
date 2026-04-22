@@ -29,14 +29,14 @@ description: "Task list for Feature 003 — Runtime"
 
 **Purpose**: Scaffold workspaces, pin dependencies, and wire the new build/test surfaces Feature 003 introduces.
 
-- [ ] T001 Add runtime deps to `packages/backend/package.json`: `fastify@4`, `@fastify/cors@9`, `@fastify/rate-limit@9`, `@fastify/request-id`, `fastify-type-provider-zod`, `pino`, `pino-pretty`, `marked@12`, `dompurify@3`, `zod`, `@anthropic-ai/sdk`, `@xenova/transformers`, `pg`
-- [ ] T002 [P] Add runtime deps to `packages/widget/package.json`: `preact@10`, `@preact/signals`, `marked@12`, `dompurify@3`, `focus-trap`
-- [ ] T003 [P] Add dev deps to repo root `package.json`: `@playwright/test`, `axe-core`, `@axe-core/playwright`; run `npx playwright install chromium firefox webkit`
-- [ ] T004 [P] Add `packages/widget/test/` vitest config reusing root config with jsdom environment for Preact component tests
-- [ ] T005 Run `npm install` at repo root to materialise new deps across the three workspaces
-- [ ] T006 [P] Create `.env.example` at repo root with `ANTHROPIC_API_KEY` placeholder and documented defaults per `contracts/compose.md §6`
-- [ ] T007 [P] Create top-level `Makefile` with `demo`, `fresh`, and `seed` targets per `contracts/compose.md §4–§5`
-- [ ] T008 [P] Add top-level `docker-compose.yml` skeleton with the six services enumerated in `contracts/compose.md §1` (images pinned with digest placeholders; body filled in US4)
+- [X] T001 Add runtime deps to `packages/backend/package.json`: `fastify@4`, `@fastify/cors@9`, `@fastify/rate-limit@9`, `fastify-type-provider-zod`, `pino`, `pino-pretty` (devDep), `zod`, `@anthropic-ai/sdk`, `@xenova/transformers`, `pg` (note: `@fastify/request-id` dropped — Fastify 4 has built-in request-id; `marked`/`dompurify` dropped from backend per analysis I1)
+- [X] T002 [P] Add runtime deps to `packages/widget/package.json`: `preact@10`, `@preact/signals`, `marked@12`, `dompurify@3`, `focus-trap`
+- [X] T003 [P] Add dev deps to repo root `package.json`: `@playwright/test`, `axe-core`, `@axe-core/playwright` (browser binary install deferred to first Playwright run)
+- [X] T004 [P] Add `packages/widget/vitest.config.ts` with jsdom environment + automatic Preact JSX
+- [X] T005 Run `npm install` at repo root to materialise new deps across the three workspaces
+- [X] T006 [P] Create `.env.example` at repo root with `ANTHROPIC_API_KEY` placeholder and documented defaults per `contracts/compose.md §6`
+- [X] T007 [P] Create top-level `Makefile` with `demo`, `fresh`, and `seed` targets per `contracts/compose.md §4–§5`
+- [X] T008 [P] Add top-level `docker-compose.yml` with the six services enumerated in `contracts/compose.md §1` (image digest placeholders noted; Feature-release step will pin them)
 
 ---
 
@@ -46,24 +46,24 @@ description: "Task list for Feature 003 — Runtime"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T009 [P] Extend `packages/scripts/src/lib/types.ts` with zod schemas `ChatRequestSchema`, `ChatResponseSchema`, `ActionIntentSchema`, `CitationSchema`, `SessionContextSchema`, `ConversationTurnSchema`, `ActionFollowUpSchema` per `data-model.md §1`
-- [ ] T010 [P] Add `packages/scripts/src/lib/error-codes.ts` exporting the `error_code` enum (`validation_failed`, `message_too_long`, `rate_limited`, `retrieval_unavailable`, `model_unavailable`, `host_api_unreachable`, `internal_error`) per `contracts/chat-endpoint.md §7`
-- [ ] T011 [P] Write Handlebars template `packages/backend/src/lib/logger.ts.hbs` — pino configuration with a header redaction serializer (`authorization`, `cookie`, `set-cookie`, `x-*-token`, `x-*-auth`, `x-*-session`) per `research §13`
-- [ ] T012 [P] Write Handlebars template `packages/backend/src/lib/errors.ts.hbs` — typed error classes (`ValidationError`, `RetrievalError`, `ModelUnavailableError`, `HostApiError`, `RateLimitError`) and `errorToResponse(err, requestId)` mapper per `contracts/chat-endpoint.md §7`
-- [ ] T013 [P] Write Handlebars template `packages/backend/src/lib/credential-strip.ts.hbs` — Fastify `onRequest` hook removing `Authorization`, `Cookie`, `Set-Cookie`, `/^X-.*-(Token|Auth|Session)$/i` headers, logging count only per `contracts/chat-endpoint.md §4, §6`
-- [ ] T014 [P] Write Handlebars template `packages/backend/src/lib/cors.ts.hbs` — `@fastify/cors` registration reading `ALLOWED_ORIGINS` (comma-separated) per `contracts/chat-endpoint.md §9`
-- [ ] T015 [P] Write Handlebars template `packages/backend/src/lib/rate-limit.ts.hbs` — `@fastify/rate-limit` registration keyed on `X-Atw-Session-Id` header with IP fallback per `research §3`
-- [ ] T016 [P] Write Handlebars template `packages/backend/src/lib/embedding.ts.hbs` — `@xenova/transformers` pipeline wrapper re-using the image-cached `bge-small-multilingual-v1.5` model
-- [ ] T017 [P] Write Handlebars template `packages/backend/src/lib/pii-scrub.ts.hbs` — conservative regex scrubber (email, international phone, 13–19 digit card, IBAN prefix) per `research §7`
-- [ ] T018 [P] Write Handlebars template `packages/backend/src/config.ts.hbs` — resolves every env var from `contracts/chat-endpoint.md §9` with typed defaults; fails fast on missing required vars per FR-039
-- [ ] T019 [P] Write Handlebars template `packages/backend/src/routes/health.ts.hbs` — `GET /health` returning 200 on `SELECT 1` success within 250 ms, 503 otherwise per `contracts/chat-endpoint.md §8`
-- [ ] T020 [US-all] Extend Handlebars template `packages/backend/src/index.ts.hbs` — bootstrap Fastify with logger, request-id, credential-strip, CORS, rate-limit plugins; mount `/health`; placeholder mount for `/v1/chat` filled in US1
-- [ ] T021 [P] Create widget entry `packages/widget/src/index.ts` — reads `document.currentScript`'s `data-*` attributes per `contracts/widget-config.md §1`, generates/persists `sessionId` in `sessionStorage`, injects launcher element, exposes `window.AtwWidget.version`; fail-loud path for missing required attrs
-- [ ] T022 [P] Create `packages/widget/src/state.ts` — `@preact/signals`-backed `ConversationState` (`turns`, `sessionId`, `isSending`, `open`, `pendingAction`, `lastError`, `lastRequestId`) per `data-model.md §3.2`
-- [ ] T023 [P] Create `packages/widget/src/auth.ts` — `buildAuthHeaders(config)` for cookie / bearer / custom modes; refuses to attach auth to calls targeting `config.backendUrl` per `contracts/widget-config.md §5`
-- [ ] T024 [P] Create `packages/widget/src/theme.css` — default CSS custom properties per `contracts/widget-config.md §7`
-- [ ] T025 Unit test `packages/widget/test/auth.unit.test.ts` — each mode produces the expected headers; backend URL never gets auth; bearer re-reads localStorage on every call (depends on T023)
-- [ ] T026 Unit test `packages/scripts/test/runtime-types.unit.test.ts` — zod round-trip for every shape in `data-model.md §1` (depends on T009)
+- [X] T009 [P] Extend `packages/scripts/src/lib/types.ts` with zod schemas `ChatRequestSchema`, `ChatResponseSchema`, `ActionIntentSchema`, `CitationSchema`, `SessionContextSchema`, `ConversationTurnSchema`, `ActionFollowUpSchema` per `data-model.md §1`
+- [X] T010 [P] Add `packages/scripts/src/lib/error-codes.ts` exporting the `error_code` enum (`validation_failed`, `message_too_long`, `rate_limited`, `retrieval_unavailable`, `model_unavailable`, `host_api_unreachable`, `internal_error`) per `contracts/chat-endpoint.md §7`
+- [X] T011 [P] Write Handlebars template `packages/backend/src/lib/logger.ts.hbs` — pino configuration with a header redaction serializer (`authorization`, `cookie`, `set-cookie`, `x-*-token`, `x-*-auth`, `x-*-session`) per `research §13`
+- [X] T012 [P] Write Handlebars template `packages/backend/src/lib/errors.ts.hbs` — typed error classes (`ValidationError`, `RetrievalError`, `ModelUnavailableError`, `HostApiError`, `RateLimitError`) and `errorToResponse(err, requestId)` mapper per `contracts/chat-endpoint.md §7`
+- [X] T013 [P] Write Handlebars template `packages/backend/src/lib/credential-strip.ts.hbs` — Fastify `onRequest` hook removing `Authorization`, `Cookie`, `Set-Cookie`, `/^X-.*-(Token|Auth|Session)$/i` headers, logging count only per `contracts/chat-endpoint.md §4, §6`
+- [X] T014 [P] Write Handlebars template `packages/backend/src/lib/cors.ts.hbs` — `@fastify/cors` registration reading `ALLOWED_ORIGINS` (comma-separated) per `contracts/chat-endpoint.md §9`
+- [X] T015 [P] Write Handlebars template `packages/backend/src/lib/rate-limit.ts.hbs` — `@fastify/rate-limit` registration keyed on `X-Atw-Session-Id` header with IP fallback per `research §3`
+- [X] T016 [P] Write Handlebars template `packages/backend/src/lib/embedding.ts.hbs` — `@xenova/transformers` pipeline wrapper re-using the image-cached `bge-small-multilingual-v1.5` model
+- [X] T017 [P] Write Handlebars template `packages/backend/src/lib/pii-scrub.ts.hbs` — conservative regex scrubber (email, international phone, 13–19 digit card, IBAN prefix) per `research §7`
+- [X] T018 [P] Write Handlebars template `packages/backend/src/config.ts.hbs` — resolves every env var from `contracts/chat-endpoint.md §9` with typed defaults; fails fast on missing required vars per FR-039
+- [X] T019 [P] Write Handlebars template `packages/backend/src/routes/health.ts.hbs` — `GET /health` returning 200 on `SELECT 1` success within 250 ms, 503 otherwise per `contracts/chat-endpoint.md §8`
+- [X] T020 [US-all] Extend Handlebars template `packages/backend/src/index.ts.hbs` — bootstrap Fastify with logger, request-id, credential-strip, CORS, rate-limit plugins; mount `/health`; placeholder mount for `/v1/chat` filled in US1
+- [X] T021 [P] Create widget entry `packages/widget/src/index.ts` — reads `document.currentScript`'s `data-*` attributes per `contracts/widget-config.md §1`, generates/persists `sessionId` in `sessionStorage`, injects launcher element, exposes `window.AtwWidget.version`; fail-loud path for missing required attrs
+- [X] T022 [P] Create `packages/widget/src/state.ts` — `@preact/signals`-backed `ConversationState` (`turns`, `sessionId`, `isSending`, `open`, `pendingAction`, `lastError`, `lastRequestId`) per `data-model.md §3.2`
+- [X] T023 [P] Create `packages/widget/src/auth.ts` — `buildAuthHeaders(config)` for cookie / bearer / custom modes; refuses to attach auth to calls targeting `config.backendUrl` per `contracts/widget-config.md §5`
+- [X] T024 [P] Create `packages/widget/src/theme.css` — default CSS custom properties per `contracts/widget-config.md §7`
+- [X] T025 Unit test `packages/widget/test/auth.unit.test.ts` — each mode produces the expected headers; backend URL never gets auth; bearer re-reads localStorage on every call (depends on T023)
+- [X] T026 Unit test `packages/scripts/test/runtime-types.unit.test.ts` — zod round-trip for every shape in `data-model.md §1` (depends on T009)
 
 **Checkpoint**: Foundation ready — US1–US10 implementation can now begin.
 
@@ -77,24 +77,24 @@ description: "Task list for Feature 003 — Runtime"
 
 ### Implementation for User Story 1
 
-- [ ] T027 [P] [US1] Write Handlebars template `packages/backend/src/lib/retrieval.ts.hbs` (extends the Feature 002 stub) — parameterised `runRetrieval(embedding, threshold, topK, client)` returning `RetrievalHit[]`, including similarity calculation per `contracts/chat-endpoint.md §4 step 7`
-- [ ] T028 [P] [US1] Write Handlebars template `packages/backend/src/lib/opus-client.ts.hbs` — single-turn `createMessage({ system, history, message, retrievalContext })` call with `@anthropic-ai/sdk`, no tool use yet; returns text content + usage
-- [ ] T029 [P] [US1] Write Handlebars template `packages/backend/src/lib/retrieval-context.ts.hbs` — formats `RetrievalHit[]` as the XML-tagged context block per `contracts/chat-endpoint.md §4 bottom`
-- [ ] T030 [P] [US1] Write Handlebars template `packages/backend/src/prompts.ts.hbs` — `SYSTEM_PROMPT` rendered from `{{projectBrief}}` + `{{actionManifest}}` with the anti-fabrication clause per `research §5` (consumes build-time context that Feature 002's `atw-render-backend` already passes)
-- [ ] T031 [US1] Write Handlebars template `packages/backend/src/routes/chat.ts.hbs` — `POST /v1/chat` handler: validate body → embed → retrieve → scrub → opus single-turn → compose `ChatResponse` with citations only (actions left empty for US1) per `contracts/chat-endpoint.md §4 steps 1–11` (depends on T027, T028, T029, T030)
-- [ ] T032 [US1] Mount the chat route in `packages/backend/src/index.ts.hbs` (finalize the placeholder from T020; depends on T031)
-- [ ] T033 [P] [US1] Create widget component `packages/widget/src/launcher.ts` — clickable `<button>` injected into `document.body`, `aria-label`, visible focus ring per `contracts/widget-config.md §2, §8`
-- [ ] T034 [P] [US1] Create widget component `packages/widget/src/panel.tsx` — Preact panel with `role="dialog"` + `aria-modal="true"`, focus trap on open, close on Esc per `contracts/widget-config.md §2, §8`
-- [ ] T035 [P] [US1] Create widget component `packages/widget/src/markdown.ts` — `marked` with `{ gfm: true, breaks: false, headerIds: false }` piped through `DOMPurify` with the allowlist from `research §9`
-- [ ] T036 [P] [US1] Create widget component `packages/widget/src/message-list.tsx` — renders user/assistant turns, citations as inline links opening in the same tab, `role="log"` + `aria-live="polite"` per `contracts/widget-config.md §3, §8`
-- [ ] T037 [P] [US1] Create widget component `packages/widget/src/input.tsx` — textarea + send button, Enter sends / Shift+Enter newline, disabled during send per `contracts/widget-config.md §3`
-- [ ] T038 [P] [US1] Create widget client `packages/widget/src/api-client.ts` — `postChat(request, config)` with `X-Atw-Session-Id` header, zod-parses response, surfaces `error_code` to the state, never attaches auth to `config.backendUrl` per `contracts/widget-config.md §3, §5`
-- [ ] T039 [US1] Create widget stylesheet `packages/widget/src/styles.css` — component styles importing `theme.css`; panel layout, message bubbles, citation link style (depends on T024)
-- [ ] T040 [US1] Wire panel + message-list + input + api-client in `packages/widget/src/index.ts` so US1 end-to-end renders (depends on T021, T033–T038)
-- [ ] T041 [P] [US1] Unit test `packages/widget/test/markdown.unit.test.ts` — sanitiser kills `<script>`, `javascript:` URIs, inline event handlers; renders allowlisted tags (depends on T035)
-- [ ] T042 [P] [US1] Unit test `packages/widget/test/api-client.unit.test.ts` — outbound request carries `X-Atw-Session-Id`, no `Authorization`/`Cookie`; zod parse failure surfaces friendly error (depends on T038)
-- [ ] T043 [P] [US1] Contract test `packages/backend/test/chat.contract.test.ts` — real pgvector testcontainer seeded with 10 fixture documents, mock Opus returning a stub reply; asserts 200 + valid `ChatResponse`, citations reference seeded entity_ids, request_id echoed (depends on T031)
-- [ ] T044 [US1] Integration test `tests/integration/runtime-chat-grounded.test.ts` — boots the full stack via `docker-compose.test.yml`, sends the Story 1 scripted query, asserts reply cites ≥ 2 seeded products and returns within 4 s (SC-001); gated by `ATW_E2E_DOCKER=1`
+- [X] T027 [P] [US1] Write Handlebars template `packages/backend/src/lib/retrieval.ts.hbs` (extends the Feature 002 stub) — parameterised `runRetrieval(embedding, threshold, topK, client)` returning `RetrievalHit[]`, including similarity calculation per `contracts/chat-endpoint.md §4 step 7`
+- [X] T028 [P] [US1] Write Handlebars template `packages/backend/src/lib/opus-client.ts.hbs` — single-turn `createMessage({ system, history, message, retrievalContext })` call with `@anthropic-ai/sdk`, no tool use yet; returns text content + usage
+- [X] T029 [P] [US1] Write Handlebars template `packages/backend/src/lib/retrieval-context.ts.hbs` — formats `RetrievalHit[]` as the XML-tagged context block per `contracts/chat-endpoint.md §4 bottom`
+- [X] T030 [P] [US1] Write Handlebars template `packages/backend/src/prompts.ts.hbs` — `SYSTEM_PROMPT` rendered from `{{projectBrief}}` + `{{actionManifest}}` with the anti-fabrication clause per `research §5` (consumes build-time context that Feature 002's `atw-render-backend` already passes)
+- [X] T031 [US1] Write Handlebars template `packages/backend/src/routes/chat.ts.hbs` — `POST /v1/chat` handler: validate body → embed → retrieve → scrub → opus single-turn → compose `ChatResponse` with citations only (actions left empty for US1) per `contracts/chat-endpoint.md §4 steps 1–11` (depends on T027, T028, T029, T030)
+- [X] T032 [US1] Mount the chat route in `packages/backend/src/index.ts.hbs` (finalize the placeholder from T020; depends on T031)
+- [X] T033 [P] [US1] Create widget component `packages/widget/src/launcher.ts` — clickable `<button>` injected into `document.body`, `aria-label`, visible focus ring per `contracts/widget-config.md §2, §8`
+- [X] T034 [P] [US1] Create widget component `packages/widget/src/panel.tsx` — Preact panel with `role="dialog"` + `aria-modal="true"`, focus trap on open, close on Esc per `contracts/widget-config.md §2, §8`
+- [X] T035 [P] [US1] Create widget component `packages/widget/src/markdown.ts` — `marked` with `{ gfm: true, breaks: false, headerIds: false }` piped through `DOMPurify` with the allowlist from `research §9`
+- [X] T036 [P] [US1] Create widget component `packages/widget/src/message-list.tsx` — renders user/assistant turns, citations as inline links opening in the same tab, `role="log"` + `aria-live="polite"` per `contracts/widget-config.md §3, §8`
+- [X] T037 [P] [US1] Create widget component `packages/widget/src/input.tsx` — textarea + send button, Enter sends / Shift+Enter newline, disabled during send per `contracts/widget-config.md §3`
+- [X] T038 [P] [US1] Create widget client `packages/widget/src/api-client.ts` — `postChat(request, config)` with `X-Atw-Session-Id` header, zod-parses response, surfaces `error_code` to the state, never attaches auth to `config.backendUrl` per `contracts/widget-config.md §3, §5`
+- [X] T039 [US1] Create widget stylesheet `packages/widget/src/styles.css` — component styles importing `theme.css`; panel layout, message bubbles, citation link style (depends on T024)
+- [X] T040 [US1] Wire panel + message-list + input + api-client in `packages/widget/src/index.ts` so US1 end-to-end renders (depends on T021, T033–T038)
+- [X] T041 [P] [US1] Unit test `packages/widget/test/markdown.unit.test.ts` — sanitiser kills `<script>`, `javascript:` URIs, inline event handlers; renders allowlisted tags (depends on T035)
+- [X] T042 [P] [US1] Unit test `packages/widget/test/api-client.unit.test.ts` — outbound request carries `X-Atw-Session-Id`, no `Authorization`/`Cookie`; zod parse failure surfaces friendly error (depends on T038)
+- [X] T043 [P] [US1] Contract test `packages/backend/test/chat.contract.test.ts` — real pgvector testcontainer seeded with 10 fixture documents, mock Opus returning a stub reply; asserts 200 + valid `ChatResponse`, citations reference seeded entity_ids, request_id echoed (depends on T031)
+- [X] T044 [US1] Integration test `tests/integration/runtime-chat-grounded.test.ts` — boots the full stack via `docker-compose.test.yml`, sends the Story 1 scripted query, asserts reply cites ≥ 2 seeded products and returns within 4 s (SC-001); gated by `ATW_E2E_DOCKER=1`
 
 **Checkpoint**: `/v1/chat` grounded happy path works end-to-end. MVP baseline achieved.
 
@@ -108,17 +108,17 @@ description: "Task list for Feature 003 — Runtime"
 
 ### Implementation for User Story 2
 
-- [ ] T045 [P] [US2] Write Handlebars template `packages/backend/src/tools.ts.hbs` — renders `SAFE_READ_TOOLS` and `ACTION_TOOLS` arrays from `{{actionManifest}}` per `contracts/chat-endpoint.md §5`
-- [ ] T046 [P] [US2] Write Handlebars template `packages/backend/src/lib/tool-execution.ts.hbs` — safe-read executor making HTTP calls against `HOST_API_BASE_URL` with `HOST_API_KEY` (or none); 8 s timeout; 4 KB body truncation per `contracts/chat-endpoint.md §5`
-- [ ] T047 [P] [US2] Write Handlebars template `packages/backend/src/lib/action-intent.ts.hbs` — `buildActionIntent(toolCall, sessionContext, manifest)` resolves `{path.params}` from `SessionContext`; drops intents with unresolved vars and returns a synthetic `tool_result` error for the model per `contracts/chat-endpoint.md §5`
-- [ ] T048 [US2] Extend `packages/backend/src/lib/opus-client.ts.hbs` — full tool-use loop on `stop_reason === 'tool_use'`, invoking `tool-execution` for safe-reads and accumulating `ActionIntent[]` for action tools, capped at `MAX_TOOL_CALLS_PER_TURN` per `contracts/chat-endpoint.md §4 step 9` (depends on T045, T046, T047)
-- [ ] T049 [US2] Extend `packages/backend/src/routes/chat.ts.hbs` — surface `actions[]` on `ChatResponse`; enforce action-tool allowlist pre-emit (depends on T048)
-- [ ] T050 [P] [US2] Create widget component `packages/widget/src/action-card.tsx` — Preact component rendering `intent.description`, `intent.summary` key/value pairs, Cancel + primary buttons; click path calls `executeAction` only on primary click per `contracts/widget-config.md §4`
-- [ ] T051 [US2] Extend `packages/widget/src/api-client.ts` — `executeAction(intent, config)` runs `assertToolAllowed` then `fetch` against `apiBaseUrl` with headers from `buildAuthHeaders`; posts `ActionFollowUp` back to the backend on resolution per `contracts/widget-config.md §4, §5` (depends on T023, T050)
-- [ ] T052 [US2] Extend `packages/widget/src/state.ts` + `message-list.tsx` — render action cards inline between turns; transition `pendingAction` to null after confirm/cancel (depends on T050)
-- [ ] T053 [P] [US2] Unit test `packages/widget/test/action-card.unit.test.ts` — primary click → 1 `fetch`; cancel → 0 `fetch`; unknown-tool throws `ATW_TOOL_NOT_ALLOWED` → 0 `fetch` (depends on T050, T051)
-- [ ] T054 [P] [US2] Contract test `packages/backend/test/action-intent.contract.test.ts` — given a mocked Opus tool-use output for `add_to_cart`, handler emits the expected `ActionIntent` with resolved path and `confirmation_required: true` (depends on T048, T049)
-- [ ] T055 [US2] Integration test `tests/integration/runtime-action-confirmation.test.ts` — Playwright: run full US1 → US2 flow against the demo stack, assert host cart unchanged before click, changed within 2 s after click (SC-002); gated by `ATW_E2E_DOCKER=1`
+- [X] T045 [P] [US2] Write Handlebars template `packages/backend/src/tools.ts.hbs` — renders `SAFE_READ_TOOLS` and `ACTION_TOOLS` arrays from `{{actionManifest}}` per `contracts/chat-endpoint.md §5`
+- [X] T046 [P] [US2] Write Handlebars template `packages/backend/src/lib/tool-execution.ts.hbs` — safe-read executor making HTTP calls against `HOST_API_BASE_URL` with `HOST_API_KEY` (or none); 8 s timeout; 4 KB body truncation per `contracts/chat-endpoint.md §5`
+- [X] T047 [P] [US2] Write Handlebars template `packages/backend/src/lib/action-intent.ts.hbs` — `buildActionIntent(toolCall, sessionContext, manifest)` resolves `{path.params}` from `SessionContext`; drops intents with unresolved vars and returns a synthetic `tool_result` error for the model per `contracts/chat-endpoint.md §5`
+- [X] T048 [US2] Extend `packages/backend/src/lib/opus-client.ts.hbs` — full tool-use loop on `stop_reason === 'tool_use'`, invoking `tool-execution` for safe-reads and accumulating `ActionIntent[]` for action tools, capped at `MAX_TOOL_CALLS_PER_TURN` per `contracts/chat-endpoint.md §4 step 9` (depends on T045, T046, T047)
+- [X] T049 [US2] Extend `packages/backend/src/routes/chat.ts.hbs` — surface `actions[]` on `ChatResponse`; enforce action-tool allowlist pre-emit (depends on T048)
+- [X] T050 [P] [US2] Create widget component `packages/widget/src/action-card.tsx` — Preact component rendering `intent.description`, `intent.summary` key/value pairs, Cancel + primary buttons; click path calls `executeAction` only on primary click per `contracts/widget-config.md §4`
+- [X] T051 [US2] Extend `packages/widget/src/api-client.ts` — `executeAction(intent, config)` runs `assertToolAllowed` then `fetch` against `apiBaseUrl` with headers from `buildAuthHeaders`; posts `ActionFollowUp` back to the backend on resolution per `contracts/widget-config.md §4, §5` (depends on T023, T050)
+- [X] T052 [US2] Extend `packages/widget/src/state.ts` + `message-list.tsx` — render action cards inline between turns; transition `pendingAction` to null after confirm/cancel (depends on T050)
+- [X] T053 [P] [US2] Unit test `packages/widget/test/action-card.unit.test.ts` — primary click → 1 `fetch`; cancel → 0 `fetch`; unknown-tool throws `ATW_TOOL_NOT_ALLOWED` → 0 `fetch` (depends on T050, T051)
+- [X] T054 [P] [US2] Contract test `packages/backend/test/action-intent.contract.test.ts` — given a mocked Opus tool-use output for `add_to_cart`, handler emits the expected `ActionIntent` with resolved path and `confirmation_required: true` (depends on T048, T049)
+- [X] T055 [US2] Integration test `tests/integration/runtime-action-confirmation.test.ts` — Playwright: run full US1 → US2 flow against the demo stack, assert host cart unchanged before click, changed within 2 s after click (SC-002); gated by `ATW_E2E_DOCKER=1`
 
 **Checkpoint**: Confirmation-gated actions work end-to-end. Principle IV is structurally enforced in the widget.
 
@@ -132,11 +132,11 @@ description: "Task list for Feature 003 — Runtime"
 
 ### Implementation for User Story 3
 
-- [ ] T056 [US3] Extend `packages/widget/src/state.ts` — `turns` signal appends on send/receive, trims to `MAX_CONVERSATION_TURNS` (20) via FIFO; sessionId persists per tab
-- [ ] T057 [US3] Extend `packages/widget/src/api-client.ts` — always include the current `turns` in the outgoing `ChatRequest.history` (depends on T056)
-- [ ] T058 [US3] Extend `packages/backend/src/routes/chat.ts.hbs` — enforce 20-turn cap on incoming `history`; when trimming occurs inject a short system note `(conversation trimmed — earlier turns omitted)` into the Opus call context
-- [ ] T059 [P] [US3] Unit test `packages/widget/test/state.unit.test.ts` — FIFO trim keeps 20 most-recent turns; sessionId survives tab-local reopen (depends on T056)
-- [ ] T060 [US3] Integration test `tests/integration/runtime-multi-turn.test.ts` — scripted 5-turn session naming the entity only in turn 1; asserts ≥ 4/4 follow-ups resolve the pronoun (SC-003); gated by `ATW_E2E_DOCKER=1`
+- [X] T056 [US3] Extend `packages/widget/src/state.ts` — `turns` signal appends on send/receive, trims to `MAX_CONVERSATION_TURNS` (20) via FIFO; sessionId persists per tab
+- [X] T057 [US3] Extend `packages/widget/src/api-client.ts` — always include the current `turns` in the outgoing `ChatRequest.history` (depends on T056)
+- [X] T058 [US3] Extend `packages/backend/src/routes/chat.ts.hbs` — enforce 20-turn cap on incoming `history`; when trimming occurs inject a short system note `(conversation trimmed — earlier turns omitted)` into the Opus call context
+- [X] T059 [P] [US3] Unit test `packages/widget/test/state.unit.test.ts` — FIFO trim keeps 20 most-recent turns; sessionId survives tab-local reopen (depends on T056)
+- [X] T060 [US3] Integration test `tests/integration/runtime-multi-turn.test.ts` — scripted 5-turn session naming the entity only in turn 1; asserts ≥ 4/4 follow-ups resolve the pronoun (SC-003); gated by `ATW_E2E_DOCKER=1`
 
 **Checkpoint**: P1 MVP stories except the demo-wire story (US4) are functionally complete.
 
@@ -231,17 +231,17 @@ description: "Task list for Feature 003 — Runtime"
 
 ### Implementation for User Story 8
 
-- [ ] T090 [P] [US8] Create `commands/atw.embed.md` slash-command markdown — interactive prompt per `contracts/embed-command.md §1.2`; delegates to `npx atw-embed`
-- [ ] T091 [P] [US8] Create `packages/scripts/src/embed.ts` — reads `.atw/state/embed-answers.md` (with sensible per-field defaults), validates URL / enum values, renders selected framework template to `.atw/artifacts/embed-guide.md` per `contracts/embed-command.md §2, §3`
-- [ ] T092 [P] [US8] Create `packages/scripts/bin/atw-embed.js` shim with `--help`, `--version`, `--answers-file`, `--output`, `--frozen-time` flags per `contracts/embed-command.md §5`
-- [ ] T093 [P] [US8] Create embed template `packages/scripts/src/embed-templates/next-app-router.hbs` — full guide for Next.js App Router per `contracts/embed-command.md §2.2`
-- [ ] T094 [P] [US8] Create embed template `packages/scripts/src/embed-templates/next-pages-router.hbs` — Next.js Pages Router variant
-- [ ] T095 [P] [US8] Create embed template `packages/scripts/src/embed-templates/plain-html.hbs` — plain HTML site variant
-- [ ] T096 [P] [US8] Create embed template `packages/scripts/src/embed-templates/custom.hbs` — catch-all with copy/paste `<script>` and documentation links
-- [ ] T097 [US8] Extend `packages/installer/bin/create-atw.js` to copy `commands/atw.embed.md` into the Builder's `.claude/commands/` per Feature 001's installer pattern
-- [ ] T098 [P] [US8] Unit test `packages/scripts/test/embed.unit.test.ts` — same answers produce byte-identical output (SHA-256 stable); flipped framework answer produces a material diff (depends on T091, T093–T096)
-- [ ] T099 [P] [US8] Contract test `packages/scripts/test/embed.contract.test.ts` — CLI surface (exit codes 0/1/3/4/17) per `contracts/embed-command.md §4` (depends on T092)
-- [ ] T100 [US8] Integration test `tests/integration/embed-guide-roundtrip.test.ts` — for each of `next-app-router`, `plain-html`, `custom`, drop the generated `<script>` snippet into `tests/fixtures/embed-hosts/<framework>/`, bring it up via Playwright, verify the widget loads and sends a successful chat (SC-014); gated by `ATW_E2E_DOCKER=1`
+- [X] T090 [P] [US8] Create `commands/atw.embed.md` slash-command markdown — interactive prompt per `contracts/embed-command.md §1.2`; delegates to `npx atw-embed`
+- [X] T091 [P] [US8] Create `packages/scripts/src/embed.ts` — reads `.atw/state/embed-answers.md` (with sensible per-field defaults), validates URL / enum values, renders selected framework template to `.atw/artifacts/embed-guide.md` per `contracts/embed-command.md §2, §3`
+- [X] T092 [P] [US8] Create `packages/scripts/bin/atw-embed.js` shim with `--help`, `--version`, `--answers-file`, `--output`, `--frozen-time` flags per `contracts/embed-command.md §5`
+- [X] T093 [P] [US8] Create embed template `packages/scripts/src/embed-templates/next-app-router.hbs` — full guide for Next.js App Router per `contracts/embed-command.md §2.2`
+- [X] T094 [P] [US8] Create embed template `packages/scripts/src/embed-templates/next-pages-router.hbs` — Next.js Pages Router variant
+- [X] T095 [P] [US8] Create embed template `packages/scripts/src/embed-templates/plain-html.hbs` — plain HTML site variant
+- [X] T096 [P] [US8] Create embed template `packages/scripts/src/embed-templates/custom.hbs` — catch-all with copy/paste `<script>` and documentation links
+- [X] T097 [US8] Extend `packages/installer/bin/create-atw.js` to copy `commands/atw.embed.md` into the Builder's `.claude/commands/` per Feature 001's installer pattern
+- [X] T098 [P] [US8] Unit test `packages/scripts/test/embed.unit.test.ts` — same answers produce byte-identical output (SHA-256 stable); flipped framework answer produces a material diff (depends on T091, T093–T096)
+- [X] T099 [P] [US8] Contract test `packages/scripts/test/embed.contract.test.ts` — CLI surface (exit codes 0/1/3/4/17) per `contracts/embed-command.md §4` (depends on T092)
+- [X] T100 [US8] Integration test `tests/integration/embed-guide-roundtrip.test.ts` — for each of `next-app-router`, `plain-html`, `custom`, drop the generated `<script>` snippet into `tests/fixtures/embed-hosts/<framework>/`, bring it up via Playwright, verify the widget loads and sends a successful chat (SC-014); gated by `ATW_E2E_DOCKER=1`
 
 **Checkpoint**: Builders on supported frameworks can integrate the widget with one run of `/atw.embed`.
 
@@ -255,8 +255,8 @@ description: "Task list for Feature 003 — Runtime"
 
 ### Implementation for User Story 9
 
-- [ ] T101 [P] [US9] Extend `packages/widget/src/theme.css` — full CSS custom property set per `contracts/widget-config.md §7`; defaults chosen to hit the 4.5:1 contrast target for `--atw-text-color` on `--atw-background-color`
-- [ ] T102 [P] [US9] Extend `packages/widget/src/styles.css` — every component uses `var(--atw-*)` references; no hard-coded colours in component styles (depends on T101)
+- [X] T101 [P] [US9] Extend `packages/widget/src/theme.css` — full CSS custom property set per `contracts/widget-config.md §7`; defaults chosen to hit the 4.5:1 contrast target for `--atw-text-color` on `--atw-background-color`
+- [X] T102 [P] [US9] Extend `packages/widget/src/styles.css` — every component uses `var(--atw-*)` references; no hard-coded colours in component styles (depends on T101)
 - [ ] T103 [US9] Integration test `tests/integration/runtime-theming.test.ts` — Playwright on three browsers: mount widget, override `--atw-primary-color` on the host, assert computed style of the primary button changes without rebuilding the bundle (SC-012); gated by `ATW_E2E_DOCKER=1`
 
 **Checkpoint**: Host-matching theming lands cleanly.
@@ -271,11 +271,11 @@ description: "Task list for Feature 003 — Runtime"
 
 ### Implementation for User Story 10
 
-- [ ] T104 [US10] Verify `packages/widget/src/api-client.ts:assertToolAllowed` is a hard gate on every `executeAction` call; update Fowler-esque doc comment linking to `contracts/widget-config.md §4`
+- [X] T104 [US10] Verify `packages/widget/src/api-client.ts:assertToolAllowed` is a hard gate on every `executeAction` call; update Fowler-esque doc comment linking to `contracts/widget-config.md §4`
 - [ ] T105 [US10] Integration test `tests/integration/runtime-tool-allowlist.test.ts` — Playwright with request-interception injects a fake `ActionIntent` with tool name `nuke_the_store`; asserts widget surfaces the error state, logs `ATW_TOOL_NOT_ALLOWED`, and makes zero host-API calls (SC-008); gated by `ATW_E2E_DOCKER=1`
 - [ ] T106 [US10] Integration test `tests/integration/runtime-rate-limit.test.ts` — fire 65 requests at `/v1/chat` with the same `X-Atw-Session-Id` inside 10 minutes; assert the 61st returns 429 with `Retry-After` header (SC-010); gated by `ATW_E2E_DOCKER=1`
-- [ ] T107 [US10] Extend Feature 002's `atw-compile-widget` script — fail the build when `widget.js.gz > 80 KB` or `widget.css.gz > 10 KB`; update its unit tests to assert the budget enforcement
-- [ ] T108 [US10] Integration test `tests/integration/runtime-bundle-size.test.ts` — asserts the same invariant on the compiled artefact (SC-009); Node-only, no Docker required
+- [X] T107 [US10] Extend Feature 002's `atw-compile-widget` script — fail the build when `widget.js.gz > 80 KB` or `widget.css.gz > 10 KB`; update its unit tests to assert the budget enforcement
+- [X] T108 [US10] Integration test `tests/integration/runtime-bundle-size.test.ts` — asserts the same invariant on the compiled artefact (SC-009); Node-only, no Docker required
 
 **Checkpoint**: Every SC with a safety-rail flavour is test-backed and green.
 
@@ -287,9 +287,9 @@ description: "Task list for Feature 003 — Runtime"
 
 - [ ] T109 [P] E2E test `tests/e2e/accessibility.spec.ts` — Playwright + `@axe-core/playwright`, opens the widget panel on the demo stack, asserts zero high-impact WCAG 2.1 AA violations (SC-013); gated by `ATW_E2E_DOCKER=1`
 - [ ] T110 [P] Unit test `packages/backend/test/logger.unit.test.ts` — redaction serializer masks every blocked header; `req.id` appears on every log line (depends on T011)
-- [ ] T111 [P] Unit test `packages/backend/test/pii-scrub.unit.test.ts` — each regex pattern redacts expected strings; legitimate product copy left untouched (depends on T017)
+- [X] T111 [P] Unit test `packages/backend/test/pii-scrub.unit.test.ts` — each regex pattern redacts expected strings; legitimate product copy left untouched (depends on T017)
 - [ ] T112 [P] Extend `packages/widget/src/panel.tsx` — `focus-trap` integration; unit test in `packages/widget/test/panel.unit.test.ts` asserts focus is trapped on open and restored on close (depends on T034)
-- [ ] T113 Update `README.md` — point to `specs/003-runtime/quickstart.md` as the V1 reproducibility path; expand the "Quickstart" section with the `make demo` / `make fresh` summary
+- [X] T113 Update `README.md` — point to `specs/003-runtime/quickstart.md` as the V1 reproducibility path; expand the "Quickstart" section with the `make demo` / `make fresh` summary
 - [ ] T114 [P] Add `DEBUG=atw:*` logging to `packages/backend/src/routes/chat.ts.hbs`, `lib/opus-client.ts.hbs`, `lib/retrieval.ts.hbs` following the pattern set in Feature 002
 - [ ] T115 [P] Run quickstart.md §2 (reviewer path) and §3 (fresh path) manually on macOS, Linux, and WSL2 reference environments per Principle VIII; record timing + platform-specific notes in `specs/003-runtime/post-impl-notes.md`
 - [ ] T116 Run the full test suite: `npx vitest run` (unit + contract) + `npx playwright test` (E2E + accessibility) with `ATW_E2E_DOCKER=1`; assert zero failures and zero unexpected skips

@@ -1,0 +1,114 @@
+# AI to Widget — top-level Docker Compose orchestration.
+#
+# Service graph documented in specs/003-runtime/contracts/compose.md §1.
+#
+# NOTE ON DIGESTS: image digests are placeholders for public images in this
+# pre-implementation revision. Feature 006 / release prep MUST resolve each
+# `<digest>` placeholder to the exact `sha256:...` value from Docker Hub
+# before publishing the demo. Principle VIII requires this pin.
+
+name: ai-to-widget
+
+services:
+  medusa_postgres:
+    image: postgres:16-alpine  # TODO(compose-digest): pin @sha256:<digest>
+    environment:
+      POSTGRES_DB: medusa
+      POSTGRES_USER: medusa
+      POSTGRES_PASSWORD: medusa_local
+    ports:
+      - "5432:5432"
+    volumes:
+      - medusa_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medusa -d medusa"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  medusa_redis:
+    image: redis:7-alpine  # TODO(compose-digest): pin @sha256:<digest>
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  medusa_backend:
+    build:
+      context: ./demo/medusa/backend
+    environment:
+      DATABASE_URL: postgres://medusa:medusa_local@medusa_postgres:5432/medusa
+      REDIS_URL: redis://medusa_redis:6379
+      JWT_SECRET: dev_jwt_secret_change_me
+      COOKIE_SECRET: dev_cookie_secret_change_me
+      STORE_CORS: http://localhost:8000
+      ADMIN_CORS: http://localhost:7001
+      MEDUSA_ADMIN_ONBOARDING_TYPE: ""
+    depends_on:
+      medusa_postgres:
+        condition: service_healthy
+      medusa_redis:
+        condition: service_healthy
+    ports:
+      - "9000:9000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:9000/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  medusa_storefront:
+    build:
+      context: ./demo/medusa/storefront
+    environment:
+      NEXT_PUBLIC_MEDUSA_BACKEND_URL: http://localhost:9000
+      NEXT_PUBLIC_ATW_BACKEND_URL: http://localhost:3100
+      NEXT_PUBLIC_DEFAULT_REGION: eu
+    depends_on:
+      medusa_backend:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  atw_postgres:
+    image: pgvector/pgvector:pg16  # TODO(compose-digest): pin @sha256:<digest>
+    environment:
+      POSTGRES_DB: atw
+      POSTGRES_USER: atw
+      POSTGRES_PASSWORD: atw_local
+    ports:
+      - "5433:5432"
+    volumes:
+      - atw_pg_data:/var/lib/postgresql/data
+      - ./demo/atw-aurelia/atw.sql:/docker-entrypoint-initdb.d/atw.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atw -d atw"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  atw_backend:
+    image: atw_backend:latest
+    environment:
+      DATABASE_URL: postgres://atw:atw_local@atw_postgres:5432/atw
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ALLOWED_ORIGINS: http://localhost:8000
+      HOST_API_BASE_URL: http://medusa_backend:9000
+      LOG_LEVEL: info
+      NODE_ENV: production
+    depends_on:
+      atw_postgres:
+        condition: service_healthy
+    ports:
+      - "3100:3100"
+    healthcheck:
+      test:
+        ["CMD-SHELL", "node -e \"fetch('http://localhost:3100/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  medusa_pg_data:
+  atw_pg_data:
