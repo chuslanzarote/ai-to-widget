@@ -11,4 +11,4 @@ export {
   type RuntimeConfig,
   ConfigError,
   loadRuntimeConfig as loadConfig,
-} from "@atw/scripts/dist/lib/runtime-config.js";
+} from "./_shared/runtime-config.js";

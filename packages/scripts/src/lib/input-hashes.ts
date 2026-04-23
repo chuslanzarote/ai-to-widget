@@ -117,3 +117,28 @@ function sha256File(abs: string): string {
   const h = createHash("sha256").update(readFileSync(abs)).digest("hex");
   return "sha256:" + h;
 }
+
+/**
+ * Feature 005 / T032 — roll up per-file hashes from the rendered+seeded+
+ * vendored `backend/` tree into a single deterministic sha256 so the next
+ * run can short-circuit the IMAGE step when nothing under `backend/`
+ * changed. Input is the `backend_files[]` array carried by the manifest
+ * (or any `{path, sha256}[]` with `backend/`-prefixed paths).
+ *
+ * Determinism: paths are sorted byte-wise; each entry is joined as
+ * `path:sha256` on its own `\n`-terminated line; the final hash is the
+ * sha256 of the UTF-8 bytes of that text. Re-running the build on
+ * unchanged inputs yields the same rollup.
+ */
+export function computeBackendSourceTree(
+  entries: ReadonlyArray<{ path: string; sha256: string }>,
+): string {
+  const filtered = entries
+    .filter((e) => e.path.startsWith("backend/"))
+    .map((e) => ({ path: e.path, sha256: e.sha256 }))
+    .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  const lines = filtered.map((e) => `${e.path}:${e.sha256}`).join("\n");
+  const body = lines.length === 0 ? "" : lines + "\n";
+  const h = createHash("sha256").update(body, "utf8").digest("hex");
+  return "sha256:" + h;
+}

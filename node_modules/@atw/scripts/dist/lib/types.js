@@ -326,6 +326,69 @@ export const ManifestFailureSchema = z.object({
     reason: ManifestFailureReasonSchema,
     details: z.string(),
 });
+/* Feature 005 — pipeline-step failure taxonomy (distinct from per-entity failures). */
+export const PipelineStepSchema = z.enum([
+    "render",
+    "bundle",
+    "image",
+    "compose",
+    "scan",
+]);
+export const PipelineFailureCodeSchema = z.enum([
+    "TEMPLATE_COMPILE",
+    "VENDOR_IMPORT_UNRESOLVED",
+    "DOCKER_UNREACHABLE",
+    "DOCKER_BUILD",
+    "SECRET_IN_CONTEXT",
+    "COMPOSE_ACTIVATE_FAILED",
+    "SCAN_FAILED",
+]);
+export const PipelineFailureSchema = z.object({
+    step: PipelineStepSchema,
+    code: PipelineFailureCodeSchema,
+    message: z.string(),
+});
+export const RenderStepActionSchema = z.enum(["created", "rewritten", "unchanged"]);
+export const BundleStepActionSchema = z.enum(["created", "rewritten", "unchanged"]);
+export const ImageStepActionSchema = z.enum([
+    "created",
+    "rebuilt",
+    "unchanged",
+    "skipped",
+    "failed",
+]);
+export const ComposeStepActionSchema = z.enum(["activated", "unchanged", "skipped"]);
+export const ScanStepActionSchema = z.enum(["ran", "skipped"]);
+export const PipelineStepsSchema = z.object({
+    render: z
+        .object({
+        action: RenderStepActionSchema,
+        files_changed: z.number().int().nonnegative(),
+    })
+        .optional(),
+    bundle: z
+        .object({
+        action: BundleStepActionSchema,
+    })
+        .optional(),
+    image: z
+        .object({
+        action: ImageStepActionSchema,
+        reason: z.string().optional(),
+    })
+        .optional(),
+    compose: z
+        .object({
+        action: ComposeStepActionSchema,
+    })
+        .optional(),
+    scan: z
+        .object({
+        action: ScanStepActionSchema,
+        clean: z.boolean().optional(),
+    })
+        .optional(),
+});
 export const ManifestResultSchema = z.enum([
     "success",
     "partial",
@@ -426,6 +489,9 @@ export const BuildManifestSchema = z.object({
         }))
             .default([]),
     }),
+    /* Feature 005 — optional, backward-compatible extensions. */
+    steps: PipelineStepsSchema.optional(),
+    pipeline_failures: z.array(PipelineFailureSchema).optional(),
 });
 /* ----- 3.4 PipelineProgress ----- */
 export const PipelineProgressSchema = z.object({

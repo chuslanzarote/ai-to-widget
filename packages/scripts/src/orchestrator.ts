@@ -9,12 +9,17 @@ import {
   ManifestFailureReason,
   SchemaMapArtifact,
 } from "./lib/types.js";
-import { writeManifestAtomic, defaultManifestPath } from "./lib/manifest-io.js";
+import {
+  writeManifestAtomic,
+  defaultManifestPath,
+  readManifest,
+} from "./lib/manifest-io.js";
 import { ProgressReporter, formatLine } from "./lib/progress.js";
 import { computeSourceHash, stripMetadataForHash } from "./lib/source-hash.js";
 import { computeCostUsd, TokenUsage } from "./lib/pricing.js";
 import { computeCostVariancePct } from "./lib/cost-variance.js";
 import {
+  computeBackendSourceTree,
   computeInputHashes,
   diffInputHashes,
   readInputHashes,
@@ -36,11 +41,14 @@ import {
 } from "./enrich-entity.js";
 import { upsertDocument } from "./upsert-document.js";
 import { renderBackend, defaultTemplatesDir } from "./render-backend.js";
-import { compileWidget } from "./compile-widget.js";
+import { seedBackendMeta } from "./seed-backend-meta.js";
+import { vendorSharedLib } from "./vendor-shared-lib.js";
+import { compileWidget, computeWidgetTreeHash, resolveWidgetSource } from "./compile-widget.js";
 import { buildBackendImage } from "./build-backend-image.js";
 import { composeActivate } from "./compose-activate.js";
 import { scanPiiLeaks } from "./scan-pii-leaks.js";
 import { ConcurrencyController } from "./lib/concurrency-control.js";
+import { PipelineSteps, PipelineFailure, PipelineStep } from "./lib/types.js";
 
 const log = Debug("atw:orchestrator");
 
@@ -61,6 +69,10 @@ export interface OrchestratorFlags {
   yes?: boolean;
   help?: boolean;
   version?: boolean;
+  /** Feature 005 / FR-013 — suppresses the IMAGE step. Intended for tests
+   * running without a Docker daemon. On a real Builder run the flag must
+   * not be set or the manifest will not include a backend_image record. */
+  skipImage?: boolean;
   /** Test hook: inject a fake OpusClient so integration tests can avoid real API calls. */
   opusClient?: OpusClient;
 }
@@ -309,6 +321,9 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
   const backendFiles: BuildManifest["outputs"]["backend_files"] = [];
   let widgetBundle: BuildManifest["outputs"]["widget_bundle"] = null;
   let backendImage: BuildManifest["outputs"]["backend_image"] = null;
+  // Feature 005 — per-step execution summary + step-level failures.
+  const steps: PipelineSteps = {};
+  const pipelineFailures: PipelineFailure[] = [];
   let complianceScan: BuildManifest["compliance_scan"] = {
     ran: false,
     clean: true,
@@ -546,8 +561,18 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
 
     // 5. RENDER ---------------------------------------------------------
     // T066 / US3 — on abort, skip render/bundle/image/compose/scan per §6.
+    // Feature 005: RENDER now covers three sub-steps:
+    //   (a) seed meta files (Dockerfile, package.json, tsconfig.json, .dockerignore)
+    //   (b) render backend/src/**/*.ts templates (recursive)
+    //   (c) vendor the allowlisted shared-lib files into backend/src/_shared/
     if (!flags.entitiesOnly && !abortState.aborted) {
-      progress.banner(banner("RENDER", "Rendering backend/src/*.ts ..."));
+      progress.banner(
+        banner("RENDER", "Rendering backend/ (meta + src + _shared) ..."),
+      );
+      const seeded = await seedBackendMeta({
+        projectRoot: flags.projectRoot,
+        backup: Boolean(flags.backup),
+      });
       const rendered = await renderBackend({
         templatesDir: defaultTemplatesDir(),
         outputDir: join(flags.projectRoot, "backend", "src"),
@@ -561,7 +586,11 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
         },
         backup: Boolean(flags.backup),
       });
-      for (const r of rendered) {
+      const vendored = await vendorSharedLib({
+        projectRoot: flags.projectRoot,
+        backup: Boolean(flags.backup),
+      });
+      for (const r of [...seeded, ...rendered, ...vendored]) {
         backendFiles.push({
           path: r.path,
           sha256: r.sha256,
@@ -569,62 +598,176 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
           action: r.action,
         });
       }
-    }
-
-    // 6. BUNDLE ---------------------------------------------------------
-    if (!flags.entitiesOnly && !abortState.aborted) {
-      progress.banner(banner("BUNDLE", "Bundling dist/widget.{js,css} ..."));
-      const widgetOut = await compileWidget({
-        outDir: join(flags.projectRoot, "dist"),
-        minify: true,
-      });
-      widgetBundle = {
-        js: {
-          path: widgetOut.js.path,
-          sha256: widgetOut.js.sha256,
-          bytes: widgetOut.js.bytes,
-          gzip_bytes: widgetOut.js.gzip_bytes,
-        },
-        css: {
-          path: widgetOut.css.path,
-          sha256: widgetOut.css.sha256,
-          bytes: widgetOut.css.bytes,
-          gzip_bytes: widgetOut.css.gzip_bytes,
-        },
-        source: widgetOut.source,
+      const anyRewritten = backendFiles.some((f) => f.action === "rewritten");
+      const anyCreated = backendFiles.some((f) => f.action === "created");
+      steps.render = {
+        action: anyRewritten ? "rewritten" : anyCreated ? "created" : "unchanged",
+        files_changed: backendFiles.filter((f) => f.action !== "unchanged").length,
       };
     }
 
-    // 7. IMAGE ----------------------------------------------------------
+    // 6. BUNDLE ---------------------------------------------------------
+    // T036 / US3 — cache short-circuit: when the widget source tree hash
+    // matches the prior manifest AND dist/widget.{js,css} exist with the
+    // prior's recorded sha256s, skip esbuild entirely to preserve mtimes
+    // (determinism contract).
     if (!flags.entitiesOnly && !abortState.aborted) {
-      progress.banner(banner("IMAGE", "Building atw_backend:latest (multi-stage) ..."));
+      let bundleCacheHit = false;
       try {
-        const img = await buildBackendImage({
-          contextDir: join(flags.projectRoot, "backend"),
-          dockerfile: "Dockerfile",
-          tag: "atw_backend:latest",
+        const src = resolveWidgetSource();
+        const currentTree = await computeWidgetTreeHash(src.widgetRoot);
+        const prior = readManifest(defaultManifestPath(flags.projectRoot));
+        const priorBundle = prior?.outputs?.widget_bundle;
+        if (
+          prior?.result === "success" &&
+          priorBundle?.source?.tree_hash &&
+          priorBundle.source.tree_hash === currentTree
+        ) {
+          const jsAbs = join(flags.projectRoot, priorBundle.js.path);
+          const cssAbs = join(flags.projectRoot, priorBundle.css.path);
+          const jsBuf = await (await import("node:fs")).promises.readFile(jsAbs);
+          const cssBuf = await (await import("node:fs")).promises.readFile(cssAbs);
+          const { createHash } = await import("node:crypto");
+          const jsSha = "sha256:" + createHash("sha256").update(jsBuf).digest("hex");
+          const cssSha = "sha256:" + createHash("sha256").update(cssBuf).digest("hex");
+          if (jsSha === priorBundle.js.sha256 && cssSha === priorBundle.css.sha256) {
+            widgetBundle = {
+              js: { ...priorBundle.js },
+              css: { ...priorBundle.css },
+              source: { ...priorBundle.source },
+            };
+            steps.bundle = { action: "unchanged" };
+            progress.banner(banner("BUNDLE", "BUNDLE unchanged (cached from prior build)"));
+            bundleCacheHit = true;
+          }
+        }
+      } catch {
+        /* fall through to real bundle */
+      }
+      if (!bundleCacheHit) {
+        progress.banner(banner("BUNDLE", "Bundling dist/widget.{js,css} ..."));
+        const widgetOut = await compileWidget({
+          outDir: join(flags.projectRoot, "dist"),
+          minify: true,
         });
-        backendImage = {
-          ref: img.ref,
-          image_id: img.image_id,
-          size_bytes: img.size_bytes,
+        widgetBundle = {
+          js: {
+            path: widgetOut.js.path,
+            sha256: widgetOut.js.sha256,
+            bytes: widgetOut.js.bytes,
+            gzip_bytes: widgetOut.js.gzip_bytes,
+          },
+          css: {
+            path: widgetOut.css.path,
+            sha256: widgetOut.css.sha256,
+            bytes: widgetOut.css.bytes,
+            gzip_bytes: widgetOut.css.gzip_bytes,
+          },
+          source: widgetOut.source,
         };
-      } catch (err) {
-        // Feature 002 US1 MVP: if no backend Dockerfile present (e.g. in
-        // tests with stubbed scaffolding), record the failure but do not
-        // abort the whole build. US9 revisits the failure taxonomy.
-        log("image build skipped: %s", (err as Error).message);
+        steps.bundle = { action: "created" };
+      }
+    }
+
+    // 7. IMAGE ----------------------------------------------------------
+    // Feature 005 / FR-005 — no more silent try/catch. Failures from
+    // buildBackendImage propagate to the outer catch which maps them onto
+    // result: "failed" + a pipeline_failures entry. `--skip-image` is the
+    // only sanctioned way to suppress the image build (FR-013).
+    //
+    // T034 / US3 — cache short-circuit: when the prior manifest exists
+    // AND the rendered backend tree is byte-identical (same
+    // backend_source_tree rollup) AND the prior image_id still exists in
+    // the local Docker daemon, skip the actual dockerode call and copy
+    // the prior record verbatim. This makes a no-op re-run complete in
+    // <10 s wall-clock (SC-003 / principle VIII).
+    const currentBackendTree = computeBackendSourceTree(backendFiles);
+    if (!flags.entitiesOnly && !abortState.aborted) {
+      if (flags.skipImage) {
+        progress.banner(banner("IMAGE", "IMAGE skipped (--skip-image)"));
+        steps.image = {
+          action: "skipped",
+          reason: "suppressed by --skip-image flag",
+        };
+      } else {
+        let cacheHit = false;
+        try {
+          const prior = readManifest(defaultManifestPath(flags.projectRoot));
+          const priorTree = prior?.input_hashes?.backend_source_tree;
+          const priorImage = prior?.outputs?.backend_image;
+          if (
+            prior?.result === "success" &&
+            priorTree &&
+            priorTree === currentBackendTree &&
+            priorImage &&
+            priorImage.image_id
+          ) {
+            const { default: Docker } = await import("dockerode");
+            const docker = new Docker();
+            await docker.getImage(priorImage.image_id).inspect();
+            backendImage = {
+              ref: priorImage.ref,
+              image_id: priorImage.image_id,
+              size_bytes: priorImage.size_bytes,
+            };
+            steps.image = { action: "unchanged" };
+            progress.banner(
+              banner("IMAGE", "IMAGE unchanged (cached from prior build)"),
+            );
+            cacheHit = true;
+          }
+        } catch {
+          // Cache probe failed (prior manifest missing, image gone,
+          // daemon unreachable) — fall through to a real build, which
+          // will surface the daemon error loudly if appropriate.
+        }
+        if (!cacheHit) {
+          progress.banner(
+            banner("IMAGE", "Building atw_backend:latest (multi-stage) ..."),
+          );
+          const img = await buildBackendImage({
+            contextDir: join(flags.projectRoot, "backend"),
+            dockerfile: "Dockerfile",
+            tag: "atw_backend:latest",
+          });
+          backendImage = {
+            ref: img.ref,
+            image_id: img.image_id,
+            size_bytes: img.size_bytes,
+          };
+          steps.image = { action: "created" };
+        }
       }
     }
 
     // 8. COMPOSE ACTIVATE ----------------------------------------------
+    // Feature 005 / T028 — the previous silent try/catch is gone. If the
+    // compose file simply does not exist we record `skipped` with a reason.
+    // If the activation succeeds we record `activated` / `unchanged`. A
+    // thrown error is treated as a pipeline failure (COMPOSE_ACTIVATE_FAILED)
+    // but it does NOT abort the build — the Builder can re-run the step
+    // manually. This keeps activation distinct from the hard-fail IMAGE path.
     if (!flags.entitiesOnly && !abortState.aborted) {
       const composePath = join(flags.projectRoot, "docker-compose.yml");
-      if (existsSync(composePath)) {
+      if (!existsSync(composePath)) {
+        steps.compose = { action: "skipped" };
+      } else {
         try {
-          await composeActivate(composePath);
+          const res = await composeActivate(composePath);
+          steps.compose = {
+            action: res.action === "activated" ? "activated" : "unchanged",
+          };
         } catch (err) {
-          log("compose-activate skipped: %s", (err as Error).message);
+          const firstLine =
+            (err instanceof Error ? err.message : String(err))
+              .split(/\r?\n/)[0] ?? "compose-activate failed";
+          pipelineFailures.push({
+            step: "compose",
+            code: "COMPOSE_ACTIVATE_FAILED",
+            message: firstLine,
+          });
+          steps.compose = { action: "skipped" };
+          emitStepFailure("compose", err);
         }
       }
     }
@@ -700,7 +843,10 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
           ? [...concurrencyControllerRef.reductions]
           : [],
       },
-      input_hashes: hashAllInputs(flags.projectRoot),
+      input_hashes: {
+        ...hashAllInputs(flags.projectRoot),
+        backend_source_tree: computeBackendSourceTree(backendFiles),
+      },
       outputs: {
         backend_files: backendFiles,
         widget_bundle: widgetBundle,
@@ -708,6 +854,8 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
       },
       environment: captureEnvironment(),
       compliance_scan: complianceScan,
+      steps,
+      ...(pipelineFailures.length > 0 ? { pipeline_failures: pipelineFailures } : {}),
     };
 
     const manifestPath = defaultManifestPath(flags.projectRoot);
@@ -766,6 +914,16 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
     const diag = diagnosticFor(err);
     process.stderr.write(`${diag}\n`);
     log("fatal: %o", err);
+    // Feature 005 — classify the error into a pipeline_failures entry +
+    // set the IMAGE step action to "failed" when appropriate.
+    const stepFailure = classifyPipelineFailure(err);
+    if (stepFailure) {
+      pipelineFailures.push(stepFailure);
+      if (stepFailure.step === "image") {
+        steps.image = { action: "failed", reason: stepFailure.code };
+      }
+      emitStepFailure(stepFailure.step, err);
+    }
     // Attempt to write a failed manifest so downstream tooling has context.
     const completedAt = new Date();
     const manifest: BuildManifest = {
@@ -788,7 +946,10 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
         effective_max: concurrency,
         reductions: [],
       },
-      input_hashes: hashAllInputs(flags.projectRoot),
+      input_hashes: {
+        ...hashAllInputs(flags.projectRoot),
+        backend_source_tree: computeBackendSourceTree(backendFiles),
+      },
       outputs: {
         backend_files: backendFiles,
         widget_bundle: widgetBundle,
@@ -796,6 +957,8 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
       },
       environment: captureEnvironment(),
       compliance_scan: complianceScan,
+      steps,
+      ...(pipelineFailures.length > 0 ? { pipeline_failures: pipelineFailures } : {}),
     };
     // T100 — if the controller fired any reductions before the fatal
     // error, surface them in the failed-path manifest so the Builder
@@ -910,7 +1073,66 @@ function exitCodeFor(err: unknown): number {
     /EADDRINUSE|address already in use|port is already allocated/i.test(msg)
   )
     return 4;
+  // Feature 005 — map pipeline-step error codes to the stable exit-code table.
+  if (code === "TEMPLATE_COMPILE" || code === "VENDOR_IMPORT_UNRESOLVED") return 17;
+  if (code === "DOCKER_BUILD") return 19;
+  if (code === "SECRET_IN_CONTEXT") return 20;
+  if (code === "DOCKER_UNREACHABLE") return 3;
   return 3;
+}
+
+/**
+ * Feature 005 / T025 — print a one-line stderr diagnostic for a pipeline
+ * step failure, keyed by the error `code` set by the throwing call. Keeps
+ * the format stable (single line, no embedded `\n`) so contract tests can
+ * assert on it. Falls back to `diagnosticFor()` for unknown codes.
+ */
+function emitStepFailure(step: PipelineStep, err: unknown): void {
+  const code = (err as { code?: string })?.code;
+  const raw = err instanceof Error ? err.message : String(err);
+  const firstLine = raw.split(/\r?\n/)[0] ?? raw;
+  let line: string;
+  switch (code) {
+    case "TEMPLATE_COMPILE":
+      line = `/atw.build: RENDER failed — template compile error: ${firstLine}`;
+      break;
+    case "VENDOR_IMPORT_UNRESOLVED":
+      line = `/atw.build: RENDER failed — vendor import unresolved: ${firstLine}`;
+      break;
+    case "DOCKER_UNREACHABLE":
+      line = `/atw.build: IMAGE failed — Docker daemon is not reachable. Start Docker Desktop (or your Docker service) and re-run.`;
+      break;
+    case "DOCKER_BUILD":
+      line = `/atw.build: IMAGE failed — docker build error: ${firstLine}`;
+      break;
+    case "SECRET_IN_CONTEXT":
+      line = `/atw.build: IMAGE failed — secret-shaped file in build context: ${firstLine}`;
+      break;
+    case "COMPOSE_ACTIVATE_FAILED":
+      line = `/atw.build: COMPOSE activation failed — ${firstLine}`;
+      break;
+    default:
+      line = `/atw.build: ${step.toUpperCase()} failed — ${firstLine}`;
+  }
+  process.stderr.write(line + "\n");
+}
+
+/** Feature 005 — classify a thrown error into a pipeline_failures entry. */
+function classifyPipelineFailure(err: unknown): PipelineFailure | null {
+  const code = (err as { code?: string })?.code;
+  const msg = err instanceof Error ? err.message : String(err);
+  const firstLine = msg.split(/\r?\n/)[0] ?? msg;
+  if (code === "TEMPLATE_COMPILE")
+    return { step: "render", code: "TEMPLATE_COMPILE", message: firstLine };
+  if (code === "VENDOR_IMPORT_UNRESOLVED")
+    return { step: "render", code: "VENDOR_IMPORT_UNRESOLVED", message: firstLine };
+  if (code === "DOCKER_UNREACHABLE")
+    return { step: "image", code: "DOCKER_UNREACHABLE", message: firstLine };
+  if (code === "DOCKER_BUILD")
+    return { step: "image", code: "DOCKER_BUILD", message: firstLine };
+  if (code === "SECRET_IN_CONTEXT")
+    return { step: "image", code: "SECRET_IN_CONTEXT", message: firstLine };
+  return null;
 }
 
 function schemaArtifactToImport(sm: SchemaMapArtifact): SchemaMapForImport {
@@ -1154,9 +1376,12 @@ function printHelp(): void {
       "Usage:",
       "  atw-orchestrate [--force] [--dry-run] [--concurrency N]",
       "                  [--postgres-port N] [--entities-only] [--no-enrich]",
-      "                  [--backup] [--yes] [--help] [--version]",
+      "                  [--backup] [--skip-image] [--yes] [--help] [--version]",
       "",
       "Runs the full build pipeline documented in /atw.build.",
+      "",
+      "  --skip-image   Suppress the IMAGE step. Intended for CI/tests running",
+      "                 without a Docker daemon. Not for production builds.",
       "",
     ].join("\n"),
   );
@@ -1188,6 +1413,9 @@ export function parseArgs(argv: string[], projectRoot: string): OrchestratorFlag
         break;
       case "--backup":
         flags.backup = true;
+        break;
+      case "--skip-image":
+        flags.skipImage = true;
         break;
       case "--yes":
       case "-y":

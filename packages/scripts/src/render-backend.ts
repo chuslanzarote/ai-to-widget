@@ -6,7 +6,64 @@ import { parseArgs } from "node:util";
 import Handlebars from "handlebars";
 import Debug from "debug";
 
+import { SHARED_LIB_ALLOWLIST } from "./_shared-lib-allowlist.js";
+
 const log = Debug("atw:render-backend");
+
+/**
+ * Feature 005 — @atw/scripts/dist/lib/<name>.js → relative _shared/ path.
+ * Exported so callers (vendor-shared-lib, tests) can reuse the regex.
+ */
+export const VENDOR_IMPORT_REGEX =
+  /from\s+["']@atw\/scripts\/dist\/lib\/([a-zA-Z0-9_-]+)\.js["']/g;
+
+function rewriteVendorImports(source: string, relativeFilePath: string): string {
+  // depth = number of directory separators in the file path under backend/src/
+  const depth = relativeFilePath.split("/").length - 1;
+  const prefix = depth === 0 ? "./_shared/" : "../".repeat(depth) + "_shared/";
+  return source.replace(VENDOR_IMPORT_REGEX, (_full, name: string) => {
+    const base = String(name).replace(/^runtime-/, "").replace(/\.js$/, "");
+    const allow = SHARED_LIB_ALLOWLIST.map((n) => n.replace(/\.ts$/, ""));
+    if (!allow.includes(`runtime-${base}`) && !allow.includes(base)) {
+      const e = new Error(
+        `Template imports @atw/scripts/dist/lib/${name}.js but it is not in the shared-lib allowlist`,
+      );
+      (e as { code?: string }).code = "VENDOR_IMPORT_UNRESOLVED";
+      throw e;
+    }
+    return `from "${prefix}${name}.js"`;
+  });
+}
+
+async function collectTemplates(
+  root: string,
+  prefix = "",
+): Promise<string[]> {
+  const entries = await fs.readdir(path.join(root, prefix), {
+    withFileTypes: true,
+  });
+  entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  const out: string[] = [];
+  const files: string[] = [];
+  const dirs: string[] = [];
+  for (const e of entries) {
+    if (e.isSymbolicLink()) continue;
+    if (e.isDirectory()) {
+      dirs.push(e.name);
+    } else if (e.isFile() && e.name.endsWith(".hbs")) {
+      files.push(e.name);
+    }
+  }
+  // Top-level files first, then subdirs (matches contracts §Ordering).
+  for (const f of files) {
+    out.push(prefix === "" ? f : `${prefix}/${f}`);
+  }
+  for (const d of dirs) {
+    const sub = prefix === "" ? d : `${prefix}/${d}`;
+    out.push(...(await collectTemplates(root, sub)));
+  }
+  return out;
+}
 
 export interface RenderContext {
   projectName: string;
@@ -44,27 +101,35 @@ export function defaultTemplatesDir(): string {
 }
 
 export async function renderBackend(opts: RenderOptions): Promise<RenderedFile[]> {
-  const entries = await fs.readdir(opts.templatesDir);
-  const templates = entries.filter((f) => f.endsWith(".hbs")).sort();
+  // Feature 005 — recursive walk over `templatesDir`. Returns relative paths
+  // using `/` separators, with top-level files first, then subdirs sorted.
+  const templates = await collectTemplates(opts.templatesDir);
   const results: RenderedFile[] = [];
   await fs.mkdir(opts.outputDir, { recursive: true });
 
-  for (const name of templates) {
-    const src = await fs.readFile(path.join(opts.templatesDir, name), "utf8");
-    const tpl = Handlebars.compile(src, { noEscape: true, strict: true });
+  for (const relTpl of templates) {
+    const src = await fs.readFile(path.join(opts.templatesDir, relTpl), "utf8");
+    // relTpl is like "index.ts.hbs" or "lib/cors.ts.hbs" or "routes/chat.ts.hbs"
+    const relOutFromSrc = relTpl.replace(/\.hbs$/, "");
+
+    // Rewrite @atw/scripts/dist/lib/*.js imports BEFORE Handlebars compile
+    // (contracts/render-backend-recursive.md §Behaviour change 2).
+    const rewritten = rewriteVendorImports(src, relOutFromSrc);
+
+    const tpl = Handlebars.compile(rewritten, { noEscape: true, strict: true });
     let rendered: string;
     try {
       rendered = tpl(opts.context);
     } catch (err) {
-      const e = new Error(`Template ${name} compile error: ${(err as Error).message}`);
+      const e = new Error(`Template ${relTpl} compile error: ${(err as Error).message}`);
       (e as { code?: string }).code = "TEMPLATE_COMPILE";
       throw e;
     }
     // Ensure stable line endings (LF) for determinism across platforms.
     rendered = rendered.replace(/\r\n/g, "\n");
 
-    const targetName = name.replace(/\.hbs$/, "");
-    const targetAbs = path.join(opts.outputDir, targetName);
+    const targetAbs = path.join(opts.outputDir, relOutFromSrc);
+    await fs.mkdir(path.dirname(targetAbs), { recursive: true });
     const rel = path.relative(path.dirname(opts.outputDir), targetAbs).replace(/\\/g, "/");
 
     let action: RenderAction = "created";
@@ -100,7 +165,7 @@ export async function renderBackend(opts: RenderOptions): Promise<RenderedFile[]
         ? path.relative(path.dirname(opts.outputDir), backup).replace(/\\/g, "/")
         : undefined,
     });
-    log("%s -> %s (%s, %d bytes)", name, targetAbs, action, buf.byteLength);
+    log("%s -> %s (%s, %d bytes)", relTpl, targetAbs, action, buf.byteLength);
   }
 
   return results;
@@ -196,7 +261,7 @@ export async function runRenderBackend(argv: string[]): Promise<number> {
     return 0;
   } catch (err) {
     const code = (err as { code?: string }).code;
-    if (code === "TEMPLATE_COMPILE") {
+    if (code === "TEMPLATE_COMPILE" || code === "VENDOR_IMPORT_UNRESOLVED") {
       process.stderr.write(`atw-render-backend: ${(err as Error).message}\n`);
       return 17;
     }

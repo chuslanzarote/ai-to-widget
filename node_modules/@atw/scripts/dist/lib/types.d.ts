@@ -2030,6 +2030,114 @@ export declare const ManifestFailureSchema: z.ZodObject<{
     entity_id: string;
     details: string;
 }>;
+export declare const PipelineStepSchema: z.ZodEnum<["render", "bundle", "image", "compose", "scan"]>;
+export type PipelineStep = z.infer<typeof PipelineStepSchema>;
+export declare const PipelineFailureCodeSchema: z.ZodEnum<["TEMPLATE_COMPILE", "VENDOR_IMPORT_UNRESOLVED", "DOCKER_UNREACHABLE", "DOCKER_BUILD", "SECRET_IN_CONTEXT", "COMPOSE_ACTIVATE_FAILED", "SCAN_FAILED"]>;
+export type PipelineFailureCode = z.infer<typeof PipelineFailureCodeSchema>;
+export declare const PipelineFailureSchema: z.ZodObject<{
+    step: z.ZodEnum<["render", "bundle", "image", "compose", "scan"]>;
+    code: z.ZodEnum<["TEMPLATE_COMPILE", "VENDOR_IMPORT_UNRESOLVED", "DOCKER_UNREACHABLE", "DOCKER_BUILD", "SECRET_IN_CONTEXT", "COMPOSE_ACTIVATE_FAILED", "SCAN_FAILED"]>;
+    message: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    code: "TEMPLATE_COMPILE" | "VENDOR_IMPORT_UNRESOLVED" | "DOCKER_UNREACHABLE" | "DOCKER_BUILD" | "SECRET_IN_CONTEXT" | "COMPOSE_ACTIVATE_FAILED" | "SCAN_FAILED";
+    message: string;
+    step: "render" | "bundle" | "image" | "compose" | "scan";
+}, {
+    code: "TEMPLATE_COMPILE" | "VENDOR_IMPORT_UNRESOLVED" | "DOCKER_UNREACHABLE" | "DOCKER_BUILD" | "SECRET_IN_CONTEXT" | "COMPOSE_ACTIVATE_FAILED" | "SCAN_FAILED";
+    message: string;
+    step: "render" | "bundle" | "image" | "compose" | "scan";
+}>;
+export type PipelineFailure = z.infer<typeof PipelineFailureSchema>;
+export declare const RenderStepActionSchema: z.ZodEnum<["created", "rewritten", "unchanged"]>;
+export declare const BundleStepActionSchema: z.ZodEnum<["created", "rewritten", "unchanged"]>;
+export declare const ImageStepActionSchema: z.ZodEnum<["created", "rebuilt", "unchanged", "skipped", "failed"]>;
+export declare const ComposeStepActionSchema: z.ZodEnum<["activated", "unchanged", "skipped"]>;
+export declare const ScanStepActionSchema: z.ZodEnum<["ran", "skipped"]>;
+export declare const PipelineStepsSchema: z.ZodObject<{
+    render: z.ZodOptional<z.ZodObject<{
+        action: z.ZodEnum<["created", "rewritten", "unchanged"]>;
+        files_changed: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        action: "created" | "rewritten" | "unchanged";
+        files_changed: number;
+    }, {
+        action: "created" | "rewritten" | "unchanged";
+        files_changed: number;
+    }>>;
+    bundle: z.ZodOptional<z.ZodObject<{
+        action: z.ZodEnum<["created", "rewritten", "unchanged"]>;
+    }, "strip", z.ZodTypeAny, {
+        action: "created" | "rewritten" | "unchanged";
+    }, {
+        action: "created" | "rewritten" | "unchanged";
+    }>>;
+    image: z.ZodOptional<z.ZodObject<{
+        action: z.ZodEnum<["created", "rebuilt", "unchanged", "skipped", "failed"]>;
+        reason: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+        reason?: string | undefined;
+    }, {
+        action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+        reason?: string | undefined;
+    }>>;
+    compose: z.ZodOptional<z.ZodObject<{
+        action: z.ZodEnum<["activated", "unchanged", "skipped"]>;
+    }, "strip", z.ZodTypeAny, {
+        action: "unchanged" | "skipped" | "activated";
+    }, {
+        action: "unchanged" | "skipped" | "activated";
+    }>>;
+    scan: z.ZodOptional<z.ZodObject<{
+        action: z.ZodEnum<["ran", "skipped"]>;
+        clean: z.ZodOptional<z.ZodBoolean>;
+    }, "strip", z.ZodTypeAny, {
+        action: "skipped" | "ran";
+        clean?: boolean | undefined;
+    }, {
+        action: "skipped" | "ran";
+        clean?: boolean | undefined;
+    }>>;
+}, "strip", z.ZodTypeAny, {
+    render?: {
+        action: "created" | "rewritten" | "unchanged";
+        files_changed: number;
+    } | undefined;
+    bundle?: {
+        action: "created" | "rewritten" | "unchanged";
+    } | undefined;
+    image?: {
+        action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+        reason?: string | undefined;
+    } | undefined;
+    compose?: {
+        action: "unchanged" | "skipped" | "activated";
+    } | undefined;
+    scan?: {
+        action: "skipped" | "ran";
+        clean?: boolean | undefined;
+    } | undefined;
+}, {
+    render?: {
+        action: "created" | "rewritten" | "unchanged";
+        files_changed: number;
+    } | undefined;
+    bundle?: {
+        action: "created" | "rewritten" | "unchanged";
+    } | undefined;
+    image?: {
+        action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+        reason?: string | undefined;
+    } | undefined;
+    compose?: {
+        action: "unchanged" | "skipped" | "activated";
+    } | undefined;
+    scan?: {
+        action: "skipped" | "ran";
+        clean?: boolean | undefined;
+    } | undefined;
+}>;
+export type PipelineSteps = z.infer<typeof PipelineStepsSchema>;
 export declare const ManifestResultSchema: z.ZodEnum<["success", "partial", "aborted", "failed", "nothing-to-do"]>;
 export type ManifestResult = z.infer<typeof ManifestResultSchema>;
 export declare const ConcurrencyReductionSchema: z.ZodObject<{
@@ -2157,13 +2265,13 @@ export declare const BuildManifestSchema: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             path: string;
             sha256: string;
+            action: "created" | "rewritten" | "unchanged";
             bytes: number;
-            action: "rewritten" | "unchanged" | "created";
         }, {
             path: string;
             sha256: string;
+            action: "created" | "rewritten" | "unchanged";
             bytes: number;
-            action: "rewritten" | "unchanged" | "created";
         }>, "many">>;
         widget_bundle: z.ZodDefault<z.ZodNullable<z.ZodObject<{
             js: z.ZodObject<{
@@ -2260,8 +2368,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
         backend_files: {
             path: string;
             sha256: string;
+            action: "created" | "rewritten" | "unchanged";
             bytes: number;
-            action: "rewritten" | "unchanged" | "created";
         }[];
         widget_bundle: {
             source: {
@@ -2290,8 +2398,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
         backend_files?: {
             path: string;
             sha256: string;
+            action: "created" | "rewritten" | "unchanged";
             bytes: number;
-            action: "rewritten" | "unchanged" | "created";
         }[] | undefined;
         widget_bundle?: {
             source: {
@@ -2377,13 +2485,110 @@ export declare const BuildManifestSchema: z.ZodObject<{
             matched_snippet: string;
         }[] | undefined;
     }>;
+    steps: z.ZodOptional<z.ZodObject<{
+        render: z.ZodOptional<z.ZodObject<{
+            action: z.ZodEnum<["created", "rewritten", "unchanged"]>;
+            files_changed: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            action: "created" | "rewritten" | "unchanged";
+            files_changed: number;
+        }, {
+            action: "created" | "rewritten" | "unchanged";
+            files_changed: number;
+        }>>;
+        bundle: z.ZodOptional<z.ZodObject<{
+            action: z.ZodEnum<["created", "rewritten", "unchanged"]>;
+        }, "strip", z.ZodTypeAny, {
+            action: "created" | "rewritten" | "unchanged";
+        }, {
+            action: "created" | "rewritten" | "unchanged";
+        }>>;
+        image: z.ZodOptional<z.ZodObject<{
+            action: z.ZodEnum<["created", "rebuilt", "unchanged", "skipped", "failed"]>;
+            reason: z.ZodOptional<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+            reason?: string | undefined;
+        }, {
+            action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+            reason?: string | undefined;
+        }>>;
+        compose: z.ZodOptional<z.ZodObject<{
+            action: z.ZodEnum<["activated", "unchanged", "skipped"]>;
+        }, "strip", z.ZodTypeAny, {
+            action: "unchanged" | "skipped" | "activated";
+        }, {
+            action: "unchanged" | "skipped" | "activated";
+        }>>;
+        scan: z.ZodOptional<z.ZodObject<{
+            action: z.ZodEnum<["ran", "skipped"]>;
+            clean: z.ZodOptional<z.ZodBoolean>;
+        }, "strip", z.ZodTypeAny, {
+            action: "skipped" | "ran";
+            clean?: boolean | undefined;
+        }, {
+            action: "skipped" | "ran";
+            clean?: boolean | undefined;
+        }>>;
+    }, "strip", z.ZodTypeAny, {
+        render?: {
+            action: "created" | "rewritten" | "unchanged";
+            files_changed: number;
+        } | undefined;
+        bundle?: {
+            action: "created" | "rewritten" | "unchanged";
+        } | undefined;
+        image?: {
+            action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+            reason?: string | undefined;
+        } | undefined;
+        compose?: {
+            action: "unchanged" | "skipped" | "activated";
+        } | undefined;
+        scan?: {
+            action: "skipped" | "ran";
+            clean?: boolean | undefined;
+        } | undefined;
+    }, {
+        render?: {
+            action: "created" | "rewritten" | "unchanged";
+            files_changed: number;
+        } | undefined;
+        bundle?: {
+            action: "created" | "rewritten" | "unchanged";
+        } | undefined;
+        image?: {
+            action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+            reason?: string | undefined;
+        } | undefined;
+        compose?: {
+            action: "unchanged" | "skipped" | "activated";
+        } | undefined;
+        scan?: {
+            action: "skipped" | "ran";
+            clean?: boolean | undefined;
+        } | undefined;
+    }>>;
+    pipeline_failures: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        step: z.ZodEnum<["render", "bundle", "image", "compose", "scan"]>;
+        code: z.ZodEnum<["TEMPLATE_COMPILE", "VENDOR_IMPORT_UNRESOLVED", "DOCKER_UNREACHABLE", "DOCKER_BUILD", "SECRET_IN_CONTEXT", "COMPOSE_ACTIVATE_FAILED", "SCAN_FAILED"]>;
+        message: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        code: "TEMPLATE_COMPILE" | "VENDOR_IMPORT_UNRESOLVED" | "DOCKER_UNREACHABLE" | "DOCKER_BUILD" | "SECRET_IN_CONTEXT" | "COMPOSE_ACTIVATE_FAILED" | "SCAN_FAILED";
+        message: string;
+        step: "render" | "bundle" | "image" | "compose" | "scan";
+    }, {
+        code: "TEMPLATE_COMPILE" | "VENDOR_IMPORT_UNRESOLVED" | "DOCKER_UNREACHABLE" | "DOCKER_BUILD" | "SECRET_IN_CONTEXT" | "COMPOSE_ACTIVATE_FAILED" | "SCAN_FAILED";
+        message: string;
+        step: "render" | "bundle" | "image" | "compose" | "scan";
+    }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     schema_version: "1";
     build_id: string;
     started_at: string;
     completed_at: string;
     duration_seconds: number;
-    result: "aborted" | "success" | "partial" | "failed" | "nothing-to-do";
+    result: "aborted" | "failed" | "success" | "partial" | "nothing-to-do";
     totals: {
         enriched: number;
         failed: number;
@@ -2419,8 +2624,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
         backend_files: {
             path: string;
             sha256: string;
+            action: "created" | "rewritten" | "unchanged";
             bytes: number;
-            action: "rewritten" | "unchanged" | "created";
         }[];
         widget_bundle: {
             source: {
@@ -2464,13 +2669,38 @@ export declare const BuildManifestSchema: z.ZodObject<{
             matched_snippet: string;
         }[];
     };
+    steps?: {
+        render?: {
+            action: "created" | "rewritten" | "unchanged";
+            files_changed: number;
+        } | undefined;
+        bundle?: {
+            action: "created" | "rewritten" | "unchanged";
+        } | undefined;
+        image?: {
+            action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+            reason?: string | undefined;
+        } | undefined;
+        compose?: {
+            action: "unchanged" | "skipped" | "activated";
+        } | undefined;
+        scan?: {
+            action: "skipped" | "ran";
+            clean?: boolean | undefined;
+        } | undefined;
+    } | undefined;
+    pipeline_failures?: {
+        code: "TEMPLATE_COMPILE" | "VENDOR_IMPORT_UNRESOLVED" | "DOCKER_UNREACHABLE" | "DOCKER_BUILD" | "SECRET_IN_CONTEXT" | "COMPOSE_ACTIVATE_FAILED" | "SCAN_FAILED";
+        message: string;
+        step: "render" | "bundle" | "image" | "compose" | "scan";
+    }[] | undefined;
 }, {
     schema_version: "1";
     build_id: string;
     started_at: string;
     completed_at: string;
     duration_seconds: number;
-    result: "aborted" | "success" | "partial" | "failed" | "nothing-to-do";
+    result: "aborted" | "failed" | "success" | "partial" | "nothing-to-do";
     totals: {
         enriched: number;
         failed: number;
@@ -2500,8 +2730,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
         backend_files?: {
             path: string;
             sha256: string;
+            action: "created" | "rewritten" | "unchanged";
             bytes: number;
-            action: "rewritten" | "unchanged" | "created";
         }[] | undefined;
         widget_bundle?: {
             source: {
@@ -2551,6 +2781,31 @@ export declare const BuildManifestSchema: z.ZodObject<{
         entity_id: string;
         details: string;
     }[] | undefined;
+    steps?: {
+        render?: {
+            action: "created" | "rewritten" | "unchanged";
+            files_changed: number;
+        } | undefined;
+        bundle?: {
+            action: "created" | "rewritten" | "unchanged";
+        } | undefined;
+        image?: {
+            action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+            reason?: string | undefined;
+        } | undefined;
+        compose?: {
+            action: "unchanged" | "skipped" | "activated";
+        } | undefined;
+        scan?: {
+            action: "skipped" | "ran";
+            clean?: boolean | undefined;
+        } | undefined;
+    } | undefined;
+    pipeline_failures?: {
+        code: "TEMPLATE_COMPILE" | "VENDOR_IMPORT_UNRESOLVED" | "DOCKER_UNREACHABLE" | "DOCKER_BUILD" | "SECRET_IN_CONTEXT" | "COMPOSE_ACTIVATE_FAILED" | "SCAN_FAILED";
+        message: string;
+        step: "render" | "bundle" | "image" | "compose" | "scan";
+    }[] | undefined;
 }>;
 export type BuildManifest = z.infer<typeof BuildManifestSchema>;
 export declare const PipelineProgressSchema: z.ZodObject<{
@@ -2566,23 +2821,23 @@ export declare const PipelineProgressSchema: z.ZodObject<{
     message: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     ok: number;
+    skipped: number;
     failed: number;
     cost_usd: number;
     phase: "BOOT" | "MIGRATE" | "IMPORT" | "ENRICH" | "RENDER" | "BUNDLE" | "IMAGE" | "SCAN" | "DONE" | "ABORT";
     processed: number;
     total: number;
-    skipped: number;
     elapsed_seconds: number;
     eta_seconds: number | null;
     message?: string | undefined;
 }, {
     ok: number;
+    skipped: number;
     failed: number;
     cost_usd: number;
     phase: "BOOT" | "MIGRATE" | "IMPORT" | "ENRICH" | "RENDER" | "BUNDLE" | "IMAGE" | "SCAN" | "DONE" | "ABORT";
     processed: number;
     total: number;
-    skipped: number;
     elapsed_seconds: number;
     eta_seconds: number | null;
     message?: string | undefined;
