@@ -15,7 +15,8 @@
       "PowerShell(.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Json -ShortName \"ship-widget-bundle\" \"Ship the real compiled ATW widget bundle from /atw.build and /atw.embed so the Builder gets a functional widget.js and widget.css instead of the Feature 003 no-op stub.\")",
       "PowerShell(.specify/scripts/powershell/check-prerequisites.ps1 -Json)",
       "PowerShell(.specify/scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)",
-      "PowerShell(.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Json -ShortName \"openapi-action-catalog\" \"OpenAPI-driven action catalog and client-side execution\")"
+      "PowerShell(.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Json -ShortName \"openapi-action-catalog\" \"OpenAPI-driven action catalog and client-side execution\")",
+      "PowerShell(.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Json -ShortName \"widget-tool-loop\" \"Client-side tool execution and multi-turn widget-driven tool loop — collapses the Feature 003 safe-read/action split so every host API call executes in the widget with shopper credentials; adds a tool-result post-back loop so Opus can compose grounded responses from client-side-fetched data.\")"
     ]
   }
 }

@@ -4,10 +4,10 @@
     ".atw/config/project.md": "sha256:caa5c7ba82b1d2b1bba5a836598ba4d5122df16423a42278762ca61856b4de66",
     ".atw/config/brief.md": "sha256:b2ae1a1494b6408d0919850b22a8e29ac9b5d9217f83632eea55f6ff0c7a911e",
     ".atw/artifacts/schema-map.md": "sha256:ba0e503e48232b855c644e695f2f74ff3dc1ccc2c8c6fc3f99e0fa1059cea8d9",
-    ".atw/artifacts/action-manifest.md": "sha256:65ed10f5f6dccbb250e4714227d194e952df498d7029741d91c7b62993a80126",
+    ".atw/artifacts/action-manifest.md": "sha256:96b633201e0afbe52da902f8fdaaf6fa5dfa34171ab61d2d8a9b911887ae60ab",
     ".atw/artifacts/build-plan.md": "sha256:916d072d60caa25f93ed7677d9214277af662bffb2117a2b8c156065ff914953",
-    ".atw/inputs/medusa-dump.sql": "sha256:3a713dfffdad6c16706a759b752f98a5bc613e7ece4ea539c8480f560d9d54c9",
-    ".atw/artifacts/openapi.json": "sha256:b2835c14071fc5a42acfbc593c421b3e2c79a4356d62833b3e0d7d7b30d0a3fa"
+    ".atw/artifacts/openapi.json": "sha256:b2835c14071fc5a42acfbc593c421b3e2c79a4356d62833b3e0d7d7b30d0a3fa",
+    ".atw/inputs/medusa-dump.sql": "sha256:3a713dfffdad6c16706a759b752f98a5bc613e7ece4ea539c8480f560d9d54c9"
   },
   "prompt_template_version": "enrich-v1"
 }

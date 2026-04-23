@@ -227,7 +227,7 @@ export const RUNTIME_TOOLS: RuntimeToolDescriptor[] = [
       "method": "GET",
       "path": "/store/customers/me"
     },
-    "is_action": false
+    "is_action": true
   },
   {
     "name": "list_my_addresses",
@@ -241,7 +241,7 @@ export const RUNTIME_TOOLS: RuntimeToolDescriptor[] = [
       "method": "GET",
       "path": "/store/customers/me/addresses"
     },
-    "is_action": false
+    "is_action": true
   },
   {
     "name": "list_my_orders",
@@ -255,7 +255,7 @@ export const RUNTIME_TOOLS: RuntimeToolDescriptor[] = [
       "method": "GET",
       "path": "/store/customers/me/orders"
     },
-    "is_action": false
+    "is_action": true
   },
   {
     "name": "update_my_address",
@@ -295,7 +295,7 @@ export const RUNTIME_TOOLS: RuntimeToolDescriptor[] = [
       "method": "GET",
       "path": "/store/orders/{id}"
     },
-    "is_action": false
+    "is_action": true
   },
   {
     "name": "get_product_tags",

@@ -186,7 +186,9 @@
       "tool": "get_collections"
     },
     {
-      "headers": {},
+      "headers": {
+        "x-publishable-api-key": "pk_cc9bfc0181fd5994d9fcc23c923de361c778e41bd00e747dfc5e36851eda37ed"
+      },
       "method": "GET",
       "pathTemplate": "/store/customers/me",
       "responseHandling": {
@@ -205,7 +207,9 @@
       "tool": "get_me"
     },
     {
-      "headers": {},
+      "headers": {
+        "x-publishable-api-key": "pk_cc9bfc0181fd5994d9fcc23c923de361c778e41bd00e747dfc5e36851eda37ed"
+      },
       "method": "GET",
       "pathTemplate": "/store/orders/{id}",
       "responseHandling": {
@@ -386,7 +390,9 @@
       "tool": "get_shipping_options_for_cart"
     },
     {
-      "headers": {},
+      "headers": {
+        "x-publishable-api-key": "pk_cc9bfc0181fd5994d9fcc23c923de361c778e41bd00e747dfc5e36851eda37ed"
+      },
       "method": "GET",
       "pathTemplate": "/store/customers/me/addresses",
       "responseHandling": {
@@ -405,7 +411,9 @@
       "tool": "list_my_addresses"
     },
     {
-      "headers": {},
+      "headers": {
+        "x-publishable-api-key": "pk_cc9bfc0181fd5994d9fcc23c923de361c778e41bd00e747dfc5e36851eda37ed"
+      },
       "method": "GET",
       "pathTemplate": "/store/customers/me/orders",
       "responseHandling": {

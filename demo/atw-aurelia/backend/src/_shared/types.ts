@@ -758,7 +758,7 @@ export const ActionIntentSchema = z.object({
   description: z.string().min(1),
   confirmation_required: z.literal(true),
   http: z.object({
-    method: z.enum(["GET", "POST", "PATCH", "DELETE"]),
+    method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]),
     path: z.string().min(1),
   }),
   summary: z.record(z.string(), z.string()).optional(),

@@ -15,7 +15,7 @@ const TIMEOUT_MS = 8_000;
 export interface SafeReadRequest {
   tool: RuntimeToolDescriptor;
   resolvedPath: string;
-  method: "GET" | "POST" | "PATCH" | "DELETE";
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: Record<string, unknown>;
   hostApiBaseUrl: string;
   hostApiKey: string | null;
