@@ -13,6 +13,8 @@ export interface RenderContext {
   embeddingModel: string;
   anthropicModel: string;
   generatedAt: string;
+  defaultLocale: string;
+  briefSummary: string;
 }
 
 export type RenderAction = "unchanged" | "created" | "rewritten";
@@ -112,6 +114,8 @@ interface CliOptions {
   projectName: string;
   embeddingModel: string;
   anthropicModel: string;
+  defaultLocale: string;
+  briefSummary: string;
   backup: boolean;
   json: boolean;
 }
@@ -125,6 +129,8 @@ function parseCli(argv: string[]): CliOptions | { help: true } | { version: true
       "project-name": { type: "string" },
       "embedding-model": { type: "string" },
       "anthropic-model": { type: "string" },
+      "default-locale": { type: "string" },
+      "brief-summary": { type: "string" },
       backup: { type: "boolean", default: false },
       json: { type: "boolean", default: false },
       help: { type: "boolean", default: false, short: "h" },
@@ -140,6 +146,8 @@ function parseCli(argv: string[]): CliOptions | { help: true } | { version: true
     projectName: String(values["project-name"] ?? "unknown"),
     embeddingModel: String(values["embedding-model"] ?? "Xenova/bge-small-multilingual-v1.5"),
     anthropicModel: String(values["anthropic-model"] ?? "claude-opus-4-7"),
+    defaultLocale: String(values["default-locale"] ?? "en"),
+    briefSummary: String(values["brief-summary"] ?? ""),
     backup: Boolean(values.backup),
     json: Boolean(values.json),
   };
@@ -174,6 +182,8 @@ export async function runRenderBackend(argv: string[]): Promise<number> {
         embeddingModel: opts.embeddingModel,
         anthropicModel: opts.anthropicModel,
         generatedAt: "2026-04-22T00:00:00Z",
+        defaultLocale: opts.defaultLocale,
+        briefSummary: opts.briefSummary,
       },
     });
     if (opts.json) {

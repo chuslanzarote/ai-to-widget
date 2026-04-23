@@ -382,11 +382,17 @@ export const BuildManifestSchema = z.object({
                 path: z.string(),
                 sha256: z.string(),
                 bytes: z.number().int().nonnegative(),
+                gzip_bytes: z.number().int().nonnegative(),
             }),
             css: z.object({
                 path: z.string(),
                 sha256: z.string(),
                 bytes: z.number().int().nonnegative(),
+                gzip_bytes: z.number().int().nonnegative(),
+            }),
+            source: z.object({
+                package_version: z.string().min(1),
+                tree_hash: z.string().regex(/^sha256:[a-f0-9]{64}$/),
             }),
         })
             .nullable()

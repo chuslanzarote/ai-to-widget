@@ -575,13 +575,23 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
     if (!flags.entitiesOnly && !abortState.aborted) {
       progress.banner(banner("BUNDLE", "Bundling dist/widget.{js,css} ..."));
       const widgetOut = await compileWidget({
-        widgetSrcDir: join(flags.projectRoot, "widget", "src"),
         outDir: join(flags.projectRoot, "dist"),
         minify: true,
       });
       widgetBundle = {
-        js: widgetOut.js,
-        css: widgetOut.css,
+        js: {
+          path: widgetOut.js.path,
+          sha256: widgetOut.js.sha256,
+          bytes: widgetOut.js.bytes,
+          gzip_bytes: widgetOut.js.gzip_bytes,
+        },
+        css: {
+          path: widgetOut.css.path,
+          sha256: widgetOut.css.sha256,
+          bytes: widgetOut.css.bytes,
+          gzip_bytes: widgetOut.css.gzip_bytes,
+        },
+        source: widgetOut.source,
       };
     }
 

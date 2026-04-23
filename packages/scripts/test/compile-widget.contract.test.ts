@@ -4,7 +4,7 @@ import path from "node:path";
 import os from "node:os";
 import { compileWidget, runCompileWidget } from "../src/compile-widget.js";
 
-describe("atw-compile-widget contract (T047)", () => {
+describe("atw-compile-widget contract (Feature 004)", () => {
   let stdoutSpy: ReturnType<typeof vi.spyOn>;
   let stderrSpy: ReturnType<typeof vi.spyOn>;
   let tmp: string;
@@ -36,25 +36,22 @@ describe("atw-compile-widget contract (T047)", () => {
     expect(code).toBe(3);
   });
 
-  it("library: emits no-op bundle when widget src is empty", async () => {
-    const srcDir = path.join(tmp, "src");
+  it("library: compiles real @atw/widget source (no stub path)", async () => {
     const outDir = path.join(tmp, "dist");
-    await fs.mkdir(srcDir, { recursive: true });
-    const result = await compileWidget({ widgetSrcDir: srcDir, outDir });
-    expect(result.noop).toBe(true);
-    expect(result.js.path).toContain("widget.js");
-    expect(result.css.path).toContain("widget.css");
+    const result = await compileWidget({ outDir });
+    expect(result.js.bytes).toBeGreaterThan(1024);
     expect(result.js.sha256).toMatch(/^[a-f0-9]{64}$/);
-    expect(result.js.bytes).toBeGreaterThan(0);
+    expect(result.js.gzip_bytes).toBeGreaterThan(0);
+    expect(result.source.package_version).toMatch(/^\d+\.\d+\.\d+/);
+    expect(result.source.tree_hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
 
-  it("library: no-op bundle is byte-deterministic across runs", async () => {
-    const srcDir = path.join(tmp, "src");
+  it("library: bundle is byte-deterministic across runs", async () => {
     const outDir = path.join(tmp, "dist");
-    await fs.mkdir(srcDir, { recursive: true });
-    const first = await compileWidget({ widgetSrcDir: srcDir, outDir });
-    const second = await compileWidget({ widgetSrcDir: srcDir, outDir });
+    const first = await compileWidget({ outDir });
+    const second = await compileWidget({ outDir });
     expect(second.js.sha256).toBe(first.js.sha256);
     expect(second.css.sha256).toBe(first.css.sha256);
+    expect(second.source.tree_hash).toBe(first.source.tree_hash);
   });
 });

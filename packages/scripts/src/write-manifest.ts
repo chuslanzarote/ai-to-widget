@@ -5,8 +5,44 @@ import { parseArgs } from "node:util";
 import Debug from "debug";
 import { BuildManifestSchema } from "./lib/types.js";
 import { writeManifestAtomic, defaultManifestPath } from "./lib/manifest-io.js";
+import type { CompileResult, WidgetSourceOrigin } from "./compile-widget.js";
 
 const log = Debug("atw:write-manifest");
+
+export interface WidgetManifestSection {
+  js: { path: string; sha256: string; bytes: number; gzip_bytes: number };
+  css: { path: string; sha256: string; bytes: number; gzip_bytes: number };
+  source: { package_version: string; tree_hash: string };
+}
+
+/**
+ * Pure transformer: shape a `compileWidget` result into the `widget_bundle`
+ * section of the build manifest. Paths are kept as returned by the compiler
+ * — the orchestrator is responsible for any absolute→relative remapping.
+ */
+export function buildWidgetManifestSection(
+  compileResult: CompileResult,
+  sourceOrigin: WidgetSourceOrigin,
+): WidgetManifestSection {
+  return {
+    js: {
+      path: compileResult.js.path,
+      sha256: compileResult.js.sha256,
+      bytes: compileResult.js.bytes,
+      gzip_bytes: compileResult.js.gzip_bytes,
+    },
+    css: {
+      path: compileResult.css.path,
+      sha256: compileResult.css.sha256,
+      bytes: compileResult.css.bytes,
+      gzip_bytes: compileResult.css.gzip_bytes,
+    },
+    source: {
+      package_version: sourceOrigin.package_version,
+      tree_hash: sourceOrigin.tree_hash,
+    },
+  };
+}
 
 export interface WriteManifestResult {
   path: string;

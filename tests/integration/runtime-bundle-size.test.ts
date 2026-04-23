@@ -13,12 +13,7 @@ import { promises as fs } from "node:fs";
 import { gzipSync } from "node:zlib";
 import path from "node:path";
 import os from "node:os";
-import { fileURLToPath } from "node:url";
 import { compileWidget } from "../../packages/scripts/src/compile-widget.js";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, "..", "..");
-const widgetSrc = path.resolve(repoRoot, "packages", "widget", "src");
 
 let tmp: string;
 
@@ -32,7 +27,6 @@ afterEach(async () => {
 describe("widget bundle size budget (T108 / SC-009)", () => {
   it("compiles the live widget entry and fits under 80 KB js + 10 KB css gzipped", async () => {
     const result = await compileWidget({
-      widgetSrcDir: widgetSrc,
       outDir: tmp,
       minify: true,
     });

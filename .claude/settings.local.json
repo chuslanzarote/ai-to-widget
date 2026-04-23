@@ -12,7 +12,9 @@
       "PowerShell(& .specify/extensions/git/scripts/powershell/auto-commit.ps1 after_tasks)",
       "PowerShell(& .specify/scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)",
       "PowerShell(& .specify/extensions/git/scripts/powershell/auto-commit.ps1 after_analyze)",
-      "PowerShell(.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Json -ShortName \"ship-widget-bundle\" \"Ship the real compiled ATW widget bundle from /atw.build and /atw.embed so the Builder gets a functional widget.js and widget.css instead of the Feature 003 no-op stub.\")"
+      "PowerShell(.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Json -ShortName \"ship-widget-bundle\" \"Ship the real compiled ATW widget bundle from /atw.build and /atw.embed so the Builder gets a functional widget.js and widget.css instead of the Feature 003 no-op stub.\")",
+      "PowerShell(.specify/scripts/powershell/check-prerequisites.ps1 -Json)",
+      "PowerShell(.specify/scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)"
     ]
   }
 }

@@ -1,24 +1,24 @@
 {
   "schema_version": "1",
-  "build_id": "atw-build-20260422T204701-2762",
-  "started_at": "2026-04-22T20:47:01.981Z",
-  "completed_at": "2026-04-22T20:47:19.992Z",
-  "duration_seconds": 18.011,
+  "build_id": "atw-build-20260423T042542-cb2e",
+  "started_at": "2026-04-23T04:25:42.750Z",
+  "completed_at": "2026-04-23T04:25:52.092Z",
+  "duration_seconds": 9.342,
   "result": "success",
   "totals": {
-    "enriched": 8,
+    "enriched": 0,
     "failed": 0,
-    "skipped_unchanged": 158,
+    "skipped_unchanged": 166,
     "total_entities": 166
   },
   "failures": [],
   "opus": {
-    "calls": 8,
-    "cost_usd": 0.69,
+    "calls": 0,
+    "cost_usd": 0,
     "cost_variance_pct": 0,
     "estimated_cost_usd": 0,
-    "input_tokens": 12862,
-    "output_tokens": 6573
+    "input_tokens": 0,
+    "output_tokens": 0
   },
   "concurrency": {
     "configured": 10,
@@ -57,7 +57,7 @@
         "action": "rewritten",
         "bytes": 2528,
         "path": "src/index.ts",
-        "sha256": "48dd19bad3afd6b923ab06293154ebd8c776653d5786bdb45d64096d7833c6c6"
+        "sha256": "25c09d6943e447ef5334773261d9fc9e6bcbc242d113f07c12a20b1c181d3f07"
       },
       {
         "action": "unchanged",
@@ -81,14 +81,20 @@
     "backend_image": null,
     "widget_bundle": {
       "css": {
-        "bytes": 31,
+        "bytes": 5048,
+        "gzip_bytes": 1374,
         "path": "C:\\Desarrollo\\Personal\\ai-to-widget\\demo\\atw-aurelia\\dist\\widget.css",
-        "sha256": "39483436b3884b90e44373b936cb205cdd66b32fce90cdd31f0d5ae8e663303b"
+        "sha256": "fc2b9cfa03478e6e954edf4a085a2c747b143fb745e960275d1d14048346936d"
       },
       "js": {
-        "bytes": 61,
+        "bytes": 181169,
+        "gzip_bytes": 55142,
         "path": "C:\\Desarrollo\\Personal\\ai-to-widget\\demo\\atw-aurelia\\dist\\widget.js",
-        "sha256": "652a1a671c0838696f5ff463de312675b8f3657a24d6b6b4e1061626e96f3301"
+        "sha256": "65c789dde8befea503945fac4b86751d6cb3ef746c347db62940c88cba8a5684"
+      },
+      "source": {
+        "package_version": "0.1.0",
+        "tree_hash": "sha256:477b2ef72b9ca3804a7e6a7ac2e7220b24fcbfb3c2a01b5658416a957364e6df"
       }
     }
   },
