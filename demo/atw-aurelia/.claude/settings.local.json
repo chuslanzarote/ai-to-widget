@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "PowerShell(& C:\\\\Desarrollo\\\\Personal\\\\ai-to-widget\\\\.specify\\\\extensions\\\\git\\\\scripts\\\\powershell\\\\create-new-feature.ps1 -Json -ShortName \"full-reviewer-path\" \"Complete the /atw.build to docker compose up reviewer path so the demo works end-to-end without manual scaffolding: fix recursive backend template rendering, seed backend meta files \\(Dockerfile, package.json, tsconfig.json\\), fail loudly when the IMAGE step fails, and preserve determinism.\")",
-      "PowerShell(& C:\\\\Desarrollo\\\\Personal\\\\ai-to-widget\\\\.specify\\\\scripts\\\\powershell\\\\check-prerequisites.ps1 -Json -PathsOnly)"
+      "PowerShell(& C:\\\\Desarrollo\\\\Personal\\\\ai-to-widget\\\\.specify\\\\scripts\\\\powershell\\\\check-prerequisites.ps1 -Json -PathsOnly)",
+      "PowerShell(& C:\\\\Desarrollo\\\\Personal\\\\ai-to-widget\\\\.specify\\\\scripts\\\\powershell\\\\setup-plan.ps1 -Json)"
     ]
   }
 }
