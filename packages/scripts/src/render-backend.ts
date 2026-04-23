@@ -65,6 +65,23 @@ async function collectTemplates(
   return out;
 }
 
+/**
+ * Feature 006 — canonical shape of a runtime tool descriptor. The
+ * rendered `tools.ts` re-declares this exact interface (the .hbs
+ * template carries the declaration literally); this type is the
+ * build-time source of truth the render pipeline and its tests import.
+ * data-model.md §6.
+ */
+export interface RuntimeToolDescriptor {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+  http: { method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; path: string };
+  is_action: boolean;
+  description_template?: string;
+  summary_fields?: string[];
+}
+
 export interface RenderContext {
   projectName: string;
   embeddingModel: string;
@@ -72,6 +89,18 @@ export interface RenderContext {
   generatedAt: string;
   defaultLocale: string;
   briefSummary: string;
+  /** Feature 006 — descriptors rendered into `tools.ts`. Empty array is
+   *  legal; the template guards with `{{#if tools}}...{{/if}}`. */
+  tools: RuntimeToolDescriptor[];
+  /** Pre-serialised JSON of `tools` (2-space indent, no trailing
+   *  newline). Populated by `renderBackend()` from `tools` so the
+   *  template emits byte-identical output across runs. */
+  toolsJson: string;
+}
+
+/** Deterministic stringify for tools — 2-space indent, stable keys. */
+export function serialiseTools(tools: RuntimeToolDescriptor[]): string {
+  return JSON.stringify(tools, null, 2);
 }
 
 export type RenderAction = "unchanged" | "created" | "rewritten";
@@ -119,7 +148,16 @@ export async function renderBackend(opts: RenderOptions): Promise<RenderedFile[]
     const tpl = Handlebars.compile(rewritten, { noEscape: true, strict: true });
     let rendered: string;
     try {
-      rendered = tpl(opts.context);
+      // Feature 006 — ensure toolsJson matches tools before render so
+      // the template's `{{{toolsJson}}}` stays in sync even if a caller
+      // forgot to pre-compute it.
+      const ctx: RenderContext = {
+        ...opts.context,
+        toolsJson:
+          opts.context.toolsJson ?? serialiseTools(opts.context.tools ?? []),
+        tools: opts.context.tools ?? [],
+      };
+      rendered = tpl(ctx);
     } catch (err) {
       const e = new Error(`Template ${relTpl} compile error: ${(err as Error).message}`);
       (e as { code?: string }).code = "TEMPLATE_COMPILE";
@@ -249,6 +287,8 @@ export async function runRenderBackend(argv: string[]): Promise<number> {
         generatedAt: "2026-04-22T00:00:00Z",
         defaultLocale: opts.defaultLocale,
         briefSummary: opts.briefSummary,
+        tools: [],
+        toolsJson: "[]",
       },
     });
     if (opts.json) {

@@ -12,7 +12,7 @@ export interface RuntimeToolDescriptor {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;
-  http: { method: "GET" | "POST" | "PATCH" | "DELETE"; path: string };
+  http: { method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; path: string };
   /** When true the backend builds an action-intent instead of executing. */
   is_action: boolean;
   /** Human-readable template for the confirmation-card description. */

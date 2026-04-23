@@ -1,4 +1,14 @@
 /** @jsxImportSource preact */
+/**
+ * FR-009a invariant: every host-derived string (intent.description,
+ * intent.summary values, outcome.summary, outcome.message, error body
+ * fields) MUST reach the DOM as a JSX text child so Preact auto-escapes
+ * it. No dangerouslySetInnerHTML, no innerHTML assignment, no template
+ * strings into element.textContent-then-HTML-parsing.
+ *
+ * Structural guarantee: packages/widget/test/action-card.interpreter-safety.contract.test.ts
+ * static-greps this file for banned constructs on every CI run.
+ */
 import type { JSX } from "preact";
 import { useState } from "preact/hooks";
 import type { ActionIntent } from "@atw/scripts/dist/lib/types.js";

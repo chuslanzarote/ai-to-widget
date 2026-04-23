@@ -1,5 +1,6 @@
 import { render, h } from "preact";
 import { readConfigFromAttributes } from "./config.js";
+import { loadExecutorsCatalog } from "./action-executors.js";
 import { mountLauncher } from "./launcher.js";
 import { ChatPanel } from "./panel.js";
 import "./styles.css";
@@ -48,6 +49,17 @@ function init(): void {
   }
 
   const config = result.config;
+
+  // Fire-and-forget catalog load so action execution is ready by the
+  // time the shopper confirms a card. The loader never throws — it
+  // falls back to chat-only on any error (see action-executors.ts).
+  // T076: belt-and-braces .catch() hardens against a future refactor
+  // that drops the internal try/catch; a rejection here must never
+  // abort the bootstrap.
+  loadExecutorsCatalog(config).catch((err: unknown) => {
+    // eslint-disable-next-line no-console
+    console.warn("[atw] catalog load rejected unexpectedly", err);
+  });
 
   // Root container for the Preact panel.
   const root = document.createElement("div");

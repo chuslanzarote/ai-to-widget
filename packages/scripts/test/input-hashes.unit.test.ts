@@ -180,3 +180,60 @@ describe("diffInputHashes", () => {
     expect(d.changedKeys).toContain(".atw/config/brief.md");
   });
 });
+
+describe("T046 — RENDER cache covers openapi + action_manifest", () => {
+  // Feature 006 — RENDER cache-check MUST be sensitive to both
+  // `.atw/artifacts/openapi.json` and `.atw/artifacts/action-manifest.md`.
+  // These tests lock the contract in place: if either input moves, the
+  // next build's `sameTotal` flips to false so RENDER re-runs.
+  it("mutating action-manifest.md flips sameTotal to false", async () => {
+    await seedTrackedFiles(tmpRoot, {
+      ".atw/config/project.md": "x",
+      ".atw/artifacts/openapi.json": '{"openapi":"3.0.0"}',
+      ".atw/artifacts/action-manifest.md": "# Action manifest v1",
+    });
+    const a = computeInputHashes(tmpRoot, null, "enrich-v1");
+    await fs.writeFile(
+      path.join(tmpRoot, ".atw/artifacts/action-manifest.md"),
+      "# Action manifest v2",
+      "utf8",
+    );
+    const b = computeInputHashes(tmpRoot, null, "enrich-v1");
+    const d = diffInputHashes(a, b);
+    expect(d.changedKeys).toEqual([".atw/artifacts/action-manifest.md"]);
+    expect(d.sameTotal).toBe(false);
+  });
+
+  it("mutating openapi.json flips sameTotal to false", async () => {
+    await seedTrackedFiles(tmpRoot, {
+      ".atw/config/project.md": "x",
+      ".atw/artifacts/openapi.json": '{"openapi":"3.0.0","paths":{}}',
+      ".atw/artifacts/action-manifest.md": "# Action manifest",
+    });
+    const a = computeInputHashes(tmpRoot, null, "enrich-v1");
+    await fs.writeFile(
+      path.join(tmpRoot, ".atw/artifacts/openapi.json"),
+      '{"openapi":"3.0.1","paths":{}}',
+      "utf8",
+    );
+    const b = computeInputHashes(tmpRoot, null, "enrich-v1");
+    const d = diffInputHashes(a, b);
+    expect(d.changedKeys).toEqual([".atw/artifacts/openapi.json"]);
+    expect(d.sameTotal).toBe(false);
+  });
+
+  it("both unchanged + other tracked files unchanged → sameTotal true", async () => {
+    await seedTrackedFiles(tmpRoot, {
+      ".atw/config/project.md": "x",
+      ".atw/config/brief.md": "y",
+      ".atw/artifacts/schema-map.md": "z",
+      ".atw/artifacts/openapi.json": '{"openapi":"3.0.0"}',
+      ".atw/artifacts/action-manifest.md": "# manifest",
+    });
+    const a = computeInputHashes(tmpRoot, null, "enrich-v1");
+    const b = computeInputHashes(tmpRoot, null, "enrich-v1");
+    const d = diffInputHashes(a, b);
+    expect(d.sameTotal).toBe(true);
+    expect(d.changedKeys).toEqual([]);
+  });
+});

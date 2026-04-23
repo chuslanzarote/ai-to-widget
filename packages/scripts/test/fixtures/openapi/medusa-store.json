@@ -1,0 +1,738 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Medusa /store/* fixture (curated subset)",
+    "version": "1.8.0",
+    "description": "Representative slice of Medusa's public storefront API plus a handful of admin and non-cookie-security operations. Used to stress the classifier's heuristic rules and anchored-generation post-check."
+  },
+  "servers": [
+    { "url": "http://localhost:9000" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "connect.sid"
+      },
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-medusa-access-token"
+      }
+    },
+    "schemas": {
+      "Address": {
+        "type": "object",
+        "required": ["first_name", "last_name", "address_1", "city", "country_code", "postal_code"],
+        "properties": {
+          "first_name": { "type": "string" },
+          "last_name": { "type": "string" },
+          "address_1": { "type": "string" },
+          "address_2": { "type": "string" },
+          "city": { "type": "string" },
+          "country_code": { "type": "string" },
+          "postal_code": { "type": "string" },
+          "phone": { "type": "string" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/store/products": {
+      "get": {
+        "operationId": "getProducts",
+        "summary": "List products.",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/products/{id}": {
+      "get": {
+        "operationId": "getProduct",
+        "summary": "Retrieve a product.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/products-by-handle/{handle}": {
+      "get": {
+        "operationId": "getProductByHandle",
+        "summary": "Retrieve a product by handle.",
+        "parameters": [
+          { "name": "handle", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/regions": {
+      "get": {
+        "operationId": "getRegions",
+        "summary": "List regions.",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/regions/{id}": {
+      "get": {
+        "operationId": "getRegion",
+        "summary": "Retrieve a region.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/collections": {
+      "get": {
+        "operationId": "getCollections",
+        "summary": "List collections.",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/collections/{id}": {
+      "get": {
+        "operationId": "getCollection",
+        "summary": "Retrieve a collection.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/product-tags": {
+      "get": {
+        "operationId": "getProductTags",
+        "summary": "List product tags.",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/product-types": {
+      "get": {
+        "operationId": "getProductTypes",
+        "summary": "List product types.",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/shipping-options/{cart_id}": {
+      "get": {
+        "operationId": "getShippingOptionsForCart",
+        "summary": "List shipping options for a cart.",
+        "parameters": [
+          { "name": "cart_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/carts": {
+      "post": {
+        "operationId": "createCart",
+        "summary": "Create a cart.",
+        "security": [{ "cookieAuth": [] }],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "region_id": { "type": "string" },
+                  "country_code": { "type": "string" },
+                  "items": { "type": "array", "items": { "type": "object" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/carts/{id}": {
+      "get": {
+        "operationId": "getCart",
+        "summary": "Retrieve a cart.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "operationId": "updateCart",
+        "summary": "Update a cart.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "region_id": { "type": "string" },
+                  "email": { "type": "string" },
+                  "billing_address": { "$ref": "#/components/schemas/Address" },
+                  "shipping_address": { "$ref": "#/components/schemas/Address" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/carts/{id}/line-items": {
+      "post": {
+        "operationId": "addLineItem",
+        "summary": "Add a line item to the cart.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["variant_id", "quantity"],
+                "properties": {
+                  "variant_id": { "type": "string" },
+                  "quantity": { "type": "integer", "minimum": 1 }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/carts/{id}/line-items/{line_id}": {
+      "post": {
+        "operationId": "updateLineItem",
+        "summary": "Update a line item on the cart.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "line_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["quantity"],
+                "properties": {
+                  "quantity": { "type": "integer", "minimum": 0 }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      },
+      "delete": {
+        "operationId": "deleteLineItem",
+        "summary": "Remove a line item from the cart.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "line_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/carts/{id}/complete": {
+      "post": {
+        "operationId": "completeCart",
+        "summary": "Complete a cart (place order).",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/carts/{id}/taxes": {
+      "post": {
+        "operationId": "calculateTaxes",
+        "summary": "Calculate cart taxes.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/carts/{id}/payment-sessions": {
+      "post": {
+        "operationId": "createPaymentSessions",
+        "summary": "Initialise payment sessions for a cart.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/carts/{id}/payment-sessions/{provider_id}": {
+      "delete": {
+        "operationId": "deletePaymentSession",
+        "summary": "Remove a payment session.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "provider_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/carts/{id}/payment-session": {
+      "post": {
+        "operationId": "selectPaymentSession",
+        "summary": "Select a payment session on the cart.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["provider_id"],
+                "properties": {
+                  "provider_id": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/carts/{id}/shipping-methods": {
+      "post": {
+        "operationId": "addShippingMethod",
+        "summary": "Add a shipping method to the cart.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["option_id"],
+                "properties": {
+                  "option_id": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/carts/{id}/customer": {
+      "post": {
+        "operationId": "setCartCustomer",
+        "summary": "Associate the authenticated customer with the cart.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/carts/{id}/discounts/{code}": {
+      "post": {
+        "operationId": "addDiscountToCart",
+        "summary": "Apply a discount code to the cart.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "code", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "delete": {
+        "operationId": "removeDiscountFromCart",
+        "summary": "Remove a discount code from the cart.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "code", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/customers": {
+      "post": {
+        "operationId": "createCustomer",
+        "summary": "Register a new customer.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password", "first_name", "last_name"],
+                "properties": {
+                  "email": { "type": "string" },
+                  "password": { "type": "string" },
+                  "first_name": { "type": "string" },
+                  "last_name": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/customers/me": {
+      "get": {
+        "operationId": "getMe",
+        "summary": "Retrieve the authenticated customer.",
+        "security": [{ "cookieAuth": [] }],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "operationId": "updateMe",
+        "summary": "Update the authenticated customer.",
+        "security": [{ "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "first_name": { "type": "string" },
+                  "last_name": { "type": "string" },
+                  "phone": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/customers/me/addresses": {
+      "get": {
+        "operationId": "listMyAddresses",
+        "summary": "List the authenticated customer's addresses.",
+        "security": [{ "cookieAuth": [] }],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "operationId": "addMyAddress",
+        "summary": "Add an address to the authenticated customer.",
+        "security": [{ "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Address" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/customers/me/addresses/{address_id}": {
+      "put": {
+        "operationId": "updateMyAddress",
+        "summary": "Update one of the authenticated customer's addresses.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "address_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Address" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      },
+      "delete": {
+        "operationId": "deleteMyAddress",
+        "summary": "Delete one of the authenticated customer's addresses.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "address_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/customers/me/orders": {
+      "get": {
+        "operationId": "listMyOrders",
+        "summary": "List the authenticated customer's orders.",
+        "security": [{ "cookieAuth": [] }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/customers/password-token": {
+      "post": {
+        "operationId": "requestPasswordToken",
+        "summary": "Request a password-reset token.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": { "email": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/customers/password-reset": {
+      "post": {
+        "operationId": "resetPassword",
+        "summary": "Reset a customer's password using a token.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["token", "password"],
+                "properties": {
+                  "token": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/auth": {
+      "post": {
+        "operationId": "authenticate",
+        "summary": "Authenticate and receive a session cookie.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      },
+      "delete": {
+        "operationId": "signOut",
+        "summary": "Sign the authenticated customer out.",
+        "security": [{ "cookieAuth": [] }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/orders/{id}": {
+      "get": {
+        "operationId": "getOrder",
+        "summary": "Retrieve an order.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/orders/customer/confirm": {
+      "post": {
+        "operationId": "confirmOrderCustomer",
+        "summary": "Confirm a guest order belongs to the authenticated customer.",
+        "security": [{ "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["order_id", "token"],
+                "properties": {
+                  "order_id": { "type": "string" },
+                  "token": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/returns": {
+      "post": {
+        "operationId": "createReturn",
+        "summary": "Create a return for an order the customer owns.",
+        "security": [{ "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["order_id", "items"],
+                "properties": {
+                  "order_id": { "type": "string" },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["item_id", "quantity"],
+                      "properties": {
+                        "item_id": { "type": "string" },
+                        "quantity": { "type": "integer", "minimum": 1 }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/reviews": {
+      "post": {
+        "operationId": "createReview",
+        "summary": "Leave a product review.",
+        "security": [{ "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["product_id", "rating"],
+                "properties": {
+                  "product_id": { "type": "string" },
+                  "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
+                  "body": { "type": "string", "maxLength": 2000 }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/search": {
+      "post": {
+        "operationId": "searchStore",
+        "summary": "Search the catalog (uses api-key auth — MUST be excluded).",
+        "security": [{ "apiKeyAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["q"],
+                "properties": {
+                  "q": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/store/gift-cards/{code}": {
+      "get": {
+        "operationId": "getGiftCardByCode",
+        "summary": "Retrieve a gift card by code.",
+        "parameters": [
+          { "name": "code", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/admin/products": {
+      "post": {
+        "operationId": "adminCreateProduct",
+        "summary": "Admin: create a product.",
+        "security": [{ "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title"],
+                "properties": { "title": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/admin/users": {
+      "post": {
+        "operationId": "adminCreateUser",
+        "summary": "Admin: create a user.",
+        "security": [{ "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": { "email": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      },
+      "get": {
+        "operationId": "adminListUsers",
+        "summary": "Admin: list users.",
+        "security": [{ "cookieAuth": [] }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/admin/orders/{id}": {
+      "delete": {
+        "operationId": "adminDeleteOrder",
+        "summary": "Admin: delete an order.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    }
+  }
+}

@@ -3,12 +3,24 @@
 Pre-generated artefacts so `make demo` can reach a working widget in
 under 3 minutes without the reviewer running Features 001 or 002.
 
+For the reviewer path (running the already-built demo against the live
+Medusa stack) see the Feature 006 quickstart:
+[`../../specs/006-openapi-action-catalog/quickstart.md`](../../specs/006-openapi-action-catalog/quickstart.md)
+(Path A).
+
 ## What's here
 
 - `.atw/config/project.md` — identity of the Aurelia demo project
 - `.atw/config/brief.md` — business brief (voice, vocabulary, non-goals)
 - `.atw/artifacts/schema-map.md` — indexable vs PII-excluded table map
-- `.atw/artifacts/action-manifest.md` — tool list, split into safe-read + action
+- `.atw/artifacts/openapi.json` — canonicalised Medusa `/store/*` OpenAPI
+  (Feature 006 input to classification)
+- `.atw/artifacts/action-manifest.md` — classifier output: the tool list
+  Opus sees, split into safe-read entries and shopper-facing actions,
+  each anchored to a specific OpenAPI operation (Feature 006)
+- `.atw/artifacts/action-executors.json` — declarative execution recipe
+  the widget loads at boot; credentials flow same-origin to Medusa,
+  never through atw_backend (Feature 006)
 - `.atw/artifacts/build-plan.md` — pre-computed estimate + sequence
 - `atw.sql` — **NOT COMMITTED YET** — the `atw_documents` dump produced
   by running `/atw.build` against the seeded Medusa. See

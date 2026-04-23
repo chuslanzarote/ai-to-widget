@@ -10,6 +10,7 @@ import {
   appendTurn,
   sessionId,
   pendingAction,
+  actionCapable,
   trimHistoryForRequest,
 } from "./state.js";
 import { MessageList, attachCitationsToLastAssistantTurn } from "./message-list.js";
@@ -84,8 +85,21 @@ export function ChatPanel(props: { config: WidgetConfig }): JSX.Element | null {
       });
       attachCitationsToLastAssistantTurn(result.response.citations);
       // Surface the first pending action (V1 renders one at a time).
+      // T077 / FR-014: in chat-only mode (no executors catalog loaded,
+      // or an empty one), we refuse to surface an ActionIntent even if
+      // the backend somehow emits one — no catalog = no way to execute.
+      // Normal builds have an empty backend tool list in this mode, so
+      // hitting this branch signals a contract drift worth logging.
       if (result.response.actions.length > 0) {
-        pendingAction.value = result.response.actions[0];
+        if (!actionCapable.value) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            "[atw] backend emitted ActionIntent while widget is in chat-only mode — ignoring",
+            { toolName: result.response.actions[0]?.tool },
+          );
+        } else {
+          pendingAction.value = result.response.actions[0];
+        }
       }
     } finally {
       isSending.value = false;
@@ -112,7 +126,7 @@ export function ChatPanel(props: { config: WidgetConfig }): JSX.Element | null {
         </button>
       </header>
       <MessageList config={props.config} intro={props.config.introLine} />
-      {pendingAction.value ? (
+      {pendingAction.value && actionCapable.value ? (
         <ActionCard intent={pendingAction.value} config={props.config} />
       ) : null}
       {lastError.value ? (

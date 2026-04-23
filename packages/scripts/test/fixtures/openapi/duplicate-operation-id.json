@@ -1,0 +1,27 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Duplicate operationId fixture",
+    "version": "1.0.0",
+    "description": "Two operations share `listThings` — ingestion MUST reject with a diagnostic naming both (path, method) locations."
+  },
+  "servers": [
+    { "url": "http://localhost:9000" }
+  ],
+  "paths": {
+    "/things": {
+      "get": {
+        "operationId": "listThings",
+        "summary": "List things.",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/other-things": {
+      "get": {
+        "operationId": "listThings",
+        "summary": "List other things — ambiguous operationId.",
+        "responses": { "200": { "description": "OK" } }
+      }
+    }
+  }
+}

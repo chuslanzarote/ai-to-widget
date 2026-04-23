@@ -2053,16 +2053,69 @@ export declare const BundleStepActionSchema: z.ZodEnum<["created", "rewritten", 
 export declare const ImageStepActionSchema: z.ZodEnum<["created", "rebuilt", "unchanged", "skipped", "failed"]>;
 export declare const ComposeStepActionSchema: z.ZodEnum<["activated", "unchanged", "skipped"]>;
 export declare const ScanStepActionSchema: z.ZodEnum<["ran", "skipped"]>;
+export declare const ActionExecutorsStepSchema: z.ZodObject<{
+    action: z.ZodEnum<["created", "rewritten", "unchanged"]>;
+    path: z.ZodString;
+    sha256: z.ZodString;
+    bytes: z.ZodNumber;
+    warnings: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+}, "strip", z.ZodTypeAny, {
+    path: string;
+    sha256: string;
+    action: "created" | "rewritten" | "unchanged";
+    bytes: number;
+    warnings: string[];
+}, {
+    path: string;
+    sha256: string;
+    action: "created" | "rewritten" | "unchanged";
+    bytes: number;
+    warnings?: string[] | undefined;
+}>;
+export type ActionExecutorsStep = z.infer<typeof ActionExecutorsStepSchema>;
 export declare const PipelineStepsSchema: z.ZodObject<{
     render: z.ZodOptional<z.ZodObject<{
         action: z.ZodEnum<["created", "rewritten", "unchanged"]>;
         files_changed: z.ZodNumber;
+        action_executors: z.ZodOptional<z.ZodObject<{
+            action: z.ZodEnum<["created", "rewritten", "unchanged"]>;
+            path: z.ZodString;
+            sha256: z.ZodString;
+            bytes: z.ZodNumber;
+            warnings: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+        }, "strip", z.ZodTypeAny, {
+            path: string;
+            sha256: string;
+            action: "created" | "rewritten" | "unchanged";
+            bytes: number;
+            warnings: string[];
+        }, {
+            path: string;
+            sha256: string;
+            action: "created" | "rewritten" | "unchanged";
+            bytes: number;
+            warnings?: string[] | undefined;
+        }>>;
     }, "strip", z.ZodTypeAny, {
         action: "created" | "rewritten" | "unchanged";
         files_changed: number;
+        action_executors?: {
+            path: string;
+            sha256: string;
+            action: "created" | "rewritten" | "unchanged";
+            bytes: number;
+            warnings: string[];
+        } | undefined;
     }, {
         action: "created" | "rewritten" | "unchanged";
         files_changed: number;
+        action_executors?: {
+            path: string;
+            sha256: string;
+            action: "created" | "rewritten" | "unchanged";
+            bytes: number;
+            warnings?: string[] | undefined;
+        } | undefined;
     }>>;
     bundle: z.ZodOptional<z.ZodObject<{
         action: z.ZodEnum<["created", "rewritten", "unchanged"]>;
@@ -2102,6 +2155,13 @@ export declare const PipelineStepsSchema: z.ZodObject<{
     render?: {
         action: "created" | "rewritten" | "unchanged";
         files_changed: number;
+        action_executors?: {
+            path: string;
+            sha256: string;
+            action: "created" | "rewritten" | "unchanged";
+            bytes: number;
+            warnings: string[];
+        } | undefined;
     } | undefined;
     bundle?: {
         action: "created" | "rewritten" | "unchanged";
@@ -2121,6 +2181,13 @@ export declare const PipelineStepsSchema: z.ZodObject<{
     render?: {
         action: "created" | "rewritten" | "unchanged";
         files_changed: number;
+        action_executors?: {
+            path: string;
+            sha256: string;
+            action: "created" | "rewritten" | "unchanged";
+            bytes: number;
+            warnings?: string[] | undefined;
+        } | undefined;
     } | undefined;
     bundle?: {
         action: "created" | "rewritten" | "unchanged";
@@ -2489,12 +2556,45 @@ export declare const BuildManifestSchema: z.ZodObject<{
         render: z.ZodOptional<z.ZodObject<{
             action: z.ZodEnum<["created", "rewritten", "unchanged"]>;
             files_changed: z.ZodNumber;
+            action_executors: z.ZodOptional<z.ZodObject<{
+                action: z.ZodEnum<["created", "rewritten", "unchanged"]>;
+                path: z.ZodString;
+                sha256: z.ZodString;
+                bytes: z.ZodNumber;
+                warnings: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+            }, "strip", z.ZodTypeAny, {
+                path: string;
+                sha256: string;
+                action: "created" | "rewritten" | "unchanged";
+                bytes: number;
+                warnings: string[];
+            }, {
+                path: string;
+                sha256: string;
+                action: "created" | "rewritten" | "unchanged";
+                bytes: number;
+                warnings?: string[] | undefined;
+            }>>;
         }, "strip", z.ZodTypeAny, {
             action: "created" | "rewritten" | "unchanged";
             files_changed: number;
+            action_executors?: {
+                path: string;
+                sha256: string;
+                action: "created" | "rewritten" | "unchanged";
+                bytes: number;
+                warnings: string[];
+            } | undefined;
         }, {
             action: "created" | "rewritten" | "unchanged";
             files_changed: number;
+            action_executors?: {
+                path: string;
+                sha256: string;
+                action: "created" | "rewritten" | "unchanged";
+                bytes: number;
+                warnings?: string[] | undefined;
+            } | undefined;
         }>>;
         bundle: z.ZodOptional<z.ZodObject<{
             action: z.ZodEnum<["created", "rewritten", "unchanged"]>;
@@ -2534,6 +2634,13 @@ export declare const BuildManifestSchema: z.ZodObject<{
         render?: {
             action: "created" | "rewritten" | "unchanged";
             files_changed: number;
+            action_executors?: {
+                path: string;
+                sha256: string;
+                action: "created" | "rewritten" | "unchanged";
+                bytes: number;
+                warnings: string[];
+            } | undefined;
         } | undefined;
         bundle?: {
             action: "created" | "rewritten" | "unchanged";
@@ -2553,6 +2660,13 @@ export declare const BuildManifestSchema: z.ZodObject<{
         render?: {
             action: "created" | "rewritten" | "unchanged";
             files_changed: number;
+            action_executors?: {
+                path: string;
+                sha256: string;
+                action: "created" | "rewritten" | "unchanged";
+                bytes: number;
+                warnings?: string[] | undefined;
+            } | undefined;
         } | undefined;
         bundle?: {
             action: "created" | "rewritten" | "unchanged";
@@ -2582,6 +2696,7 @@ export declare const BuildManifestSchema: z.ZodObject<{
         message: string;
         step: "render" | "bundle" | "image" | "compose" | "scan";
     }>, "many">>;
+    warnings: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
 }, "strip", z.ZodTypeAny, {
     schema_version: "1";
     build_id: string;
@@ -2669,10 +2784,18 @@ export declare const BuildManifestSchema: z.ZodObject<{
             matched_snippet: string;
         }[];
     };
+    warnings?: string[] | undefined;
     steps?: {
         render?: {
             action: "created" | "rewritten" | "unchanged";
             files_changed: number;
+            action_executors?: {
+                path: string;
+                sha256: string;
+                action: "created" | "rewritten" | "unchanged";
+                bytes: number;
+                warnings: string[];
+            } | undefined;
         } | undefined;
         bundle?: {
             action: "created" | "rewritten" | "unchanged";
@@ -2775,6 +2898,7 @@ export declare const BuildManifestSchema: z.ZodObject<{
             matched_snippet: string;
         }[] | undefined;
     };
+    warnings?: string[] | undefined;
     failures?: {
         reason: "insufficient_data" | "validation_failed_twice" | "opus_400" | "opus_5xx_twice" | "missing_source_data";
         entity_type: string;
@@ -2785,6 +2909,13 @@ export declare const BuildManifestSchema: z.ZodObject<{
         render?: {
             action: "created" | "rewritten" | "unchanged";
             files_changed: number;
+            action_executors?: {
+                path: string;
+                sha256: string;
+                action: "created" | "rewritten" | "unchanged";
+                bytes: number;
+                warnings?: string[] | undefined;
+            } | undefined;
         } | undefined;
         bundle?: {
             action: "created" | "rewritten" | "unchanged";

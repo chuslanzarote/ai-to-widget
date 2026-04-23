@@ -359,11 +359,22 @@ export const ImageStepActionSchema = z.enum([
 ]);
 export const ComposeStepActionSchema = z.enum(["activated", "unchanged", "skipped"]);
 export const ScanStepActionSchema = z.enum(["ran", "skipped"]);
+export const ActionExecutorsStepSchema = z.object({
+    action: z.enum(["created", "rewritten", "unchanged"]),
+    path: z.string(),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    bytes: z.number().int().nonnegative(),
+    warnings: z.array(z.string()).default([]),
+});
 export const PipelineStepsSchema = z.object({
     render: z
         .object({
         action: RenderStepActionSchema,
         files_changed: z.number().int().nonnegative(),
+        /* Feature 006 / T058 — declarative executor catalog emitted
+         * alongside backend render. Present iff
+         * `.atw/artifacts/action-manifest.md` existed this build. */
+        action_executors: ActionExecutorsStepSchema.optional(),
     })
         .optional(),
     bundle: z
@@ -492,6 +503,10 @@ export const BuildManifestSchema = z.object({
     /* Feature 005 — optional, backward-compatible extensions. */
     steps: PipelineStepsSchema.optional(),
     pipeline_failures: z.array(PipelineFailureSchema).optional(),
+    /* Feature 006 / T058 — build-level human-facing warnings. Includes
+     * the "no action-manifest → chat-only" notice (T071) and any
+     * cross-origin / >20-actions notices emitted by `renderExecutors()`. */
+    warnings: z.array(z.string()).optional(),
 });
 /* ----- 3.4 PipelineProgress ----- */
 export const PipelineProgressSchema = z.object({

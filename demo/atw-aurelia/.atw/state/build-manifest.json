@@ -1,10 +1,10 @@
 {
-  "build_id": "atw-build-20260423T064153-c7a4",
-  "completed_at": "2026-04-23T06:41:58.888Z",
+  "build_id": "atw-build-20260423T140339-2a13",
+  "completed_at": "2026-04-23T14:03:40.434Z",
   "compliance_scan": {
     "clean": true,
     "matches": [],
-    "ran": true,
+    "ran": false,
     "values_checked": 0
   },
   "concurrency": {
@@ -12,7 +12,7 @@
     "effective_max": 10,
     "reductions": []
   },
-  "duration_seconds": 4.912,
+  "duration_seconds": 1.217,
   "environment": {
     "docker_server_version": "unknown",
     "embedding_model": "Xenova/bge-small-en-v1.5",
@@ -22,8 +22,8 @@
   },
   "failures": [],
   "input_hashes": {
-    "action-manifest.md": "sha256:65ed10f5f6dccbb250e4714227d194e952df498d7029741d91c7b62993a80126",
-    "backend_source_tree": "sha256:6ce26787f112b96fea3256abfc92ecc7277fa0e9850935a40cb9ceff3ed1f4df",
+    "action-manifest.md": "sha256:96b633201e0afbe52da902f8fdaaf6fa5dfa34171ab61d2d8a9b911887ae60ab",
+    "backend_source_tree": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "brief.md": "sha256:b2ae1a1494b6408d0919850b22a8e29ac9b5d9217f83632eea55f6ff0c7a911e",
     "build-plan.md": "sha256:916d072d60caa25f93ed7677d9214277af662bffb2117a2b8c156065ff914953",
     "project.md": "sha256:caa5c7ba82b1d2b1bba5a836598ba4d5122df16423a42278762ca61856b4de66",
@@ -33,243 +33,22 @@
   "opus": {
     "calls": 0,
     "cost_usd": 0,
-    "cost_variance_pct": 0,
-    "estimated_cost_usd": 0,
     "input_tokens": 0,
     "output_tokens": 0
   },
   "outputs": {
-    "backend_files": [
-      {
-        "action": "unchanged",
-        "bytes": 1741,
-        "path": "backend/Dockerfile",
-        "sha256": "7806c27fc85b071283caaf528007441e99727039777d2d6b2f4883cc2bd0881d"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 78,
-        "path": "backend/.dockerignore",
-        "sha256": "e1f0c22ddfc129e0e6d83fdc7bbb3043a9d9f6655496cf830b5307de8be9a2f4"
-      },
-      {
-        "action": "rewritten",
-        "bytes": 1111,
-        "path": "backend/package.json",
-        "sha256": "d399f17663e14f263309787c194d662f1a67ea31cef49b289b2a66e12d7d6e30"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 853,
-        "path": "backend/tsconfig.json",
-        "sha256": "41ae7bfabf9029a380899e40b518b3620de858c2c8aece2f3d0facf61a625650"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 469,
-        "path": "src/config.ts",
-        "sha256": "b5e48f21877b27db69cef1b935fdff562ce9832fc38319810f465919fe446649"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 1182,
-        "path": "src/enrich-prompt-sharpen.ts",
-        "sha256": "32301056aa97a262559ac85603d67d49a98abab955ee1f4b1c04915876de5d1b"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 1026,
-        "path": "src/enrich-prompt.ts",
-        "sha256": "6a3d368a70d788c5a35b0b744c22fd6dc26b7f5d31051f79480876c9e9123789"
-      },
-      {
-        "action": "rewritten",
-        "bytes": 2563,
-        "path": "src/index.ts",
-        "sha256": "221ceb6e4bc8bf3cebafeaabbbec482da3eb05312aeeba9584fdb03b2890e563"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 2095,
-        "path": "src/prompts.ts",
-        "sha256": "dfc8387cbff44c2f2fabb08d756dc1f9505e231913dd4c45cdbcddc96788b9e7"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 736,
-        "path": "src/retrieval.ts",
-        "sha256": "fcbe12b298b2b38fcd90a7cd800be90b5e598fae780f01c30c36e7bca933d454"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 1452,
-        "path": "src/tools.ts",
-        "sha256": "1663527d801fce988f749812a3438c947aa14d4a26018e5e2880e81de97f716e"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 2784,
-        "path": "src/lib/action-intent.ts",
-        "sha256": "1f04618da9bba9b555d6624885cc7d54b721c4954908578afcca90daa465b517"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 649,
-        "path": "src/lib/cors.ts",
-        "sha256": "7ecebc30ed987012733a51fe45c0dcd6e077f109da67f12a575cc3093b8a1503"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 951,
-        "path": "src/lib/credential-strip.ts",
-        "sha256": "ad34610feb65313b751634796b1e326e03afb2c17bb3c0633c2a2bee0e72a204"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 1007,
-        "path": "src/lib/embedding.ts",
-        "sha256": "5b258cda86a1e408ccebe627016df79eda30c5dfb4d6d1639473f83506d9baae"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 1987,
-        "path": "src/lib/errors.ts",
-        "sha256": "d41b8117aaf11697c207ef47bc3fa07defdd4db0e306554ab74d7f8c861a37d0"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 1290,
-        "path": "src/lib/logger.ts",
-        "sha256": "e6a5334c228ec5d4214578c2263076b0cfa38240102daa00fc5577cb9d4168c8"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 7177,
-        "path": "src/lib/opus-client.ts",
-        "sha256": "eba7afa1e37fedb459b8a2bf5437d8a8c4b16cefcf4a69579c9f4b2d21934201"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 305,
-        "path": "src/lib/pii-scrub.ts",
-        "sha256": "02395c34469a6a05cf4a8fc1fd9b67171e2c726748446da2a93ad53634efe1ad"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 1058,
-        "path": "src/lib/rate-limit.ts",
-        "sha256": "6ef1775816d26089280fe8da51fe7c509135c3bdfec67eb8ced8a3abe0cd3309"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 1563,
-        "path": "src/lib/retrieval-context.ts",
-        "sha256": "6ccfc2a3c26b4d0af19ebaac39fa10f2f0f66fc6181d4003c26427c865eb7274"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 3039,
-        "path": "src/lib/retrieval.ts",
-        "sha256": "77bbaee5db1fd58cbfcef6c3bb6e408ba250a59d6d00ab9078ddc042ceca1855"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 1889,
-        "path": "src/lib/tool-execution.ts",
-        "sha256": "97d4823be4311d4d2220de7184dda6d5e11b5b2fde7d63358e216cbfd13403cd"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 5079,
-        "path": "src/routes/chat.ts",
-        "sha256": "6876125d87ab9862624baedec37362d225bf3f5b6a56c6a8fa55b937ba84ec11"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 1038,
-        "path": "src/routes/health.ts",
-        "sha256": "01abc7545ba7a6d293c77d08fd5bfaf1f99892c8326111bc6d764e655a78656d"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 1120,
-        "path": "backend/src/_shared/error-codes.ts",
-        "sha256": "f852c93d6c8ab5e93a2a5ff27a1a146ba4344c1d2e1c4746dfd8f780fe6c3acf"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 2617,
-        "path": "backend/src/_shared/runtime-config.ts",
-        "sha256": "8707a1066eac33088de991ecba7857c1a8e531b6b560dc7604120c61921a18a9"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 1349,
-        "path": "backend/src/_shared/runtime-credential-strip.ts",
-        "sha256": "2490a33a9decb7f44baa38d96c26b3eec34b5c815eea1a318dbfd80d88da72dc"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 1687,
-        "path": "backend/src/_shared/runtime-logger.ts",
-        "sha256": "4974c9058ea96d987621baf99bc81d16fdd919a7c749d3ba8a448435a2fdd362"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 1172,
-        "path": "backend/src/_shared/runtime-pii-scrub.ts",
-        "sha256": "d450219010d3b3d5e2030e2d43bf75e9a58c69ef81e2805df55f4e39bd9cd55e"
-      },
-      {
-        "action": "unchanged",
-        "bytes": 22755,
-        "path": "backend/src/_shared/types.ts",
-        "sha256": "59d35110a1e38ca6068622b80418d2498bd904f515b62493fc0bba3efd39f734"
-      }
-    ],
+    "backend_files": [],
     "backend_image": null,
-    "widget_bundle": {
-      "css": {
-        "bytes": 5048,
-        "gzip_bytes": 1374,
-        "path": "C:\\Desarrollo\\Personal\\ai-to-widget\\demo\\atw-aurelia\\dist\\widget.css",
-        "sha256": "fc2b9cfa03478e6e954edf4a085a2c747b143fb745e960275d1d14048346936d"
-      },
-      "js": {
-        "bytes": 182041,
-        "gzip_bytes": 55416,
-        "path": "C:\\Desarrollo\\Personal\\ai-to-widget\\demo\\atw-aurelia\\dist\\widget.js",
-        "sha256": "6837f0e2a34710ec9b758e8c4f9e0dbd6b2c01d8b43eff771c67f778a07c6a25"
-      },
-      "source": {
-        "package_version": "0.1.0",
-        "tree_hash": "sha256:477b2ef72b9ca3804a7e6a7ac2e7220b24fcbfb3c2a01b5658416a957364e6df"
-      }
-    }
+    "widget_bundle": null
   },
-  "result": "success",
+  "result": "failed",
   "schema_version": "1",
-  "started_at": "2026-04-23T06:41:53.976Z",
-  "steps": {
-    "bundle": {
-      "action": "created"
-    },
-    "compose": {
-      "action": "unchanged"
-    },
-    "image": {
-      "action": "skipped",
-      "reason": "suppressed by --skip-image flag"
-    },
-    "render": {
-      "action": "rewritten",
-      "files_changed": 2
-    }
-  },
+  "started_at": "2026-04-23T14:03:39.217Z",
+  "steps": {},
   "totals": {
     "enriched": 0,
     "failed": 0,
-    "skipped_unchanged": 166,
-    "total_entities": 166
+    "skipped_unchanged": 0,
+    "total_entities": 0
   }
 }

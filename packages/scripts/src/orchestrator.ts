@@ -40,7 +40,20 @@ import {
   OpusClient,
 } from "./enrich-entity.js";
 import { upsertDocument } from "./upsert-document.js";
-import { renderBackend, defaultTemplatesDir } from "./render-backend.js";
+import {
+  renderBackend,
+  defaultTemplatesDir,
+  serialiseTools,
+  type RuntimeToolDescriptor,
+} from "./render-backend.js";
+import {
+  parseActionManifest,
+  actionEntryToDescriptor,
+  canonicaliseInputSchema,
+  ManifestValidationError,
+} from "./parse-action-manifest.js";
+import { renderExecutors } from "./render-executors.js";
+import type { ActionManifest } from "./lib/action-manifest-types.js";
 import { seedBackendMeta } from "./seed-backend-meta.js";
 import { vendorSharedLib } from "./vendor-shared-lib.js";
 import { compileWidget, computeWidgetTreeHash, resolveWidgetSource } from "./compile-widget.js";
@@ -75,6 +88,15 @@ export interface OrchestratorFlags {
   skipImage?: boolean;
   /** Test hook: inject a fake OpusClient so integration tests can avoid real API calls. */
   opusClient?: OpusClient;
+  /** Feature 006 — host API origin used to resolve `pathTemplate` during
+   * cross-origin detection in `render-executors.ts`. Falls back to the
+   * `ATW_HOST_ORIGIN` env var, then to `http://localhost:9000` (the
+   * Medusa demo default). */
+  hostOrigin?: string;
+  /** Feature 006 — widget origin used for cross-origin detection. Falls
+   * back to the `ATW_WIDGET_ORIGIN` env var, then to
+   * `http://localhost:8000` (the storefront demo default). */
+  widgetOrigin?: string;
 }
 
 export interface OrchestratorResult {
@@ -94,7 +116,12 @@ const PRIOR_COMMAND_FOR_ARTIFACT: Record<string, string> = {
   ".atw/config/project.md": "/atw.init",
   ".atw/config/brief.md": "/atw.brief",
   ".atw/artifacts/schema-map.md": "/atw.schema",
-  ".atw/artifacts/action-manifest.md": "/atw.api",
+  // Feature 006 — /atw.api produces openapi.json; /atw.classify produces
+  // action-manifest.md (previously authored by hand). The producer
+  // attribution is exposed here so the missing-artifact diagnostic
+  // points the Builder at the right command.
+  ".atw/artifacts/openapi.json": "/atw.api",
+  ".atw/artifacts/action-manifest.md": "/atw.classify",
   ".atw/artifacts/build-plan.md": "/atw.plan",
 };
 
@@ -324,6 +351,10 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
   // Feature 005 — per-step execution summary + step-level failures.
   const steps: PipelineSteps = {};
   const pipelineFailures: PipelineFailure[] = [];
+  // Feature 006 / T058 + T071 — build-level human-facing warnings (no
+  // manifest, cross-origin host, >20 actions, ...). Surfaced in the
+  // manifest's top-level `warnings[]`.
+  const buildWarnings: string[] = [];
   let complianceScan: BuildManifest["compliance_scan"] = {
     ran: false,
     clean: true,
@@ -573,6 +604,58 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
         projectRoot: flags.projectRoot,
         backup: Boolean(flags.backup),
       });
+      // Feature 006 — parse `.atw/artifacts/action-manifest.md` (when
+      // present) into `RuntimeToolDescriptor[]` and thread into the
+      // render context. Missing manifest → empty `tools` (FR-014
+      // graceful degradation). See contracts/render-tools-context.md §6.
+      const manifestPath = join(
+        flags.projectRoot,
+        ".atw",
+        "artifacts",
+        "action-manifest.md",
+      );
+      let tools: RuntimeToolDescriptor[] = [];
+      // Hoisted so the RENDER step can reuse the parsed manifest when
+      // invoking `renderExecutors()` after `renderBackend()`. `null`
+      // means "no `action-manifest.md` on disk" — we intentionally do
+      // NOT synthesise an empty manifest (T071: absent file → no
+      // catalog; present-but-empty manifest still renders an empty
+      // catalog via FR-014).
+      let manifest: ActionManifest | null = null;
+      if (existsSync(manifestPath)) {
+        const openapiPath = join(
+          flags.projectRoot,
+          ".atw",
+          "artifacts",
+          "openapi.json",
+        );
+        if (!existsSync(openapiPath)) {
+          throw new ManifestValidationError(
+            "action-manifest.md present but openapi.json missing",
+          );
+        }
+        manifest = await parseActionManifest({
+          manifestPath,
+          openapiPath,
+        });
+        tools = manifest.included.map((entry) => {
+          const d = actionEntryToDescriptor(entry) as RuntimeToolDescriptor;
+          d.input_schema = canonicaliseInputSchema(
+            d.input_schema as Record<string, unknown>,
+          );
+          return d;
+        });
+      } else {
+        // T071 — warning goes in the build-manifest `warnings[]`, not
+        // just stderr. Exact text is asserted by the US6 missing-manifest
+        // contract test.
+        buildWarnings.push(
+          "No action-manifest.md — widget will be chat-only.",
+        );
+        process.stderr.write(
+          "Warning: no .atw/artifacts/action-manifest.md — widget will be chat-only.\n",
+        );
+      }
       const rendered = await renderBackend({
         templatesDir: defaultTemplatesDir(),
         outputDir: join(flags.projectRoot, "backend", "src"),
@@ -583,6 +666,8 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
           generatedAt: new Date().toISOString(),
           defaultLocale: readDefaultLocale(flags.projectRoot),
           briefSummary: readBriefSummary(flags.projectRoot),
+          tools,
+          toolsJson: serialiseTools(tools),
         },
         backup: Boolean(flags.backup),
       });
@@ -604,6 +689,60 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
         action: anyRewritten ? "rewritten" : anyCreated ? "created" : "unchanged",
         files_changed: backendFiles.filter((f) => f.action !== "unchanged").length,
       };
+
+      // T058 / FR-014 — emit the declarative executor catalog iff a
+      // manifest was present this run. An absent manifest leaves no
+      // `action-executors.json` on disk (T071); a present-but-empty
+      // manifest still writes `{version:1, credentialMode:..., actions:[]}`
+      // so the widget can boot in chat-only mode.
+      if (manifest !== null) {
+        const hostOrigin = resolveHostOrigin(flags);
+        const widgetOrigin = resolveWidgetOrigin(flags);
+        const executorsPath = join(
+          flags.projectRoot,
+          ".atw",
+          "artifacts",
+          "action-executors.json",
+        );
+        const executorResult = await renderExecutors(manifest, {
+          outputPath: executorsPath,
+          hostOrigin,
+          widgetOrigin,
+          backup: Boolean(flags.backup),
+        });
+        // >20 tools warning (surfaced alongside cross-origin from the
+        // renderer itself) — per T058 description. Kept here (not in the
+        // renderer) so the renderer remains a pure transform and the
+        // orchestrator owns build-wide policy.
+        if (manifest.included.length > 20) {
+          executorResult.warnings.push(
+            `large catalog (${manifest.included.length} actions): consider curating action-manifest.md`,
+          );
+        }
+        // FR-014 graceful-degradation signal: manifest present but zero
+        // included → catalog is emitted well-formed with `actions: []`,
+        // widget boots chat-only, Builder gets an explicit post-build
+        // cue distinct from the "no manifest at all" path above.
+        if (manifest.included.length === 0) {
+          executorResult.warnings.push(
+            "action-executors catalog has zero actions — widget will be chat-only",
+          );
+        }
+        for (const w of executorResult.warnings) {
+          buildWarnings.push(w);
+          process.stderr.write(`Warning: ${w}\n`);
+        }
+        steps.render.action_executors = {
+          action: executorResult.action,
+          path: relative(flags.projectRoot, executorResult.path).replace(
+            /\\/g,
+            "/",
+          ),
+          sha256: executorResult.sha256,
+          bytes: executorResult.bytes,
+          warnings: executorResult.warnings,
+        };
+      }
     }
 
     // 6. BUNDLE ---------------------------------------------------------
@@ -856,6 +995,7 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
       compliance_scan: complianceScan,
       steps,
       ...(pipelineFailures.length > 0 ? { pipeline_failures: pipelineFailures } : {}),
+      ...(buildWarnings.length > 0 ? { warnings: buildWarnings } : {}),
     };
 
     const manifestPath = defaultManifestPath(flags.projectRoot);
@@ -959,6 +1099,7 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
       compliance_scan: complianceScan,
       steps,
       ...(pipelineFailures.length > 0 ? { pipeline_failures: pipelineFailures } : {}),
+      ...(buildWarnings.length > 0 ? { warnings: buildWarnings } : {}),
     };
     // T100 — if the controller fired any reductions before the fatal
     // error, surface them in the failed-path manifest so the Builder
@@ -1309,6 +1450,29 @@ function readDefaultLocale(projectRoot: string): string {
     // fall through
   }
   return "en";
+}
+
+/**
+ * Feature 006 / T058 — resolve the host-API origin used for cross-origin
+ * detection in `render-executors.ts`. Order: explicit flag →
+ * `ATW_HOST_ORIGIN` env var → Medusa-demo default (`localhost:9000`).
+ * The value is used only to resolve relative `pathTemplate` values; the
+ * widget's actual host URL at runtime is still governed by
+ * `buildHostApiRequest()`.
+ */
+function resolveHostOrigin(flags: OrchestratorFlags): string {
+  return flags.hostOrigin ?? process.env.ATW_HOST_ORIGIN ?? "http://localhost:9000";
+}
+
+/**
+ * Feature 006 / T058 — resolve the widget origin for cross-origin
+ * detection. Order: explicit flag → `ATW_WIDGET_ORIGIN` env var →
+ * storefront-demo default (`localhost:8000`).
+ */
+function resolveWidgetOrigin(flags: OrchestratorFlags): string {
+  return (
+    flags.widgetOrigin ?? process.env.ATW_WIDGET_ORIGIN ?? "http://localhost:8000"
+  );
 }
 
 function readBriefSummary(projectRoot: string): string {

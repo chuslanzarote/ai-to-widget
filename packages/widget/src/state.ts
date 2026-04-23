@@ -53,6 +53,11 @@ export const lastError = signal<string | null>(null);
 export const lastRequestId = signal<string | null>(null);
 export const sessionId = signal<string>(loadOrCreateSessionId());
 
+// T076 / FR-014 — true only when a valid executors catalog loaded with
+// at least one action. Downstream UI (action card, confirmation flow)
+// reads this to stay hidden in chat-only mode.
+export const actionCapable = signal<boolean>(false);
+
 export const canSend = computed(() => !isSending.value);
 
 export function appendTurn(turn: ConversationTurn): void {

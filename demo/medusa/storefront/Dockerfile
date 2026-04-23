@@ -25,6 +25,14 @@ COPY index.html.template /etc/aurelia/index.html.template
 COPY public/widget.js /usr/share/nginx/html/widget.js
 COPY public/widget.css /usr/share/nginx/html/widget.css
 
+# Feature 006 — declarative action catalog served at /action-executors.json.
+# Same-origin with the widget bundle so the widget's loader validates the
+# URL and fetches it with `credentials: "omit"`. `make stage-widget` copies
+# it from demo/atw-aurelia/.atw/artifacts/action-executors.json, or writes
+# a `{"version":1,"credentialMode":"same-origin-cookies","actions":[]}`
+# stub so the widget boots chat-only when the Builder hasn't run yet.
+COPY public/action-executors.json /usr/share/nginx/html/action-executors.json
+
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

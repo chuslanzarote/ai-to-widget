@@ -25,6 +25,13 @@ export interface WidgetConfig {
    * resolves analysis finding U1 from /speckit.analyze.
    */
   citationUrlTemplate?: string;
+  /**
+   * URL of the declarative action-executors catalog (Feature 006). The
+   * widget loads this with `credentials: "omit"` at boot; a missing /
+   * malformed catalog falls back to chat-only. Must be same-origin with
+   * the widget bundle. Default: `${widgetBundleOrigin}/action-executors.json`.
+   */
+  actionExecutorsUrl?: string;
 }
 
 export interface ConfigIssue {
@@ -82,6 +89,7 @@ export function readConfigFromAttributes(
     introLine: attrs.intro || undefined,
     allowedTools: fallbacks?.allowedTools ?? [],
     citationUrlTemplate: attrs.citationUrlTemplate || undefined,
+    actionExecutorsUrl: attrs.actionExecutorsUrl || undefined,
   };
   return { ok: issues.length === 0, config, issues };
 }

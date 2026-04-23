@@ -1,137 +1,112 @@
 ---
-description: "Parse an OpenAPI spec and produce the tool action manifest."
+description: "Ingest an OpenAPI 3.0.x document and pin it as the project's canonical input artefact."
 argument-hint: "[openapi-file-or-url]"
 ---
 
 # `/atw.api`
 
-**Purpose.** Interpret the Builder's HTTP surface, decide which
-operations become agent tools, exclude admin endpoints by default, and
-mark destructive operations as `requires_confirmation: true`. Writes
-`.atw/artifacts/action-manifest.md`. 1–5 LLM calls, chunked by entity
-(FR-026, FR-027, FR-029, FR-031).
+**Purpose.** Accept the host's OpenAPI 3.0.x document (file path or
+`http(s)://` URL), validate its shape, canonicalise it, and pin it as
+a first-class input artefact at `.atw/artifacts/openapi.json` with a
+provenance sidecar at `.atw/state/openapi-meta.json`. Deterministic
+and LLM-free; this step does **not** classify — that is the job of
+`/atw.classify`. Feature 006 split the old combined flow into two
+stages so the Builder can iterate on classification without re-fetching
+the OpenAPI each time (Principle VIII, FR-002, FR-003).
 
 ## Preconditions
 
-- `.atw/config/project.md`, `.atw/config/brief.md`, and
-  `.atw/artifacts/schema-map.md` all exist.
-- The Builder can provide an OpenAPI 3.0 or 3.1 document (local path
-  or URL). Swagger 2.0 is detected and handled per FR-033.
+- `.atw/config/project.md` and `.atw/config/brief.md` both exist.
+- `.atw/artifacts/schema-map.md` recommended but not required (the
+  classifier consumes both; this ingest step does not).
+- The Builder can provide an OpenAPI 3.0.x document:
+  - a local file path (`.json` or `.yaml`), OR
+  - an `http(s)://` URL the machine running `/atw.api` can reach.
 
 ## Steps
 
-1. **Accept input.** Three forms (FR-026):
-   - Path to a local spec file (`.json` or `.yaml`) — preferred when
-     the Builder can stage it under `.atw/inputs/` (FR-048).
-   - Remote URL. If unreachable, fall back immediately to asking for a
-     file path rather than retrying indefinitely (FR-033).
-   - Pasted spec text.
+1. **Accept input.** Two forms (FR-002):
+   - Path to a local spec file — preferred when the Builder can stage
+     it under `.atw/inputs/`.
+   - Remote URL. On fetch failure (non-2xx, network error), halt with
+     a tip to download locally and pass the path instead. No retries.
 
-2. **Version detection (FR-033).**
-   - **Swagger 2.0** → halt, surface the version number, and suggest
-     converting with `swagger2openapi` before retrying. No LLM call.
-   - **OpenAPI 3.0.x / 3.1.x** → proceed.
+2. **Version detection (FR-002).**
+   - **Swagger 2.0** → exit 3 with diagnostic
+     `Swagger 2.0 input detected. /atw.api requires OpenAPI 3.x.`
+     Suggestion: convert via `swagger2openapi` before retrying.
+   - **OpenAPI 3.1.x** → exit 1 with a version-out-of-range
+     diagnostic. v1 of this feature pins to 3.0.x; 3.1 is deferred.
+   - **OpenAPI 3.0.x** → proceed.
 
-3. **Deterministic parse.** Run
-   `atw-parse-openapi --spec <path-or-url>`. `$ref` resolution and
-   bundling happen here via `@apidevtools/swagger-parser.bundle()`
-   (FR-027). On parse failure, surface the file offset and halt
-   (exit 1, no LLM call).
+3. **Deterministic parse + bundle.** Run `atw-api --source <path|url>`.
+   `$ref` resolution goes through `@apidevtools/swagger-parser.bundle()`.
+   Duplicate `operationId`s are rejected at this step. On any parse
+   error, exit 1 with a diagnostic that names the file offset or the
+   duplicate.
 
-4. **Hash + change detection (FR-047, FR-049).**
+4. **Canonicalise + hash.** The bundled document is serialised via
+   recursive object-key sort, 2-space indent, and a trailing LF. The
+   sha256 is computed over the resulting bytes — not over the parsed
+   in-memory shape — so cross-platform byte-identity holds.
 
-   ```bash
-   atw-hash-inputs --root .atw --inputs <spec-path>
-   ```
+5. **Compare + write.** Against the prior `openapi.json` (if present):
+   - Hash matches → action `"unchanged"`; no write; mtime preserved.
+   - Hash differs AND `--backup` → copy prior to `openapi.json.bak`
+     before overwriting.
+   - Hash differs (no backup) → overwrite.
+   - No prior file → action `"created"`; write.
 
-   - **Level 1**: unchanged hash + existing `action-manifest.md` →
-     refinement mode: summarize current manifest, ask *"What would
-     you like to change?"*. **No LLM call.**
-   - **Level 2**: hash changed → structural diff at the operation
-     level (method + path as the key); LLM invoked only on added /
-     removed / modified operations.
+6. **Emit provenance sidecar.** On `created` or `rewritten`, write
+   `.atw/state/openapi-meta.json` with `{sha256, source, fetchedAt}`.
+   On `unchanged`, the prior sidecar is preserved so re-runs do not
+   churn `fetchedAt`.
 
-5. **LLM classification.** For each operation, produce a proposal
-   with **evidence** (Principle V, FR-030):
-   - HTTP method, path, operationId, tags, summary, description.
-   - Request/response schemas as signals for destructive intent.
-   - A direct quote from `brief.md` when the operation matches a
-     Builder-allowed or Builder-forbidden action.
-   - `schema-map.md` entity linkage when the operation's path or
-     request body references a classified entity.
+7. **Update the determinism ledger.** Set the `openapi` slot in
+   `.atw/state/input-hashes.json` to `sha256:<hex>`. Every other slot
+   in the ledger is preserved untouched.
 
-   Chunk by entity (one entity = one LLM call) when the spec exceeds
-   60 operations (FR-027).
+8. **Announce next step.** End with exactly:
 
-6. **Default exclusions (FR-029, SC-005).**
-   - Paths matching `/admin/*`, operations with `x-admin: true`, and
-     operations whose only security scheme is an admin-only scope →
-     **excluded by default**. The Builder may override individually.
-   - Operations whose `brief.md` maps to a forbidden action →
-     excluded by default.
+   *"OpenAPI pinned. Next: run `/atw.classify`."*
 
-7. **Destructive-operation flag (FR-031).** Any of the following
-   produce `requires_confirmation: true` in the proposal:
-   - HTTP method is `DELETE`.
-   - operationId contains `cancel`, `delete`, `remove`, `void`,
-     `refund`, `close` as a whole word.
-   - Operation mutates a resource class whose `schema-map.md` entry
-     is tagged as externally-visible state (orders, payments, etc.).
+## Re-run semantics (Principle VIII, FR-003)
 
-8. **Interactive review (FR-032).** Walk the Builder through each
-   entity group, showing classification, evidence, admin/destructive
-   flags, and asking for confirm / override. Overrides update the
-   draft in memory only.
+- **Same source bytes** → action is `"unchanged"`; no write; no meta
+  churn. Safe to re-run as often as wanted.
+- **Source changed** → action is `"rewritten"`; `openapi.json`,
+  `openapi-meta.json`, and the ledger's `openapi` slot update
+  atomically. The prior file is preserved at `openapi.json.bak` when
+  `--backup` is passed.
+- **Builder edits to `openapi.json` by hand** → NOT supported. This
+  artefact is a machine-canonicalised copy of the Builder's source.
+  Edit the source and re-run. The classifier's manifest
+  (`action-manifest.md`) is the Builder-edit surface.
 
-9. **Final confirmation gate (FR-041).** Summarize:
-   *"Writing N tools across M entities; K operations admin-excluded;
-   J operations require confirmation."*. Wait for affirmative reply.
+## Exit codes
 
-10. **Write the artifact.** Pipe the serialized markdown through
-    `atw-write-artifact --target .atw/artifacts/action-manifest.md`.
-    The write is atomic with a `.bak` sibling (FR-046).
+| Code | Meaning |
+|------|---------|
+| 0 | Success (created / unchanged / rewritten). |
+| 1 | Input validation failed (malformed JSON/YAML, ENOENT, unresolved `$ref`, duplicate `operationId`, version outside 3.0.x). |
+| 2 | Source URL fetch failed (HTTP non-2xx or network). |
+| 3 | Usage error (unknown flag, missing `--source`, Swagger 2.0 input). |
 
-11. **Announce next step.** End with exactly:
-
-    *"Action manifest written. Next: run `/atw.plan`."*
-
-## Re-run semantics (FR-032, FR-040, FR-049)
-
-- **Unchanged inputs** → Level 1 refinement mode (no LLM call).
-- **Changed inputs** → Level 2 operation-level diff; LLM invoked
-  only on the delta. Builder hand-edits to `action-manifest.md` are
-  the ground truth and are preserved.
-- **Mid-command close before confirmation** → no persisted draft
-  state; a re-run re-synthesizes from the same inputs (FR-050).
-
-## Failure handling
-
-- **Parse error** → exit 1, surface offset, no LLM call.
-- **Swagger 2.0** → halt with conversion suggestion (FR-033).
-- **URL unreachable** → offer file-path fallback immediately, do
-  not retry indefinitely (FR-033).
-- **LLM auth / rate limit** → same handling as `/atw.brief`.
-- **Builder disagrees with > 50 % of classifications** → suggest
-  revisiting `/atw.brief` (the allowed/forbidden sections) or
-  `/atw.schema` (entity scoping); offer to restart.
+All non-zero exits include a stderr diagnostic beginning with
+`atw-api:`.
 
 ## Tooling
 
 All deterministic work is delegated to `@atw/scripts`:
 
-- `atw-parse-openapi --source <path|url> [--out <path>]` — wraps
-  `packages/scripts/src/parse-openapi.ts`. Exit codes: `0` ok,
-  `1` parse error / missing file, `2` URL unreachable (offer file
-  fallback), `3` bad CLI args or Swagger 2.0 detected (FR-033),
-  `4` reserved for credentials (unused here).
-- `packages/scripts/src/lib/admin-detection.ts` — recognises
-  `/admin/*` paths, `x-admin` vendor extensions, `admin` tags, and
-  admin-named security schemes (FR-029).
-- `packages/scripts/src/lib/destructive-detection.ts` — flags DELETE
-  verbs, destructive verbs in operationIds (`cancel`, `delete`,
-  `remove`, `revoke`, `refund`, `void`, `destroy`, `purge`, `wipe`),
-  and destructive path suffixes (FR-031).
-- `atw-hash-inputs --root .atw --inputs …` — two-level re-run
-  detection (FR-047, FR-049).
-- `atw-write-artifact --target .atw/artifacts/action-manifest.md` —
-  atomic write with `.bak` sibling (FR-046).
+- `atw-api --source <path|url> [--backup] [--json]` — wraps
+  `packages/scripts/src/atw-api.ts` (programmatic entry `runAtwApi`).
+- `packages/scripts/src/parse-openapi.ts` — load → version-check
+  (`Swagger20DetectedError`) → `SwaggerParser.bundle()`
+  (`ParseOpenAPIError` on unresolved `$ref`) → normalize
+  (`DuplicateOperationIdError`).
+- `packages/scripts/src/lib/input-hashes.ts` — two-level re-run
+  detection; this CLI touches only the `openapi` slot.
+
+See the binding contract at
+[`specs/006-openapi-action-catalog/contracts/atw-api-command.md`](../specs/006-openapi-action-catalog/contracts/atw-api-command.md).

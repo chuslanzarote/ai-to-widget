@@ -1,0 +1,70 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Admin-only API",
+    "version": "1.0.0",
+    "description": "All operations live under /admin/* — classifier must return zero included actions. Exercises US6 graceful degradation."
+  },
+  "servers": [
+    { "url": "http://localhost:9000" }
+  ],
+  "paths": {
+    "/admin/users": {
+      "post": {
+        "operationId": "adminCreateUser",
+        "summary": "Create a user.",
+        "security": [{ "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": { "type": "string" },
+                  "name": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      },
+      "get": {
+        "operationId": "adminListUsers",
+        "summary": "List users.",
+        "security": [{ "cookieAuth": [] }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/admin/products/{id}": {
+      "delete": {
+        "operationId": "adminDeleteProduct",
+        "summary": "Delete a product.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/internal/flush-cache": {
+      "post": {
+        "operationId": "internalFlushCache",
+        "summary": "Flush cache.",
+        "security": [{ "cookieAuth": [] }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "connect.sid"
+      }
+    }
+  }
+}

@@ -29,6 +29,10 @@ const TRACKED_ARTIFACTS = [
   ".atw/artifacts/schema-map.md",
   ".atw/artifacts/action-manifest.md",
   ".atw/artifacts/build-plan.md",
+  // Feature 006 — OpenAPI is a first-class input artefact. Its hash
+  // participates in the RENDER-cache decision the same way
+  // action-manifest.md does, per data-model.md §4.
+  ".atw/artifacts/openapi.json",
 ] as const;
 
 export const DEFAULT_INPUT_HASHES_PATH = ".atw/state/input-hashes.json";

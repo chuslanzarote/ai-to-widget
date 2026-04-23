@@ -1,0 +1,30 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "External-ref fixture",
+    "version": "1.0.0",
+    "description": "Schema uses a $ref pointing to an unreachable external URL. Ingestion MUST reject with a diagnostic naming the offending ref."
+  },
+  "servers": [
+    { "url": "http://localhost:9000" }
+  ],
+  "paths": {
+    "/things": {
+      "post": {
+        "operationId": "postThing",
+        "summary": "Submit a thing.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://external.example.invalid/schemas/thing.json"
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    }
+  }
+}

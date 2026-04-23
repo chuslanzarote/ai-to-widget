@@ -46,6 +46,12 @@ server {
   location ~ ^/widget\.(js|css)$ {
     add_header Cache-Control "no-store" always;
   }
+
+  # Feature 006 action catalog — no cache so /atw.build rewrites land
+  # without a full storefront rebuild.
+  location = /action-executors.json {
+    add_header Cache-Control "no-store" always;
+  }
 }
 EOF
 

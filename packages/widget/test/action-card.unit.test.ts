@@ -4,13 +4,17 @@ import {
   executeAction,
   ToolNotAllowedError,
 } from "../src/api-client-action.js";
+import { __setLoadedCatalogForTest } from "../src/action-executors.js";
 import type { WidgetConfig } from "../src/config.js";
 import type { ActionIntent } from "@atw/scripts/dist/lib/types.js";
+import type { ActionExecutorsCatalog } from "@atw/scripts/dist/lib/action-executors-types.js";
 
+// Same-origin on jsdom default so the runtime cross-origin guard does
+// not short-circuit these structural tests.
 function cfg(allowed: string[], authMode: WidgetConfig["authMode"] = "cookie"): WidgetConfig {
   return {
     backendUrl: "http://backend.local",
-    apiBaseUrl: "http://host.local",
+    apiBaseUrl: "http://localhost:3000",
     theme: "default",
     launcherPosition: "bottom-right",
     authMode,
@@ -31,6 +35,34 @@ function intent(tool: string): ActionIntent {
   };
 }
 
+// Minimal catalog entry for add_to_cart — the Feature 006 executor
+// engine replaces the old intent.http path with a declarative recipe.
+const CATALOG: ActionExecutorsCatalog = {
+  version: 1,
+  credentialMode: "same-origin-cookies",
+  actions: [
+    {
+      tool: "add_to_cart",
+      method: "POST",
+      pathTemplate: "/store/carts/c1/line-items",
+      substitution: {
+        path: {},
+        body: {
+          product_id: "arguments.product_id",
+          quantity: "arguments.quantity",
+        },
+        query: {},
+      },
+      headers: { "content-type": "application/json" },
+      responseHandling: {
+        successStatuses: [200, 201, 204],
+        summaryTemplate: "Add {quantity} × product-{product_id}.",
+        summaryFields: [],
+      },
+    },
+  ],
+};
+
 describe("assertToolAllowed (T053 / FR-021)", () => {
   it("allows tools present in the allowlist", () => {
     expect(() => assertToolAllowed("add_to_cart", cfg(["add_to_cart"]))).not.toThrow();
@@ -50,29 +82,13 @@ describe("executeAction (T053 / Principle I+IV structural)", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    (globalThis as unknown as { window?: unknown }).window = {
-      localStorage: {
-        _m: new Map<string, string>(),
-        getItem(k: string) {
-          return (this as unknown as { _m: Map<string, string> })._m.get(k) ?? null;
-        },
-        setItem(k: string, v: string) {
-          (this as unknown as { _m: Map<string, string> })._m.set(k, v);
-        },
-        removeItem() {},
-        clear() {},
-        key() {
-          return null;
-        },
-        length: 0,
-      } as unknown as Storage,
-    } as unknown as Window;
+    __setLoadedCatalogForTest(CATALOG);
     fetchMock = vi.fn();
     (globalThis as unknown as { fetch: typeof fetch }).fetch =
       fetchMock as unknown as typeof fetch;
   });
   afterEach(() => {
-    delete (globalThis as unknown as { window?: unknown }).window;
+    __setLoadedCatalogForTest(null);
     delete (globalThis as unknown as { fetch?: unknown }).fetch;
   });
 
@@ -86,7 +102,7 @@ describe("executeAction (T053 / Principle I+IV structural)", () => {
     const out = await executeAction(intent("add_to_cart"), cfg(["add_to_cart"]));
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(out.ok).toBe(true);
-    if (out.ok) expect(out.summary).toMatch(/Add 2 × product-1/);
+    if (out.ok) expect(out.summary).toMatch(/Add 2 × product-p1/);
   });
 
   it("refuses unknown tool names and issues zero fetches", async () => {

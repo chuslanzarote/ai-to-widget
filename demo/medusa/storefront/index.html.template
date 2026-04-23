@@ -592,6 +592,7 @@
     src="/widget.js"
     data-backend-url="${ATW_BACKEND_URL}"
     data-api-base-url="${MEDUSA_BACKEND_URL}"
+    data-action-executors-url="/action-executors.json"
     data-auth-mode="cookie"
     data-launcher-position="bottom-right"
     data-locale="en"

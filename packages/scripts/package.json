@@ -8,6 +8,8 @@
   "bin": {
     "atw-parse-schema": "./bin/atw-parse-schema.js",
     "atw-parse-openapi": "./bin/atw-parse-openapi.js",
+    "atw-api": "./bin/atw-api.js",
+    "atw-classify": "./bin/atw-classify.js",
     "atw-write-artifact": "./bin/atw-write-artifact.js",
     "atw-load-artifact": "./bin/atw-load-artifact.js",
     "atw-validate-artifacts": "./bin/atw-validate-artifacts.js",

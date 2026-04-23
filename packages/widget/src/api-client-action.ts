@@ -1,12 +1,30 @@
 import type { ActionIntent } from "@atw/scripts/dist/lib/types.js";
 import type { WidgetConfig } from "./config.js";
-import { buildHostApiRequest } from "./auth.js";
+import {
+  ACTION_FETCH_TIMEOUT_MS,
+  buildRequestFromEntry,
+  getLoadedCatalog,
+  handleResponse,
+} from "./action-executors.js";
 
 /**
- * Execute a confirmed action against the host API. Tool-name allowlist
- * is enforced here as a hard gate — any ActionIntent with an unknown
- * tool name throws ATW_TOOL_NOT_ALLOWED and does not fetch. Contract:
- * specs/003-runtime/contracts/widget-config.md §4 + FR-021, FR-040.
+ * Execute a confirmed action against the host API. The execution
+ * model is Feature 006: the `ActionIntent` is resolved through the
+ * declarative `action-executors.json` catalog (loaded at boot by
+ * `loadExecutorsCatalog`), NOT through `intent.http` any more — so
+ * `tool-use` descriptors cannot smuggle a request shape the Builder
+ * did not approve at build time.
+ *
+ * Contract:
+ *   specs/006-openapi-action-catalog/contracts/widget-executor-engine.md §2
+ *   specs/003-runtime/contracts/widget-config.md §4  (confirmation card)
+ *
+ * Red-line invariants enforced here:
+ *   - FR-015a : exactly one fetch per call, under every failure mode.
+ *   - FR-021  : 15 s AbortController wrapping the fetch.
+ *   - FR-016  : runtime cross-origin guard against a bad catalog.
+ *   - Tool allowlist (Feature 003): refuses any tool not in
+ *     `config.allowedTools`.
  */
 export interface ExecuteActionSuccess {
   ok: true;
@@ -44,67 +62,78 @@ export async function executeAction(
 ): Promise<ExecuteActionOutcome> {
   assertToolAllowed(intent.tool, config);
 
-  const body = intent.http.method === "GET" ? undefined : JSON.stringify(intent.arguments);
-  const req = await buildHostApiRequest(config, {
-    method: intent.http.method,
-    body,
-    contentType: body ? "application/json" : undefined,
-  });
+  const catalog = getLoadedCatalog();
+  if (!catalog) {
+    return {
+      ok: false,
+      status: 0,
+      message: "Actions are temporarily unavailable in this session.",
+    };
+  }
+  const entry = catalog.actions.find((a) => a.tool === intent.tool);
+  if (!entry) {
+    return {
+      ok: false,
+      status: 0,
+      message: `No executor for tool "${intent.tool}".`,
+    };
+  }
 
-  const url =
-    config.apiBaseUrl.replace(/\/$/, "") + "/" + intent.http.path.replace(/^\//, "");
+  const built = buildRequestFromEntry(entry, intent, config);
+  if (built.validationError) {
+    return { ok: false, status: 0, message: built.validationError };
+  }
 
+  // FR-016 — runtime cross-origin guard.  The build-time half lives
+  // in render-executors.ts; this tripwire fires if a hostile or
+  // misconfigured catalog somehow slips past Zod at load time.
+  if (typeof window !== "undefined") {
+    const actionUrl = new URL(built.url, window.location.href);
+    if (
+      actionUrl.origin !== window.location.origin &&
+      catalog.credentialMode === "same-origin-cookies"
+    ) {
+      return {
+        ok: false,
+        status: 0,
+        message: "This action is misconfigured for cross-origin use.",
+      };
+    }
+  }
+
+  // FR-021 — 15 s AbortController on every fetch.  Fixed, not
+  // configurable via catalog or config.
+  const abort = new AbortController();
+  const scheduleTimeout =
+    typeof window !== "undefined" ? window.setTimeout : setTimeout;
+  const clearTimer =
+    typeof window !== "undefined" ? window.clearTimeout : clearTimeout;
+  const timeoutHandle = scheduleTimeout(
+    () => abort.abort(),
+    ACTION_FETCH_TIMEOUT_MS,
+  );
+  built.init.signal = abort.signal;
+
+  // FR-015a — single fetch, no retry loop.
   let res: Response;
   try {
-    res = await fetch(url, req.fetchInit);
+    res = await fetch(built.url, built.init);
   } catch (err) {
+    clearTimer(timeoutHandle as Parameters<typeof clearTimer>[0]);
+    if ((err as Error).name === "AbortError") {
+      return {
+        ok: false,
+        status: 0,
+        message: "The action timed out. Try asking again.",
+      };
+    }
     return {
       ok: false,
       status: 0,
       message: "Can't reach the host right now. Please try again.",
     };
   }
+  clearTimer(timeoutHandle as Parameters<typeof clearTimer>[0]);
 
-  const text = await res.text();
-  let parsed: unknown = text;
-  try {
-    parsed = text.length > 0 ? JSON.parse(text) : undefined;
-  } catch {
-    // leave as raw string
-  }
-
-  if (res.ok) {
-    return {
-      ok: true,
-      status: res.status,
-      summary: summarise(intent, parsed),
-      body: parsed,
-    };
-  }
-
-  if (res.status === 401 || res.status === 403) {
-    return {
-      ok: false,
-      status: res.status,
-      message: "Please log in first for this action.",
-      body: parsed,
-    };
-  }
-
-  return {
-    ok: false,
-    status: res.status,
-    message: "Something went wrong executing that. Please try again.",
-    body: parsed,
-  };
-}
-
-function summarise(intent: ActionIntent, _body: unknown): string {
-  if (intent.summary && Object.keys(intent.summary).length > 0) {
-    const pairs = Object.entries(intent.summary)
-      .map(([k, v]) => `${k}: ${v}`)
-      .join(", ");
-    return `${intent.description} — ${pairs}.`;
-  }
-  return intent.description;
+  return handleResponse(entry, intent, res);
 }

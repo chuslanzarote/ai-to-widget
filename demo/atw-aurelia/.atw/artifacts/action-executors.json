@@ -1,0 +1,504 @@
+{
+  "actions": [
+    {
+      "headers": {
+        "content-type": "application/json"
+      },
+      "method": "POST",
+      "pathTemplate": "/store/carts/{id}/line-items",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200,
+          201
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Add a line item to the cart."
+      },
+      "substitution": {
+        "body": {
+          "quantity": "arguments.quantity",
+          "variant_id": "arguments.variant_id"
+        },
+        "path": {
+          "id": "arguments.id"
+        },
+        "query": {}
+      },
+      "tool": "add_line_item"
+    },
+    {
+      "headers": {
+        "content-type": "application/json"
+      },
+      "method": "POST",
+      "pathTemplate": "/store/customers/me/addresses",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200,
+          201
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Add an address to the authenticated customer."
+      },
+      "substitution": {
+        "body": {},
+        "path": {},
+        "query": {}
+      },
+      "tool": "add_my_address"
+    },
+    {
+      "headers": {
+        "content-type": "application/json"
+      },
+      "method": "POST",
+      "pathTemplate": "/store/reviews",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200,
+          201
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Leave a product review."
+      },
+      "substitution": {
+        "body": {
+          "body": "arguments.body",
+          "product_id": "arguments.product_id",
+          "rating": "arguments.rating"
+        },
+        "path": {},
+        "query": {}
+      },
+      "tool": "create_review"
+    },
+    {
+      "headers": {
+        "content-type": "application/json"
+      },
+      "method": "DELETE",
+      "pathTemplate": "/store/carts/{id}/line-items/{line_id}",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200,
+          204
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Remove a line item from the cart."
+      },
+      "substitution": {
+        "body": {},
+        "path": {
+          "id": "arguments.id",
+          "line_id": "arguments.line_id"
+        },
+        "query": {}
+      },
+      "tool": "delete_line_item"
+    },
+    {
+      "headers": {
+        "content-type": "application/json"
+      },
+      "method": "DELETE",
+      "pathTemplate": "/store/customers/me/addresses/{address_id}",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200,
+          204
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Delete one of the authenticated customer's addresses."
+      },
+      "substitution": {
+        "body": {},
+        "path": {
+          "address_id": "arguments.address_id"
+        },
+        "query": {}
+      },
+      "tool": "delete_my_address"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/store/carts/{id}",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Retrieve a cart."
+      },
+      "substitution": {
+        "body": {},
+        "path": {
+          "id": "arguments.id"
+        },
+        "query": {}
+      },
+      "tool": "get_cart"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/store/collections/{id}",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Retrieve a collection."
+      },
+      "substitution": {
+        "body": {},
+        "path": {
+          "id": "arguments.id"
+        },
+        "query": {}
+      },
+      "tool": "get_collection"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/store/collections",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "List collections."
+      },
+      "substitution": {
+        "body": {},
+        "path": {},
+        "query": {}
+      },
+      "tool": "get_collections"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/store/customers/me",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Retrieve the authenticated customer."
+      },
+      "substitution": {
+        "body": {},
+        "path": {},
+        "query": {}
+      },
+      "tool": "get_me"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/store/orders/{id}",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Retrieve an order."
+      },
+      "substitution": {
+        "body": {},
+        "path": {
+          "id": "arguments.id"
+        },
+        "query": {}
+      },
+      "tool": "get_order"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/store/products/{id}",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Retrieve a product."
+      },
+      "substitution": {
+        "body": {},
+        "path": {
+          "id": "arguments.id"
+        },
+        "query": {}
+      },
+      "tool": "get_product"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/store/products-by-handle/{handle}",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Retrieve a product by handle."
+      },
+      "substitution": {
+        "body": {},
+        "path": {
+          "handle": "arguments.handle"
+        },
+        "query": {}
+      },
+      "tool": "get_product_by_handle"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/store/product-tags",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "List product tags."
+      },
+      "substitution": {
+        "body": {},
+        "path": {},
+        "query": {}
+      },
+      "tool": "get_product_tags"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/store/product-types",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "List product types."
+      },
+      "substitution": {
+        "body": {},
+        "path": {},
+        "query": {}
+      },
+      "tool": "get_product_types"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/store/products",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "List products."
+      },
+      "substitution": {
+        "body": {},
+        "path": {},
+        "query": {}
+      },
+      "tool": "get_products"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/store/regions/{id}",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Retrieve a region."
+      },
+      "substitution": {
+        "body": {},
+        "path": {
+          "id": "arguments.id"
+        },
+        "query": {}
+      },
+      "tool": "get_region"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/store/regions",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "List regions."
+      },
+      "substitution": {
+        "body": {},
+        "path": {},
+        "query": {}
+      },
+      "tool": "get_regions"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/store/shipping-options/{cart_id}",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "List shipping options for a cart."
+      },
+      "substitution": {
+        "body": {},
+        "path": {
+          "cart_id": "arguments.cart_id"
+        },
+        "query": {}
+      },
+      "tool": "get_shipping_options_for_cart"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/store/customers/me/addresses",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "List the authenticated customer's addresses."
+      },
+      "substitution": {
+        "body": {},
+        "path": {},
+        "query": {}
+      },
+      "tool": "list_my_addresses"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/store/customers/me/orders",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "List the authenticated customer's orders."
+      },
+      "substitution": {
+        "body": {},
+        "path": {},
+        "query": {}
+      },
+      "tool": "list_my_orders"
+    },
+    {
+      "headers": {
+        "content-type": "application/json"
+      },
+      "method": "DELETE",
+      "pathTemplate": "/store/carts/{id}/discounts/{code}",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200,
+          204
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Remove a discount code from the cart."
+      },
+      "substitution": {
+        "body": {},
+        "path": {
+          "code": "arguments.code",
+          "id": "arguments.id"
+        },
+        "query": {}
+      },
+      "tool": "remove_discount_from_cart"
+    },
+    {
+      "headers": {
+        "content-type": "application/json"
+      },
+      "method": "POST",
+      "pathTemplate": "/store/carts/{id}/line-items/{line_id}",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200,
+          201
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Update a line item on the cart."
+      },
+      "substitution": {
+        "body": {
+          "quantity": "arguments.quantity"
+        },
+        "path": {
+          "id": "arguments.id",
+          "line_id": "arguments.line_id"
+        },
+        "query": {}
+      },
+      "tool": "update_line_item"
+    },
+    {
+      "headers": {
+        "content-type": "application/json"
+      },
+      "method": "PUT",
+      "pathTemplate": "/store/customers/me/addresses/{address_id}",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Update one of the authenticated customer's addresses."
+      },
+      "substitution": {
+        "body": {},
+        "path": {
+          "address_id": "arguments.address_id"
+        },
+        "query": {}
+      },
+      "tool": "update_my_address"
+    }
+  ],
+  "credentialMode": "same-origin-cookies",
+  "version": 1
+}

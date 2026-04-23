@@ -29,6 +29,26 @@ export class ParseOpenAPIError extends Error {
   }
 }
 
+/**
+ * Feature 006 — FR-002: operationIds must be unique within the document.
+ * Detection is performed during `normalize()` so every downstream
+ * consumer (classifier, manifest cross-validation, render pipeline)
+ * can trust that the operations array has no duplicates.
+ * See contracts/atw-api-command.md §3 step 6.
+ */
+export class DuplicateOperationIdError extends Error {
+  readonly code = "DUPLICATE_OPERATION_ID" as const;
+  constructor(
+    public readonly operationId: string,
+    public readonly first: { method: string; path: string },
+    public readonly second: { method: string; path: string },
+  ) {
+    super(
+      `duplicate operationId "${operationId}" at (${first.method} ${first.path}) and (${second.method} ${second.path})`,
+    );
+  }
+}
+
 const HTTP_METHODS: ParsedOpenAPIOperation["method"][] = [
   "get",
   "post",
@@ -149,10 +169,26 @@ function normalize(raw: unknown, input: ParseOpenAPIInput): ParsedOpenAPI {
   const version: ParsedOpenAPI["sourceVersion"] = doc.openapi?.startsWith("3.1") ? "3.1" : "3.0";
 
   const operations: ParsedOpenAPIOperation[] = [];
+  // Feature 006 — FR-002 / contracts/atw-api-command.md §3 step 6:
+  // fail on the first duplicate operationId so the classifier and
+  // every manifest cross-check can trust id uniqueness.
+  const seenOperationIds = new Map<string, { method: string; path: string }>();
   for (const [p, item] of Object.entries(doc.paths ?? {})) {
     for (const method of HTTP_METHODS) {
       const rawOp = (item as Record<string, unknown>)[method];
       if (!rawOp || typeof rawOp !== "object") continue;
+      const opId = (rawOp as { operationId?: unknown }).operationId;
+      if (typeof opId === "string" && opId.length > 0) {
+        const prior = seenOperationIds.get(opId);
+        if (prior) {
+          throw new DuplicateOperationIdError(
+            opId,
+            { method: prior.method.toUpperCase(), path: prior.path },
+            { method: method.toUpperCase(), path: p },
+          );
+        }
+        seenOperationIds.set(opId, { method, path: p });
+      }
       operations.push(normalizeOperation(p, method, rawOp as Record<string, unknown>));
     }
   }
@@ -295,6 +331,10 @@ export async function runParseOpenAPI(argv: string[]): Promise<number> {
         "Tip: download the spec to a local file and pass --source <path> instead.\n",
       );
       return 2;
+    }
+    if (err instanceof DuplicateOperationIdError) {
+      process.stderr.write(`atw-parse-openapi: ${err.message}\n`);
+      return 1;
     }
     if (err instanceof ParseOpenAPIError) {
       process.stderr.write(`atw-parse-openapi: ${err.message}\n`);
