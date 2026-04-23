@@ -224,7 +224,7 @@ function parseEntityColumns(section) {
         const m = line.match(/^[-*]\s+`?([^`\s]+)`?\s*:\s*(index|reference|exclude-pii|exclude-internal)(?:\s+(.*))?$/i);
         if (m) {
             cols.push({
-                name: m[1],
+                name: m[1].replace(/\\([\\_*`~\[\]()#+\-.!])/g, "$1"),
                 decision: m[2].toLowerCase(),
                 notes: m[3]?.trim() || undefined,
             });
@@ -410,7 +410,7 @@ function toClassification(line) {
 function parseCSVField(line) {
     return line
         .split(",")
-        .map((s) => s.trim())
+        .map((s) => s.trim().replace(/\\([\\_*`~\[\]()#+\-.!])/g, "$1"))
         .filter(Boolean);
 }
 function extractFieldLine(section, fieldLabel) {

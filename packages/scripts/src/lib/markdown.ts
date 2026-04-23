@@ -279,7 +279,7 @@ function parseEntityColumns(section: Section): SchemaMapArtifact["entities"][num
     const m = line.match(/^[-*]\s+`?([^`\s]+)`?\s*:\s*(index|reference|exclude-pii|exclude-internal)(?:\s+(.*))?$/i);
     if (m) {
       cols.push({
-        name: m[1],
+        name: m[1].replace(/\\([\\_*`~\[\]()#+\-.!])/g, "$1"),
         decision: m[2].toLowerCase() as SchemaMapArtifact["entities"][number]["columns"][number]["decision"],
         notes: m[3]?.trim() || undefined,
       });
@@ -473,7 +473,7 @@ function toClassification(line: string): SchemaMapArtifact["entities"][number]["
 function parseCSVField(line: string): string[] {
   return line
     .split(",")
-    .map((s) => s.trim())
+    .map((s) => s.trim().replace(/\\([\\_*`~\[\]()#+\-.!])/g, "$1"))
     .filter(Boolean);
 }
 

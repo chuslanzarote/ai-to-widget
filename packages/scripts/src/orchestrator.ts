@@ -45,7 +45,7 @@ import { ConcurrencyController } from "./lib/concurrency-control.js";
 const log = Debug("atw:orchestrator");
 
 const DEFAULT_OPUS_MODEL = "claude-opus-4-7";
-const DEFAULT_EMBEDDING_MODEL = "Xenova/bge-small-multilingual-v1.5";
+const DEFAULT_EMBEDDING_MODEL = "Xenova/bge-small-en-v1.5";
 const DEFAULT_POSTGRES_PORT = 5433;
 const DEFAULT_CONCURRENCY = 10;
 
@@ -556,6 +556,8 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
           embeddingModel: DEFAULT_EMBEDDING_MODEL,
           anthropicModel: DEFAULT_OPUS_MODEL,
           generatedAt: new Date().toISOString(),
+          defaultLocale: readDefaultLocale(flags.projectRoot),
+          briefSummary: readBriefSummary(flags.projectRoot),
         },
         backup: Boolean(flags.backup),
       });
@@ -1030,8 +1032,9 @@ async function listIndexableEntityIds(params: {
   try {
     for (const ent of params.schemaMap.entities) {
       if (ent.classification !== "indexable") continue;
-      const primary = ent.sourceTables[0];
-      if (!primary) continue;
+      const primaryRaw = ent.sourceTables[0];
+      if (!primaryRaw) continue;
+      const primary = primaryRaw.toLowerCase().replace(/^[a-z_][a-z0-9_]*\./, "");
       try {
         const res = await client.query<{ id: string }>(
           `SELECT id::text AS id FROM client_ref."${primary}" ORDER BY id`,
@@ -1060,6 +1063,34 @@ function readProjectName(projectRoot: string): string {
     // fall through
   }
   return "atw-project";
+}
+
+function readDefaultLocale(projectRoot: string): string {
+  try {
+    const p = join(projectRoot, ".atw", "config", "project.md");
+    if (existsSync(p)) {
+      const src = readFileSync(p, "utf8");
+      const m = src.match(/languages:\s*\n\s*-\s*([^\s\n]+)/);
+      if (m) return m[1].trim();
+    }
+  } catch {
+    // fall through
+  }
+  return "en";
+}
+
+function readBriefSummary(projectRoot: string): string {
+  try {
+    const p = join(projectRoot, ".atw", "config", "brief.md");
+    if (existsSync(p)) {
+      const src = readFileSync(p, "utf8");
+      const scope = src.match(/##\s+Business scope\s*\n([\s\S]*?)(?:\n##\s+|$)/i);
+      if (scope) return scope[1].trim();
+    }
+  } catch {
+    // fall through
+  }
+  return "";
 }
 
 export function generateBuildId(nowMs: number = Date.now()): string {

@@ -195,12 +195,11 @@ export async function renderEmbedGuide(opts: EmbedOptions): Promise<EmbedResult>
     (err as { code?: string }).code = "PRECONDITIONS_MISSING";
     throw err;
   }
-  const now = opts.frozenTime ?? new Date().toISOString();
   const template = loadTemplate(opts.answers.framework);
   const compiled = Handlebars.compile(template, { noEscape: true, strict: true });
   const apiBaseUrl =
     opts.answers.apiBaseUrl ?? 'window.location.origin (default — can be overridden via `data-api-base-url`)';
-  const rendered = compiled({
+  const baseVars = {
     framework: opts.answers.framework,
     backendUrl: opts.answers.backendUrl,
     apiBaseUrl,
@@ -211,12 +210,37 @@ export async function renderEmbedGuide(opts: EmbedOptions): Promise<EmbedResult>
     themePrimary: opts.answers.themePrimary ?? "",
     themeRadius: opts.answers.themeRadius ?? "",
     themeFont: opts.answers.themeFont ?? "",
-    generatedAt: now,
-  });
+  };
 
   const outputPath =
     opts.outputPath ??
     path.join(opts.projectRoot, ".atw", "artifacts", "embed-guide.md");
+
+  // Determinism (contract §3): if the only change versus an existing guide
+  // would be the `generatedAt` timestamp, reuse the existing timestamp so the
+  // output bytes are identical. Compare by rendering with a placeholder, then
+  // splicing the old timestamp out of the existing file.
+  const PLACEHOLDER = "__ATW_GENERATED_AT_PLACEHOLDER__";
+  const placeholderRender = compiled({ ...baseVars, generatedAt: PLACEHOLDER });
+  let generatedAt = opts.frozenTime ?? new Date().toISOString();
+  if (!opts.frozenTime && existsSync(outputPath)) {
+    const existing = readFileSync(outputPath, "utf8");
+    const idx = placeholderRender.indexOf(PLACEHOLDER);
+    if (idx >= 0) {
+      const prefix = placeholderRender.slice(0, idx);
+      const suffix = placeholderRender.slice(idx + PLACEHOLDER.length);
+      if (
+        existing.startsWith(prefix) &&
+        existing.endsWith(suffix) &&
+        existing.length >= prefix.length + suffix.length
+      ) {
+        generatedAt = existing.slice(prefix.length, existing.length - suffix.length);
+      }
+    }
+  }
+  const rendered = compiled({ ...baseVars, generatedAt });
+  const now = generatedAt;
+
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.writeFile(outputPath, rendered, "utf8");
 

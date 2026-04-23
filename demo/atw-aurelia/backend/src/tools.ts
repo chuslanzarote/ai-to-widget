@@ -1,0 +1,43 @@
+/**
+ * Tool descriptors rendered at build time from
+ * `.atw/artifacts/action-manifest.md`. Keep the split between safe-read
+ * and action tools strict — the runtime uses it to decide whether to
+ * execute server-side or to emit an action intent for the widget.
+ *
+ * Source: specs/003-runtime/contracts/chat-endpoint.md §5.
+ */
+import type Anthropic from "@anthropic-ai/sdk";
+
+export interface RuntimeToolDescriptor {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+  http: { method: "GET" | "POST" | "PATCH" | "DELETE"; path: string };
+  /** When true the backend builds an action-intent instead of executing. */
+  is_action: boolean;
+  /** Human-readable template for the confirmation-card description. */
+  description_template?: string;
+  summary_fields?: string[];
+}
+
+export const RUNTIME_TOOLS: RuntimeToolDescriptor[] = [];
+
+export const SAFE_READ_TOOLS: string[] = RUNTIME_TOOLS.filter(
+  (t) => !t.is_action,
+).map((t) => t.name);
+
+export const ACTION_TOOLS: string[] = RUNTIME_TOOLS.filter(
+  (t) => t.is_action,
+).map((t) => t.name);
+
+export function toolsForAnthropic(): Anthropic.Messages.Tool[] {
+  return RUNTIME_TOOLS.map((t) => ({
+    name: t.name,
+    description: t.description,
+    input_schema: t.input_schema as Anthropic.Messages.Tool["input_schema"],
+  }));
+}
+
+export function findTool(name: string): RuntimeToolDescriptor | undefined {
+  return RUNTIME_TOOLS.find((t) => t.name === name);
+}

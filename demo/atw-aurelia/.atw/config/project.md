@@ -1,22 +1,17 @@
 ---
-name: aurelia-coffee
+name: aurelia
 languages:
-  - Spanish
-  - English
+  - en
 deploymentType: customer-facing-widget
-createdAt: "2026-04-22T00:00:00Z"
+createdAt: 2026-04-22T19:29:26Z
 ---
-
 # Project
 
-- **Name**: aurelia-coffee
-- **Languages**: Spanish (default), English (fallback)
-- **Deployment type**: customer-facing-widget
-- **Created at**: 2026-04-22T00:00:00Z
+This project was initialized with `/atw.init`. Captured values:
 
-This is the pre-built demo project file for the Aurelia Medusa host. It
-ships under `demo/atw-aurelia/.atw/` so a reviewer running `make demo`
-does not need to run the five Feature 001 commands before the widget
-works. For the filmed setup-flow portion of the demo video, run
-`make fresh` to clear this directory and rebuild from scratch via
-Claude Code.
+- **Name**: aurelia
+- **Languages**: en
+- **Deployment type**: customer-facing-widget
+- **Created at**: 2026-04-22T19:29:26Z
+
+The remaining `/atw.*` commands read these values for context.

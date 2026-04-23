@@ -3,7 +3,7 @@ import Debug from "debug";
 
 const log = Debug("atw:embed-text");
 
-const DEFAULT_MODEL = "Xenova/bge-small-multilingual-v1.5";
+const DEFAULT_MODEL = "Xenova/bge-small-en-v1.5";
 const EMBEDDING_DIM = 384;
 
 let _extractorCache: { id: string; extractor: unknown } | null = null;

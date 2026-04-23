@@ -45,12 +45,13 @@ export async function assembleEntityInput(opts: AssembleOptions): Promise<Assemb
   const client = new Client(opts.connectionConfig);
   await client.connect();
   try {
-    const primaryTable = ent.sourceTables[0];
-    if (!primaryTable) {
+    const primaryRaw = ent.sourceTables[0];
+    if (!primaryRaw) {
       const e = new Error(`entity "${opts.entityType}" has no source tables`);
       (e as { code?: string }).code = "SCHEMA_CORRUPT";
       throw e;
     }
+    const primaryTable = primaryRaw.toLowerCase().replace(/^[a-z_][a-z0-9_]*\./, "");
     const indexedCols = ent.columns
       .filter((c) => c.decision === "index" || c.decision === "reference")
       .map((c) => c.name);
@@ -90,7 +91,8 @@ export async function assembleEntityInput(opts: AssembleOptions): Promise<Assemb
 
     // Related tables: pull at most 20 rows of each joined reference.
     const related: AssembledEntityInput["related"] = [];
-    for (const ref of ent.joinedReferences) {
+    for (const refRaw of ent.joinedReferences) {
+      const ref = refRaw.toLowerCase().replace(/^[a-z_][a-z0-9_]*\./, "");
       try {
         const refRes = await client.query(
           `SELECT * FROM client_ref."${ref}" WHERE ${opts.entityType}_id = $1 LIMIT 20`,

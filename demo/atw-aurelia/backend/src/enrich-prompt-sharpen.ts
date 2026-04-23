@@ -8,20 +8,20 @@ export const ENRICH_SHARPEN_V1_TEMPLATE_VERSION = "enrich-sharpen-v1";
 
 export const ENRICH_SHARPEN_V1_TEMPLATE = `Your previous response was rejected by the enrichment validator.
 
-Rule that failed: \{{rule}}
-Details: \{{detail}}
+Rule that failed: {{rule}}
+Details: {{detail}}
 
-\{{#if offending_source}}
-The source "\{{offending_source}}" does not appear as a key in the flattened
+{{#if offending_source}}
+The source "{{offending_source}}" does not appear as a key in the flattened
 input JSON I originally sent you. You MUST pick a source string from the
 flattened-key list below. Do NOT invent a new one.
-\{{/if}}
+{{/if}}
 
-\{{#if offending_label}}
-The category label "\{{offending_label}}" is not in the allowed vocabulary
+{{#if offending_label}}
+The category label "{{offending_label}}" is not in the allowed vocabulary
 for this entity type. Use only labels from the vocabulary I provided in
 the original prompt.
-\{{/if}}
+{{/if}}
 
 Re-read the original input JSON and the Principle V constraints. Produce a
 corrected response in the same schema. If the input truly does not support

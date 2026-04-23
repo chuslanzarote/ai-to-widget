@@ -1,0 +1,108 @@
+{
+  "schema_version": "1",
+  "build_id": "atw-build-20260422T204701-2762",
+  "started_at": "2026-04-22T20:47:01.981Z",
+  "completed_at": "2026-04-22T20:47:19.992Z",
+  "duration_seconds": 18.011,
+  "result": "success",
+  "totals": {
+    "enriched": 8,
+    "failed": 0,
+    "skipped_unchanged": 158,
+    "total_entities": 166
+  },
+  "failures": [],
+  "opus": {
+    "calls": 8,
+    "cost_usd": 0.69,
+    "cost_variance_pct": 0,
+    "estimated_cost_usd": 0,
+    "input_tokens": 12862,
+    "output_tokens": 6573
+  },
+  "concurrency": {
+    "configured": 10,
+    "effective_max": 10,
+    "reductions": []
+  },
+  "input_hashes": {
+    "action-manifest.md": "sha256:65ed10f5f6dccbb250e4714227d194e952df498d7029741d91c7b62993a80126",
+    "brief.md": "sha256:b2ae1a1494b6408d0919850b22a8e29ac9b5d9217f83632eea55f6ff0c7a911e",
+    "build-plan.md": "sha256:916d072d60caa25f93ed7677d9214277af662bffb2117a2b8c156065ff914953",
+    "project.md": "sha256:caa5c7ba82b1d2b1bba5a836598ba4d5122df16423a42278762ca61856b4de66",
+    "prompt_template_version": "enrich-v1",
+    "schema-map.md": "sha256:ba0e503e48232b855c644e695f2f74ff3dc1ccc2c8c6fc3f99e0fa1059cea8d9"
+  },
+  "outputs": {
+    "backend_files": [
+      {
+        "action": "unchanged",
+        "bytes": 481,
+        "path": "src/config.ts",
+        "sha256": "6dd12c9fcb58472e979817847c11515b0211ea0cc3e030fbafc39c195d5dd3cd"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 1182,
+        "path": "src/enrich-prompt-sharpen.ts",
+        "sha256": "32301056aa97a262559ac85603d67d49a98abab955ee1f4b1c04915876de5d1b"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 1026,
+        "path": "src/enrich-prompt.ts",
+        "sha256": "6a3d368a70d788c5a35b0b744c22fd6dc26b7f5d31051f79480876c9e9123789"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 2528,
+        "path": "src/index.ts",
+        "sha256": "48dd19bad3afd6b923ab06293154ebd8c776653d5786bdb45d64096d7833c6c6"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 2095,
+        "path": "src/prompts.ts",
+        "sha256": "dfc8387cbff44c2f2fabb08d756dc1f9505e231913dd4c45cdbcddc96788b9e7"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 741,
+        "path": "src/retrieval.ts",
+        "sha256": "e9adbfab76ba3952b6b453e8af55c8d9f3004bf5b5c021b9ff85efc41a153e02"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 1452,
+        "path": "src/tools.ts",
+        "sha256": "1663527d801fce988f749812a3438c947aa14d4a26018e5e2880e81de97f716e"
+      }
+    ],
+    "backend_image": null,
+    "widget_bundle": {
+      "css": {
+        "bytes": 31,
+        "path": "C:\\Desarrollo\\Personal\\ai-to-widget\\demo\\atw-aurelia\\dist\\widget.css",
+        "sha256": "39483436b3884b90e44373b936cb205cdd66b32fce90cdd31f0d5ae8e663303b"
+      },
+      "js": {
+        "bytes": 61,
+        "path": "C:\\Desarrollo\\Personal\\ai-to-widget\\demo\\atw-aurelia\\dist\\widget.js",
+        "sha256": "652a1a671c0838696f5ff463de312675b8f3657a24d6b6b4e1061626e96f3301"
+      }
+    }
+  },
+  "environment": {
+    "docker_server_version": "unknown",
+    "embedding_model": "Xenova/bge-small-en-v1.5",
+    "node_version": "24.13.0",
+    "platform": "win32-x64",
+    "postgres_image_digest": "unknown"
+  },
+  "compliance_scan": {
+    "clean": true,
+    "matches": [],
+    "ran": true,
+    "values_checked": 0
+  }
+}

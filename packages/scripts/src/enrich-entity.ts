@@ -12,6 +12,7 @@ import {
   validateEnrichment,
   type ValidatorRule,
 } from "./lib/enrichment-validator.js";
+import { flattenKeys } from "./lib/flatten-keys.js";
 
 const log = Debug("atw:enrich-entity");
 
@@ -158,7 +159,7 @@ export async function enrichEntity(opts: EnrichOptions): Promise<OpusCallResult>
     opts.input.entity_id,
     firstCheck.rule,
   );
-  const sharpen = buildSharpeningUser(user, firstCheck.rule, firstCheck.detail);
+  const sharpen = buildSharpeningUser(user, firstCheck.rule, firstCheck.detail, opts.input);
   const second = await callAndParseRaw(client, model, system, sharpen, opts.onHttpStatus);
   const combined: TokenUsage = {
     input_tokens: first.tokens.input_tokens + second.tokens.input_tokens,
@@ -241,6 +242,7 @@ export function buildSharpeningUser(
   originalUser: string,
   rule: ValidatorRule,
   detail: string,
+  input?: AssembledEntityInput,
 ): string {
   const lines = [
     "Your previous response was rejected by the enrichment validator.",
@@ -248,15 +250,22 @@ export function buildSharpeningUser(
     `Details: ${detail}`,
     "",
     "Re-read the original input JSON below and produce a corrected response",
-    "in the same schema. Pick sources only from keys present in the input.",
+    "in the same schema. Every fact.source MUST be one of the dotted-path",
+    "keys listed below — do NOT invent new keys and do NOT omit the",
+    "`primary_record.` or `related[N].rows[M].` prefix.",
     "If the input does not support a grounded description, return",
     '{"insufficient_data": true, "reason": "..."}.',
     "",
     "Return ONLY the JSON object. No prose outside the JSON.",
     "",
-    "Original input:",
-    originalUser,
   ];
+  if (input) {
+    const allowed = Array.from(flattenKeys(input)).filter((k) => k.includes(".")).sort();
+    lines.push("Allowed source keys (pick sources ONLY from this list):");
+    for (const k of allowed) lines.push(`  - ${k}`);
+    lines.push("");
+  }
+  lines.push("Original input:", originalUser);
   return lines.join("\n");
 }
 
