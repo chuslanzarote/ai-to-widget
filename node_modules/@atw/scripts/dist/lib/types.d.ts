@@ -3086,6 +3086,35 @@ export declare const SessionContextSchema: z.ZodObject<{
     } | null> | undefined;
 }>;
 export type SessionContext = z.infer<typeof SessionContextSchema>;
+/**
+ * Feature 007 — Tool-result payload posted back by the widget after a
+ * client-side fetch. Contract: specs/007-widget-tool-loop/contracts/
+ * chat-endpoint-v2.md §Request shape.
+ *
+ * `content` is an opaque string (the widget truncates the shop response
+ * to BODY_LIMIT=4096 bytes before posting) that the backend forwards
+ * verbatim into the Anthropic `tool_result` block.
+ */
+export declare const ToolResultPayloadSchema: z.ZodObject<{
+    tool_use_id: z.ZodString;
+    content: z.ZodString;
+    is_error: z.ZodBoolean;
+    status: z.ZodNumber;
+    truncated: z.ZodBoolean;
+}, "strip", z.ZodTypeAny, {
+    status: number;
+    content: string;
+    tool_use_id: string;
+    is_error: boolean;
+    truncated: boolean;
+}, {
+    status: number;
+    content: string;
+    tool_use_id: string;
+    is_error: boolean;
+    truncated: boolean;
+}>;
+export type ToolResultPayload = z.infer<typeof ToolResultPayloadSchema>;
 export declare const ChatRequestSchema: z.ZodObject<{
     message: z.ZodString;
     history: z.ZodArray<z.ZodObject<{
@@ -3166,6 +3195,30 @@ export declare const ChatRequestSchema: z.ZodObject<{
             } | undefined;
         } | null> | undefined;
     }>;
+    /** Feature 007 — carried across posts of the same turn. */
+    pending_turn_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    /** Feature 007 — present on resume posts; skips retrieval/embedding. */
+    tool_result: z.ZodOptional<z.ZodObject<{
+        tool_use_id: z.ZodString;
+        content: z.ZodString;
+        is_error: z.ZodBoolean;
+        status: z.ZodNumber;
+        truncated: z.ZodBoolean;
+    }, "strip", z.ZodTypeAny, {
+        status: number;
+        content: string;
+        tool_use_id: string;
+        is_error: boolean;
+        truncated: boolean;
+    }, {
+        status: number;
+        content: string;
+        tool_use_id: string;
+        is_error: boolean;
+        truncated: boolean;
+    }>>;
+    /** Feature 007 — decrements by 1 on each action_intent emitted. */
+    tool_call_budget_remaining: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     message: string;
     history: {
@@ -3188,6 +3241,15 @@ export declare const ChatRequestSchema: z.ZodObject<{
             } | undefined;
         } | null> | undefined;
     };
+    pending_turn_id?: string | null | undefined;
+    tool_result?: {
+        status: number;
+        content: string;
+        tool_use_id: string;
+        is_error: boolean;
+        truncated: boolean;
+    } | undefined;
+    tool_call_budget_remaining?: number | undefined;
 }, {
     message: string;
     history: {
@@ -3210,6 +3272,15 @@ export declare const ChatRequestSchema: z.ZodObject<{
             } | undefined;
         } | null> | undefined;
     };
+    pending_turn_id?: string | null | undefined;
+    tool_result?: {
+        status: number;
+        content: string;
+        tool_use_id: string;
+        is_error: boolean;
+        truncated: boolean;
+    } | undefined;
+    tool_call_budget_remaining?: number | undefined;
 }>;
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 export declare const CitationSchema: z.ZodObject<{
@@ -3232,21 +3303,30 @@ export declare const CitationSchema: z.ZodObject<{
     href?: string | undefined;
 }>;
 export type Citation = z.infer<typeof CitationSchema>;
+/**
+ * Feature 007 — action intent emitted by the backend on `tool_use`.
+ * The widget resolves it through `action-executors.json`, fetches the
+ * shop, and posts the result back.
+ *
+ * `confirmation_required` is a union now: reads (Feature 007 US2/US3)
+ * run inline with `false`; writes (US4) keep the existing confirmation
+ * card flow with `true`.
+ */
 export declare const ActionIntentSchema: z.ZodObject<{
     id: z.ZodString;
     tool: z.ZodString;
     arguments: z.ZodRecord<z.ZodString, z.ZodUnknown>;
     description: z.ZodString;
-    confirmation_required: z.ZodLiteral<true>;
+    confirmation_required: z.ZodBoolean;
     http: z.ZodObject<{
-        method: z.ZodEnum<["GET", "POST", "PATCH", "DELETE"]>;
+        method: z.ZodEnum<["GET", "POST", "PUT", "PATCH", "DELETE"]>;
         path: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         path: string;
-        method: "GET" | "POST" | "PATCH" | "DELETE";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     }, {
         path: string;
-        method: "GET" | "POST" | "PATCH" | "DELETE";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     }>;
     summary: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
@@ -3254,10 +3334,10 @@ export declare const ActionIntentSchema: z.ZodObject<{
     id: string;
     tool: string;
     arguments: Record<string, unknown>;
-    confirmation_required: true;
+    confirmation_required: boolean;
     http: {
         path: string;
-        method: "GET" | "POST" | "PATCH" | "DELETE";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     };
     summary?: Record<string, string> | undefined;
 }, {
@@ -3265,14 +3345,23 @@ export declare const ActionIntentSchema: z.ZodObject<{
     id: string;
     tool: string;
     arguments: Record<string, unknown>;
-    confirmation_required: true;
+    confirmation_required: boolean;
     http: {
         path: string;
-        method: "GET" | "POST" | "PATCH" | "DELETE";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     };
     summary?: Record<string, string> | undefined;
 }>;
 export type ActionIntent = z.infer<typeof ActionIntentSchema>;
+/**
+ * Feature 007 — the two response variants from `POST /v1/chat`:
+ *   - final text (stop_reason !== "tool_use"): {message, citations, pending_turn_id: null}
+ *   - action intent (stop_reason === "tool_use"): {action_intent, pending_turn_id, tool_call_budget_remaining}
+ *
+ * `actions[]` is kept as a pass-through for backward-compat consumers
+ * that still read the old shape; it carries the same single intent when
+ * present so existing v1 unit tests keep passing.
+ */
 export declare const ChatResponseSchema: z.ZodObject<{
     message: z.ZodString;
     citations: z.ZodArray<z.ZodObject<{
@@ -3299,16 +3388,16 @@ export declare const ChatResponseSchema: z.ZodObject<{
         tool: z.ZodString;
         arguments: z.ZodRecord<z.ZodString, z.ZodUnknown>;
         description: z.ZodString;
-        confirmation_required: z.ZodLiteral<true>;
+        confirmation_required: z.ZodBoolean;
         http: z.ZodObject<{
-            method: z.ZodEnum<["GET", "POST", "PATCH", "DELETE"]>;
+            method: z.ZodEnum<["GET", "POST", "PUT", "PATCH", "DELETE"]>;
             path: z.ZodString;
         }, "strip", z.ZodTypeAny, {
             path: string;
-            method: "GET" | "POST" | "PATCH" | "DELETE";
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         }, {
             path: string;
-            method: "GET" | "POST" | "PATCH" | "DELETE";
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         }>;
         summary: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
@@ -3316,10 +3405,10 @@ export declare const ChatResponseSchema: z.ZodObject<{
         id: string;
         tool: string;
         arguments: Record<string, unknown>;
-        confirmation_required: true;
+        confirmation_required: boolean;
         http: {
             path: string;
-            method: "GET" | "POST" | "PATCH" | "DELETE";
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         };
         summary?: Record<string, string> | undefined;
     }, {
@@ -3327,13 +3416,55 @@ export declare const ChatResponseSchema: z.ZodObject<{
         id: string;
         tool: string;
         arguments: Record<string, unknown>;
-        confirmation_required: true;
+        confirmation_required: boolean;
         http: {
             path: string;
-            method: "GET" | "POST" | "PATCH" | "DELETE";
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         };
         summary?: Record<string, string> | undefined;
     }>, "many">;
+    action_intent: z.ZodOptional<z.ZodObject<{
+        id: z.ZodString;
+        tool: z.ZodString;
+        arguments: z.ZodRecord<z.ZodString, z.ZodUnknown>;
+        description: z.ZodString;
+        confirmation_required: z.ZodBoolean;
+        http: z.ZodObject<{
+            method: z.ZodEnum<["GET", "POST", "PUT", "PATCH", "DELETE"]>;
+            path: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            path: string;
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+        }, {
+            path: string;
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+        }>;
+        summary: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, "strip", z.ZodTypeAny, {
+        description: string;
+        id: string;
+        tool: string;
+        arguments: Record<string, unknown>;
+        confirmation_required: boolean;
+        http: {
+            path: string;
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+        };
+        summary?: Record<string, string> | undefined;
+    }, {
+        description: string;
+        id: string;
+        tool: string;
+        arguments: Record<string, unknown>;
+        confirmation_required: boolean;
+        http: {
+            path: string;
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+        };
+        summary?: Record<string, string> | undefined;
+    }>>;
+    pending_turn_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    tool_call_budget_remaining: z.ZodOptional<z.ZodNumber>;
     suggestions: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
     request_id: z.ZodString;
 }, "strip", z.ZodTypeAny, {
@@ -3350,14 +3481,28 @@ export declare const ChatResponseSchema: z.ZodObject<{
         id: string;
         tool: string;
         arguments: Record<string, unknown>;
-        confirmation_required: true;
+        confirmation_required: boolean;
         http: {
             path: string;
-            method: "GET" | "POST" | "PATCH" | "DELETE";
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         };
         summary?: Record<string, string> | undefined;
     }[];
     request_id: string;
+    pending_turn_id?: string | null | undefined;
+    tool_call_budget_remaining?: number | undefined;
+    action_intent?: {
+        description: string;
+        id: string;
+        tool: string;
+        arguments: Record<string, unknown>;
+        confirmation_required: boolean;
+        http: {
+            path: string;
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+        };
+        summary?: Record<string, string> | undefined;
+    } | undefined;
     suggestions?: string[] | undefined;
 }, {
     message: string;
@@ -3373,14 +3518,28 @@ export declare const ChatResponseSchema: z.ZodObject<{
         id: string;
         tool: string;
         arguments: Record<string, unknown>;
-        confirmation_required: true;
+        confirmation_required: boolean;
         http: {
             path: string;
-            method: "GET" | "POST" | "PATCH" | "DELETE";
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         };
         summary?: Record<string, string> | undefined;
     }[];
     request_id: string;
+    pending_turn_id?: string | null | undefined;
+    tool_call_budget_remaining?: number | undefined;
+    action_intent?: {
+        description: string;
+        id: string;
+        tool: string;
+        arguments: Record<string, unknown>;
+        confirmation_required: boolean;
+        http: {
+            path: string;
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+        };
+        summary?: Record<string, string> | undefined;
+    } | undefined;
     suggestions?: string[] | undefined;
 }>;
 export type ChatResponse = z.infer<typeof ChatResponseSchema>;

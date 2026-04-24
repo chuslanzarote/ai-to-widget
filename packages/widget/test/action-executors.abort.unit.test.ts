@@ -93,11 +93,11 @@ describe("executeAction timeout (T052 / FR-021)", () => {
     delete (globalThis as unknown as { fetch?: unknown }).fetch;
   });
 
-  it("ACTION_FETCH_TIMEOUT_MS is exactly 15000 (fixed, not configurable)", () => {
-    expect(ACTION_FETCH_TIMEOUT_MS).toBe(15000);
+  it("ACTION_FETCH_TIMEOUT_MS is exactly 8000 (Feature 007 FR-015, fixed)", () => {
+    expect(ACTION_FETCH_TIMEOUT_MS).toBe(8000);
   });
 
-  it("fetch hangs → at 14999 ms not yet aborted; at 15000 ms timeout fires", async () => {
+  it("fetch hangs → at 7999 ms not yet aborted; at 8000 ms timeout fires", async () => {
     // fetch that honours the AbortSignal: stays pending until aborted.
     fetchMock.mockImplementation((_url: string, init: RequestInit) => {
       return new Promise((_resolve, reject) => {
@@ -111,8 +111,8 @@ describe("executeAction timeout (T052 / FR-021)", () => {
 
     const pending = executeAction(intent(), cfg());
 
-    // 14 999 ms: not yet aborted.
-    await vi.advanceTimersByTimeAsync(14_999);
+    // 7 999 ms: not yet aborted.
+    await vi.advanceTimersByTimeAsync(7_999);
     let settled = false;
     void pending.then(() => {
       settled = true;
@@ -121,7 +121,7 @@ describe("executeAction timeout (T052 / FR-021)", () => {
     await Promise.resolve();
     expect(settled).toBe(false);
 
-    // Advance 1 more ms → reach exactly 15 000 ms → abort fires.
+    // Advance 1 more ms → reach exactly 8 000 ms → abort fires.
     await vi.advanceTimersByTimeAsync(1);
 
     const out = await pending;
@@ -169,10 +169,10 @@ describe("executeAction timeout (T052 / FR-021)", () => {
     });
 
     const pending = executeAction(intent(), cfg());
-    await vi.advanceTimersByTimeAsync(15_000);
+    await vi.advanceTimersByTimeAsync(8_000);
     await pending;
-    // Simulate wall-clock drift past 30 s; no retry scheduled.
-    await vi.advanceTimersByTimeAsync(15_000);
+    // Simulate wall-clock drift past the deadline; no retry scheduled.
+    await vi.advanceTimersByTimeAsync(8_000);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

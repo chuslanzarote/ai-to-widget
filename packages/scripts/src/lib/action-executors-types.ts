@@ -37,9 +37,34 @@ const HTTP_METHOD = z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]);
  * `X-*-{Token,Auth,Session}` in the catalog, the Zod refinement below
  * rejects the whole catalog at write time so the widget never even
  * sees it. Principle I enforcement (data-model.md §11).
+ *
+ * Feature 007 note: credentials still cannot appear in `headers`; they
+ * appear in the separate `credentialSource` field, which the widget
+ * resolves at fetch time from `localStorage` — never via the backend.
  */
 const CREDENTIAL_CLASS_HEADER_RE =
   /^(authorization|cookie|set-cookie|x-.*-(token|auth|session))$/i;
+
+/**
+ * Feature 007 — declarative credential source for a tool. v1 defines
+ * one variant: the widget reads a bearer token from `localStorage[key]`
+ * and sets `<header>: <scheme> <token>` on the outgoing request.
+ *
+ * Contract: specs/007-widget-tool-loop/contracts/action-catalog-v2.md.
+ * Unknown `type` values cause the catalog to fail to load (FR-021).
+ */
+export const BearerLocalStorageCredentialSourceSchema = z.object({
+  type: z.literal("bearer-localstorage"),
+  key: z.string().min(1),
+  header: z.string().min(1),
+  scheme: z.string().min(1),
+});
+export type BearerLocalStorageCredentialSource = z.infer<
+  typeof BearerLocalStorageCredentialSourceSchema
+>;
+
+export const CredentialSourceSchema = BearerLocalStorageCredentialSourceSchema;
+export type CredentialSource = z.infer<typeof CredentialSourceSchema>;
 
 export const ActionExecutorEntrySchema = z.object({
   tool: z.string().min(1),
@@ -73,12 +98,25 @@ export const ActionExecutorEntrySchema = z.object({
     summaryFields: z.array(z.string()).default([]),
     errorMessageField: z.string().optional(),
   }),
+  /**
+   * Feature 007 — optional per-operation credential injection. Present
+   * when the source OpenAPI declares `bearerAuth` on the operation;
+   * absent for unauthenticated catalogue reads.
+   */
+  credentialSource: CredentialSourceSchema.optional(),
 });
 export type ActionExecutorEntry = z.infer<typeof ActionExecutorEntrySchema>;
 
 export const ActionExecutorsCatalogSchema = z.object({
   version: z.literal(1),
-  credentialMode: z.literal("same-origin-cookies"),
+  /**
+   * Feature 007 collapses the cookie-mode assumption. The widget now
+   * injects bearer tokens per operation via `credentialSource`. Older
+   * catalogs carrying `same-origin-cookies` still load.
+   */
+  credentialMode: z
+    .enum(["same-origin-cookies", "bearer-localstorage"])
+    .default("bearer-localstorage"),
   actions: z.array(ActionExecutorEntrySchema),
 });
 export type ActionExecutorsCatalog = z.infer<
@@ -92,6 +130,6 @@ export type ActionExecutorsCatalog = z.infer<
  */
 export const EMPTY_CATALOG: ActionExecutorsCatalog = {
   version: 1,
-  credentialMode: "same-origin-cookies",
+  credentialMode: "bearer-localstorage",
   actions: [],
 };

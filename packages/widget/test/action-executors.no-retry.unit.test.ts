@@ -150,7 +150,7 @@ describe("executeAction — no retry (T053 / FR-015a)", () => {
     });
 
     const pending = executeAction(intent(), cfg());
-    await vi.advanceTimersByTimeAsync(15_000);
+    await vi.advanceTimersByTimeAsync(8_000);
     const out = await pending;
     vi.useRealTimers();
 

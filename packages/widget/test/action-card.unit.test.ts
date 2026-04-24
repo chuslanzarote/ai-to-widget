@@ -126,7 +126,7 @@ describe("executeAction (T053 / Principle I+IV structural)", () => {
     }
   });
 
-  it("cookie-mode attaches credentials=include but no Authorization header", async () => {
+  it("Feature 007: credentials is 'omit' and no ambient Authorization/Cookie header is attached", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
@@ -134,7 +134,7 @@ describe("executeAction (T053 / Principle I+IV structural)", () => {
     } as unknown as Response);
     await executeAction(intent("add_to_cart"), cfg(["add_to_cart"], "cookie"));
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(init.credentials).toBe("include");
+    expect(init.credentials).toBe("omit");
     const hdr = init.headers as Record<string, string>;
     expect(hdr["Authorization"]).toBeUndefined();
     expect(hdr["Cookie"]).toBeUndefined();

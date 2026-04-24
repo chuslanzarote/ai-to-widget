@@ -67,7 +67,7 @@ afterEach(async () => {
 });
 
 describe("empty-included manifest — joint render contract (T072 / FR-014, SC-005)", () => {
-  it("renderExecutors writes {version:1, credentialMode:'same-origin-cookies', actions: []}", async () => {
+  it("renderExecutors writes {version:1, credentialMode:'bearer-localstorage', actions: []}", async () => {
     const outPath = path.join(tmpDir, "action-executors.json");
     await renderExecutors(EMPTY_MANIFEST, {
       outputPath: outPath,
@@ -77,7 +77,7 @@ describe("empty-included manifest — joint render contract (T072 / FR-014, SC-0
     const body = JSON.parse(await fs.readFile(outPath, "utf8"));
     expect(body).toEqual({
       version: 1,
-      credentialMode: "same-origin-cookies",
+      credentialMode: "bearer-localstorage",
       actions: [],
     });
   });

@@ -118,7 +118,7 @@ describe("renderExecutors — contract (T047)", () => {
       }>;
     };
     expect(body.version).toBe(1);
-    expect(body.credentialMode).toBe("same-origin-cookies");
+    expect(body.credentialMode).toBe("bearer-localstorage");
     expect(body.actions).toHaveLength(1);
     const a = body.actions[0];
     expect(a.tool).toBe("add_to_cart");
@@ -164,7 +164,7 @@ describe("renderExecutors — contract (T047)", () => {
     const body = JSON.parse(await fs.readFile(outPath, "utf8"));
     expect(body).toEqual({
       version: 1,
-      credentialMode: "same-origin-cookies",
+      credentialMode: "bearer-localstorage",
       actions: [],
     });
   });

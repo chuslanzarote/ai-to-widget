@@ -1,4 +1,11 @@
-import { ChatResponseSchema, type ChatResponse, type ChatRequest } from "@atw/scripts/dist/lib/types.js";
+import {
+  ChatResponseSchema,
+  type ChatResponse,
+  type ChatRequest,
+  type ToolResultPayload,
+  type ConversationTurn,
+  type SessionContext,
+} from "@atw/scripts/dist/lib/types.js";
 import type { WidgetConfig } from "./config.js";
 import { buildBackendHeaders } from "./auth.js";
 
@@ -20,6 +27,36 @@ export interface PostChatFailure {
   message: string;
   request_id?: string;
   retry_after_seconds?: number;
+}
+
+/**
+ * Feature 007 — post a tool_result back to `/v1/chat` to close the
+ * tool-use loop. `messages` carries the history the widget has
+ * accumulated; the backend stitches the tool_result block in and
+ * re-invokes Opus. Contract: chat-endpoint-v2.md.
+ */
+export async function postChatToolResult(
+  options: {
+    history: ConversationTurn[];
+    context: SessionContext;
+    toolResult: ToolResultPayload;
+    pendingTurnId: string | null;
+    budgetRemaining: number;
+  },
+  config: WidgetConfig,
+  sessionId: string,
+): Promise<PostChatResult | PostChatFailure> {
+  const request: ChatRequest = {
+    // The backend skips retrieval on resume posts; the message field
+    // is unused but still carries the shape constraint.
+    message: "(atw:tool_result)",
+    history: options.history,
+    context: options.context,
+    tool_result: options.toolResult,
+    pending_turn_id: options.pendingTurnId,
+    tool_call_budget_remaining: options.budgetRemaining,
+  };
+  return postChat(request, config, sessionId);
 }
 
 export async function postChat(

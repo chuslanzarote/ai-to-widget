@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import Anthropic from "@anthropic-ai/sdk";
+import { randomUUID } from "node:crypto";
 import {
   ChatRequestSchema,
   type ChatRequest,
@@ -11,17 +12,25 @@ import type { RuntimeConfig } from "../config.js";
 import { embed } from "../lib/embedding.js";
 import { runRetrieval, type RetrievalHit } from "../lib/retrieval.js";
 import { formatRetrievalContext } from "../lib/retrieval-context.js";
-import { runTurn } from "../lib/opus-client.js";
+import {
+  runOpusStep,
+  type AnthropicMessages,
+} from "../lib/opus-client.js";
 import { SYSTEM_PROMPT } from "../prompts.js";
 import { ValidationError } from "../lib/errors.js";
 import { ACTION_TOOLS } from "../tools.js";
 
 /**
  * POST /v1/chat — runtime handler.
- * Contract: specs/003-runtime/contracts/chat-endpoint.md §4.
  *
- * Phase 3 shipped the US1 grounded path (single-turn). Phase 4 (US2)
- * extends with the tool-use loop and `actions[]` on the response.
+ * Feature 007 v2 contract:
+ *   specs/007-widget-tool-loop/contracts/chat-endpoint-v2.md.
+ *
+ * The endpoint is stateless across mid-turn posts: the widget carries
+ * the conversation state and `tool_call_budget_remaining` on every
+ * request. The backend never executes shop-side fetches — it emits an
+ * `ActionIntent` on `tool_use` and relies on the widget to post the
+ * tool result back.
  */
 export function registerChat(
   app: FastifyInstance,
@@ -48,77 +57,152 @@ export function registerChat(
         );
       }
       const msg = err instanceof Error ? err.message : "Invalid request body";
-      throw new ValidationError("Some of the fields you sent were malformed: " + msg);
+      throw new ValidationError(
+        "Some of the fields you sent were malformed: " + msg,
+      );
+    }
+
+    const resumingToolCall = body.tool_result !== undefined;
+    const pendingTurnId =
+      body.pending_turn_id ?? (resumingToolCall ? null : randomUUID());
+
+    let budget: number;
+    if (resumingToolCall) {
+      budget =
+        typeof body.tool_call_budget_remaining === "number"
+          ? body.tool_call_budget_remaining
+          : 0;
+    } else {
+      budget = config.maxToolCallsPerTurn;
+    }
+
+    // Initial post: run retrieval + embedding. Resume posts skip both
+    // entirely (FR-018, stateless backend across mid-turn posts).
+    let hits: RetrievalHit[] = [];
+    let retrievalContext = "";
+    if (!resumingToolCall) {
+      const queryVec = await embed(body.message);
+      hits = await runRetrieval({
+        embedding: queryVec,
+        threshold: config.retrievalThreshold,
+        topK: config.retrievalTopK,
+        pool,
+      });
+      retrievalContext = formatRetrievalContext(hits);
     }
 
     const trimmedHistory = body.history.slice(-config.maxConversationTurns);
     const historyTrimmed = trimmedHistory.length < body.history.length;
 
-    const queryVec = await embed(body.message);
-    const hits = await runRetrieval({
-      embedding: queryVec,
-      threshold: config.retrievalThreshold,
-      topK: config.retrievalTopK,
-      pool,
-    });
-    const retrievalContext = formatRetrievalContext(hits);
-
-    const historyForModel = trimmedHistory.map((t) => ({
+    const messages: AnthropicMessages = trimmedHistory.map((t) => ({
       role: t.role,
       content: t.content,
-      timestamp: t.timestamp,
     }));
     if (historyTrimmed) {
-      historyForModel.unshift({
+      messages.unshift({
         role: "assistant",
         content:
           "(conversation trimmed — earlier turns were dropped to fit the session cap)",
-        timestamp: new Date().toISOString(),
       });
     }
 
-    const turn = await runTurn({
-      system: SYSTEM_PROMPT,
-      history: historyForModel,
-      userMessage: body.message,
-      retrievalContext,
-      model: "claude-opus-4-7",
+    if (resumingToolCall && body.tool_result) {
+      // The widget carries the full conversation including the prior
+      // assistant turn that contained the `tool_use` block. The
+      // current `messages` already hold it (v2 request shape). Append
+      // the `tool_result` as a user-role message.
+      messages.push({
+        role: "user",
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: body.tool_result.tool_use_id,
+            content: body.tool_result.content,
+            is_error: body.tool_result.is_error,
+          },
+        ],
+      });
+    } else {
+      messages.push({
+        role: "user",
+        content:
+          body.message +
+          "\n\n[Retrieval context — use only facts from this block; reply that the catalog does not cover the topic if nothing relevant is here.]\n" +
+          retrievalContext,
+      });
+    }
+
+    const budgetExhausted = budget <= 0;
+
+    const step = await runOpusStep({
       client: anthropic,
-      maxToolCalls: config.maxToolCallsPerTurn,
+      model: "claude-opus-4-7",
+      system: SYSTEM_PROMPT,
+      messages,
       sessionContext: body.context,
-      hostApiBaseUrl: config.hostApiBaseUrl,
-      hostApiKey: config.hostApiKey,
+      forceComposition: budgetExhausted,
     });
 
-    const message =
-      turn.text.length > 0
-        ? turn.text
+    const latency =
+      Date.now() -
+      ((req as unknown as { atw_start?: number }).atw_start ?? Date.now());
+
+    if (step.kind === "action_intent") {
+      // Enforce the action allowlist structurally before emit.
+      if (!ACTION_TOOLS.includes(step.intent.tool)) {
+        throw new ValidationError(
+          `Opus emitted tool "${step.intent.tool}" which is not in the allowlist.`,
+          "tool_not_allowed",
+        );
+      }
+      const response: ChatResponse = {
+        message: "",
+        citations: [],
+        actions: [step.intent],
+        action_intent: step.intent,
+        pending_turn_id: pendingTurnId,
+        tool_call_budget_remaining: Math.max(0, budget - 1),
+        request_id: requestId,
+      };
+      req.log.info(
+        {
+          req_id: requestId,
+          latency_ms: latency,
+          tool: step.intent.tool,
+          budget_remaining: response.tool_call_budget_remaining,
+          pending_turn_id: pendingTurnId,
+        },
+        "chat turn emitted action_intent",
+      );
+      reply.code(200);
+      return response;
+    }
+
+    const text =
+      step.text.length > 0
+        ? step.text
         : "I'm not sure I can help with that — could you rephrase?";
-
-    // Enforce the action allowlist structurally before emit. This is the
-    // server-side half of Principle IV / FR-021.
-    const safeActions = turn.actions.filter((a) => ACTION_TOOLS.includes(a.tool));
-
-    const citations = deriveCitations(hits, message);
+    const citations = resumingToolCall
+      ? []
+      : deriveCitations(hits, text);
 
     const response: ChatResponse = {
-      message,
+      message: text,
       citations,
-      actions: safeActions,
+      actions: [],
+      pending_turn_id: null,
       request_id: requestId,
     };
 
-    const latency =
-      Date.now() - ((req as unknown as { atw_start?: number }).atw_start ?? Date.now());
     req.log.info(
       {
         req_id: requestId,
         latency_ms: latency,
         citations: citations.length,
-        actions: safeActions.length,
-        input_tokens: turn.usage.input_tokens,
-        output_tokens: turn.usage.output_tokens,
-        message_preview: body.message.slice(0, 80),
+        input_tokens: step.usage.input_tokens,
+        output_tokens: step.usage.output_tokens,
+        resumed: resumingToolCall,
+        message_preview: resumingToolCall ? "" : body.message.slice(0, 80),
       },
       "chat turn complete",
     );

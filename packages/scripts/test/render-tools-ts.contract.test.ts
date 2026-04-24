@@ -123,7 +123,7 @@ describe("render tools.ts — contract (T039)", () => {
     expect(rendered).toContain('"is_action": false');
   });
 
-  it("ACTION_TOOLS and SAFE_READ_TOOLS split on is_action", async () => {
+  it("ACTION_TOOLS covers every declared tool (Feature 007 — no server-side split)", async () => {
     const tools: RuntimeToolDescriptor[] = [
       descriptor({ name: "act_one", is_action: true }),
       descriptor({
@@ -134,15 +134,11 @@ describe("render tools.ts — contract (T039)", () => {
       descriptor({ name: "act_two", is_action: true }),
     ];
     const rendered = await renderToolsTs(tmp, tools);
-    // Both exports are present in the rendered source as runtime filters.
     expect(rendered).toContain(
-      "export const SAFE_READ_TOOLS: string[] = RUNTIME_TOOLS.filter",
+      "export const ACTION_TOOLS: string[] = RUNTIME_TOOLS.map((t) => t.name);",
     );
-    expect(rendered).toContain(
-      "export const ACTION_TOOLS: string[] = RUNTIME_TOOLS.filter",
-    );
-    // Names appear in the JSON payload so `.filter((t) => t.is_action)` at
-    // runtime would recover the same split.
+    expect(rendered).not.toContain("SAFE_READ_TOOLS");
+    // Names appear in the JSON payload.
     expect(rendered).toContain('"name": "act_one"');
     expect(rendered).toContain('"name": "act_two"');
     expect(rendered).toContain('"name": "read_one"');

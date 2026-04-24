@@ -36,7 +36,10 @@ export function buildActionIntent(
     tool: input.tool.name,
     arguments: input.args,
     description,
-    confirmation_required: true,
+    // Feature 007 — reads (GET / non-action tools) execute inline in the
+    // widget without a confirmation card; writes still prompt. The split
+    // is carried through from the manifest via `tool.is_action`.
+    confirmation_required: input.tool.is_action,
     http: { method: input.tool.http.method, path: resolvedPath },
     summary: renderSummary(input.tool, input.args),
   };

@@ -22,7 +22,33 @@ import {
   ActionExecutorsCatalogSchema,
   type ActionExecutorEntry,
   type ActionExecutorsCatalog,
+  type BearerLocalStorageCredentialSource,
 } from "./lib/action-executors-types.js";
+
+/**
+ * Feature 007 — `credentialSource` emission.
+ *
+ * When the source OpenAPI operation requires `bearerAuth`, the widget
+ * needs to know where the token lives. v1 pins the localStorage key to
+ * `shop_auth_token`; future features can thread a shop-specific value
+ * through from `.atw/setup.yaml`.
+ */
+export const BEARER_AUTH_SCHEME = "bearerAuth";
+export const DEFAULT_BEARER_STORAGE_KEY = "shop_auth_token";
+
+export class UnsupportedSecuritySchemeError extends Error {
+  readonly code = "UNSUPPORTED_SECURITY_SCHEME" as const;
+  readonly tool: string;
+  readonly scheme: string;
+  constructor(tool: string, scheme: string) {
+    super(
+      `manifest entry "${tool}" declares security scheme "${scheme}" — only "${BEARER_AUTH_SCHEME}" is supported in v1`,
+    );
+    this.name = "UnsupportedSecuritySchemeError";
+    this.tool = tool;
+    this.scheme = scheme;
+  }
+}
 
 /* ============================================================================
  * Error classes
@@ -134,8 +160,26 @@ function buildCatalog(
 
   return {
     version: 1,
-    credentialMode: "same-origin-cookies",
+    credentialMode: "bearer-localstorage",
     actions: entries,
+  };
+}
+
+function deriveCredentialSource(
+  entry: ActionManifestEntry,
+): BearerLocalStorageCredentialSource | undefined {
+  const security = entry.source.security ?? [];
+  if (security.length === 0) return undefined;
+  for (const scheme of security) {
+    if (scheme !== BEARER_AUTH_SCHEME) {
+      throw new UnsupportedSecuritySchemeError(entry.toolName, scheme);
+    }
+  }
+  return {
+    type: "bearer-localstorage",
+    key: DEFAULT_BEARER_STORAGE_KEY,
+    header: "Authorization",
+    scheme: "Bearer",
   };
 }
 
@@ -195,6 +239,7 @@ function manifestEntryToExecutor(
   }
 
   const summaryFields = (entry.summaryFields ?? []).slice();
+  const credentialSource = deriveCredentialSource(entry);
 
   // Validate per-entry via Zod so InvalidSubstitutionError (arg missing)
   // fires before the whole-catalog parse. This also resolves the schema
@@ -215,6 +260,7 @@ function manifestEntryToExecutor(
       summaryFields,
       errorMessageField: "message",
     },
+    ...(credentialSource ? { credentialSource } : {}),
   });
   if (!parsed.success) {
     throw new Error(

@@ -1,34 +1,16 @@
 /**
  * Widget-side action-execution engine.
  *
- * Contract: specs/006-openapi-action-catalog/contracts/widget-executor-engine.md
- * Data model: specs/006-openapi-action-catalog/data-model.md §3, §7, §8.
+ * Feature 007 rewires the engine to:
+ *   - Inject credentials per-operation via `credentialSource` (bearer
+ *     token read from `localStorage`), replacing the cookie-only mode.
+ *   - Bound the fetch at 8 s (FR-015 Feature 007 — shorter than the
+ *     legacy 15 s because the shopper is waiting inside the widget for
+ *     Opus's next pass).
  *
- * This file is the FIXED, AUDITED code path that consumes the
- * declarative `action-executors.json` catalog and turns an
- * `ActionIntent` into an HTTP request. Its single responsibility is
- * to enforce:
- *
- *   - FR-009  : no dynamic code execution. The interpreter is
- *               regex-gated substitution + `String.replace`. No eval,
- *               no new Function, no dynamic import with a variable
- *               argument, no DOMParser.
- *   - FR-009a : every host-derived string reaches the DOM via a JSX
- *               text child (see `ActionCard`); `renderSummary`
- *               returns a plain string — nothing downstream may
- *               innerHTML-assign it.
- *   - FR-010  : credentials never transit atw_backend. The loader
- *               fetches the catalog with `credentials: "omit"`; the
- *               executeAction fetch carries `credentials: "include"`
- *               so the browser attaches the shopper's host cookie.
- *   - FR-015  : malformed requests refuse with a structured
- *               validationError rather than a best-effort HTTP call.
- *   - FR-015a : one fetch per `executeAction`. No retry.
- *   - FR-016  : runtime cross-origin guard as a safety net against
- *               a build-time cross-origin catalog slipping through.
- *   - FR-021  : 15 s AbortController on every action fetch. Fixed.
- *   - SC-006  : statically verifiable — see
- *               `action-card.interpreter-safety.contract.test.ts`.
+ * Contracts:
+ *   - specs/006-openapi-action-catalog/contracts/widget-executor-engine.md
+ *   - specs/007-widget-tool-loop/contracts/action-catalog-v2.md
  */
 import type { WidgetConfig } from "./config.js";
 import type { ActionIntent } from "@atw/scripts/dist/lib/types.js";
@@ -38,14 +20,14 @@ import {
   type ActionExecutorsCatalog,
   type ActionExecutorEntry,
 } from "@atw/scripts/dist/lib/action-executors-types.js";
+import { resolveCredential } from "./auth/token-source.js";
 import { actionCapable } from "./state.js";
 
-/**
- * Fixed 15 s deadline per FR-021. Not configurable via WidgetConfig,
- * not configurable via the catalog, not configurable via the host
- * response. Locked in v1.
- */
-export const ACTION_FETCH_TIMEOUT_MS = 15_000;
+/** Feature 007 — 8 s deadline on each shop fetch (spec FR-015). */
+export const ACTION_FETCH_TIMEOUT_MS = 8_000;
+
+/** Feature 007 — BODY_LIMIT on the `tool_result.content` the widget posts back. */
+export const TOOL_RESULT_BODY_LIMIT_BYTES = 4096;
 
 let executorsCatalog: ActionExecutorsCatalog | null = null;
 
@@ -219,13 +201,24 @@ export function buildRequestFromEntry(
 
   // 5. RequestInit assembly.
   const headers: Record<string, string> = { ...entry.headers };
+  if (entry.credentialSource) {
+    const resolved = resolveCredential(entry.credentialSource);
+    if (!resolved) {
+      return {
+        url: "",
+        init: {},
+        validationError: "not authenticated",
+      };
+    }
+    headers[resolved.header] = resolved.value;
+  }
   const init: RequestInit = {
     method,
     headers,
+    // Feature 007: never auto-attach cookies. Credentials flow only
+    // through the explicit `credentialSource` block.
+    credentials: "omit",
   };
-  if (config.authMode === "cookie") {
-    init.credentials = "include";
-  }
   if (bodyPayload !== undefined) {
     init.body = JSON.stringify(bodyPayload);
   }
@@ -304,3 +297,46 @@ export async function handleResponse(
     body: parsed,
   };
 }
+
+/**
+ * Feature 007 — payload shape posted back to `/v1/chat` in the
+ * `tool_result` field. Mirrors the Anthropic `tool_result` block
+ * shape so the backend can forward it verbatim.
+ */
+export interface ToolResultPayload {
+  tool_use_id: string;
+  content: string;
+  is_error: boolean;
+  status: number;
+  truncated: boolean;
+}
+
+/**
+ * Truncate an arbitrary string to the FR-015 body limit. Works in
+ * bytes (UTF-8) rather than characters so the backend's 4 KiB cap is
+ * respected even for non-ASCII payloads.
+ */
+export function truncateToBodyLimit(s: string): {
+  content: string;
+  truncated: boolean;
+} {
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(s);
+  if (bytes.byteLength <= TOOL_RESULT_BODY_LIMIT_BYTES) {
+    return { content: s, truncated: false };
+  }
+  // Binary search on code-unit boundary so we never split a UTF-16
+  // surrogate pair at the cut.
+  let lo = 0;
+  let hi = s.length;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi + 1) / 2);
+    if (encoder.encode(s.slice(0, mid)).byteLength <= TOOL_RESULT_BODY_LIMIT_BYTES) {
+      lo = mid;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return { content: s.slice(0, lo), truncated: true };
+}
+

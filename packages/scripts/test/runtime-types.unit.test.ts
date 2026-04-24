@@ -50,18 +50,20 @@ describe("runtime wire types (T026 / data-model §1)", () => {
     ).toThrow();
   });
 
-  it("ActionIntent requires confirmation_required === true", () => {
+  it("ActionIntent accepts confirmation_required as a boolean (Feature 007)", () => {
+    // Feature 007 collapsed the safe-read / action split — reads emit
+    // intents with `confirmation_required: false`, writes with `true`.
     const base = {
       id: "a1",
       tool: "add_to_cart",
       arguments: {},
       description: "Add 1 item",
-      confirmation_required: true as const,
       http: { method: "POST" as const, path: "/store/carts/c1/line-items" },
     };
-    ActionIntentSchema.parse(base);
+    ActionIntentSchema.parse({ ...base, confirmation_required: true });
+    ActionIntentSchema.parse({ ...base, confirmation_required: false });
     expect(() =>
-      ActionIntentSchema.parse({ ...base, confirmation_required: false as unknown as true }),
+      ActionIntentSchema.parse({ ...base, confirmation_required: "yes" as unknown as boolean }),
     ).toThrow();
   });
 

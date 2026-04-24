@@ -11,17 +11,28 @@ import {
   sessionId,
   pendingAction,
   actionCapable,
+  progressPlaceholder,
   trimHistoryForRequest,
 } from "./state.js";
 import { MessageList, attachCitationsToLastAssistantTurn } from "./message-list.js";
 import { ChatInput } from "./input.js";
 import { postChat } from "./api-client.js";
 import { ActionCard } from "./action-card.js";
+import { driveLoopFromIntent } from "./loop-driver.js";
 import type { WidgetConfig } from "./config.js";
 
 /**
  * The chat panel Preact component. Focus-trap on open; closes on Esc.
- * Contract: specs/003-runtime/contracts/widget-config.md §2, §8.
+ *
+ * Feature 007 drives the tool-use loop from here: when the backend
+ * returns an `action_intent` with `confirmation_required: false`, the
+ * widget auto-executes the shop fetch, shows progress placeholders,
+ * and posts the tool result back. Writes with `confirmation_required:
+ * true` still surface the confirmation card (Feature 006); the card
+ * then re-enters the loop via `continueLoopFromToolResult` so Opus
+ * can compose a grounded conversational wrap-up.
+ *
+ * Contract: specs/007-widget-tool-loop/contracts/chat-endpoint-v2.md.
  */
 export function ChatPanel(props: { config: WidgetConfig }): JSX.Element | null {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -78,31 +89,39 @@ export function ChatPanel(props: { config: WidgetConfig }): JSX.Element | null {
         });
         return;
       }
+      const firstIntent =
+        result.response.action_intent ?? result.response.actions[0] ?? null;
+      if (firstIntent) {
+        if (!actionCapable.value) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            "[atw] backend emitted ActionIntent while widget is in chat-only mode — ignoring",
+            { toolName: firstIntent.tool },
+          );
+          appendTurn({
+            role: "assistant",
+            content: result.response.message || "",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+        await driveLoopFromIntent(
+          firstIntent,
+          result.response.tool_call_budget_remaining ?? 0,
+          result.response.pending_turn_id ?? null,
+          props.config,
+        );
+        return;
+      }
       appendTurn({
         role: "assistant",
         content: result.response.message,
         timestamp: new Date().toISOString(),
       });
       attachCitationsToLastAssistantTurn(result.response.citations);
-      // Surface the first pending action (V1 renders one at a time).
-      // T077 / FR-014: in chat-only mode (no executors catalog loaded,
-      // or an empty one), we refuse to surface an ActionIntent even if
-      // the backend somehow emits one — no catalog = no way to execute.
-      // Normal builds have an empty backend tool list in this mode, so
-      // hitting this branch signals a contract drift worth logging.
-      if (result.response.actions.length > 0) {
-        if (!actionCapable.value) {
-          // eslint-disable-next-line no-console
-          console.warn(
-            "[atw] backend emitted ActionIntent while widget is in chat-only mode — ignoring",
-            { toolName: result.response.actions[0]?.tool },
-          );
-        } else {
-          pendingAction.value = result.response.actions[0];
-        }
-      }
     } finally {
       isSending.value = false;
+      progressPlaceholder.value = null;
     }
   }
 
@@ -126,6 +145,11 @@ export function ChatPanel(props: { config: WidgetConfig }): JSX.Element | null {
         </button>
       </header>
       <MessageList config={props.config} intro={props.config.introLine} />
+      {progressPlaceholder.value ? (
+        <div class="atw-progress" role="status" aria-live="polite">
+          {progressPlaceholder.value}
+        </div>
+      ) : null}
       {pendingAction.value && actionCapable.value ? (
         <ActionCard intent={pendingAction.value} config={props.config} />
       ) : null}

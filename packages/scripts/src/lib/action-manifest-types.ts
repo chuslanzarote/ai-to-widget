@@ -40,6 +40,13 @@ export const ActionManifestEntrySchema = z.object({
       message: "source.path must be a rooted URL path starting with /",
     }),
     operationId: z.string().min(1),
+    /**
+     * Feature 007 — OpenAPI security schemes required by this
+     * operation (e.g. `["bearerAuth"]`). Empty / absent means the
+     * operation is public. Carried through manifest round-trips so
+     * `render-executors.ts` can emit a `credentialSource` block.
+     */
+    security: z.array(z.string()).optional(),
   }),
   parameterSources: z.string().optional(),
 });

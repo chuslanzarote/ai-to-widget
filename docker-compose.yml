@@ -105,8 +105,10 @@ services:
     environment:
       DATABASE_URL: postgres://atw:atw_local@atw_postgres:5432/atw
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      ALLOWED_ORIGINS: http://localhost:8000
-      HOST_API_BASE_URL: http://medusa_backend:9000
+      ALLOWED_ORIGINS: http://localhost:8000,http://localhost:8080
+      # Feature 007 — atw_backend no longer reaches the shop API.
+      # HOST_API_BASE_URL and HOST_API_KEY are removed (Principle I;
+      # see specs/007-widget-tool-loop/contracts/chat-endpoint-v2.md).
       LOG_LEVEL: info
       NODE_ENV: production
     depends_on:

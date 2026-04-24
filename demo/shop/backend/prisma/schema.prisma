@@ -1,0 +1,95 @@
+// ATW Reference Shop — Prisma schema
+// Feature 007 data-model: specs/007-widget-tool-loop/data-model.md
+//
+// Seven tables: User, Product, Cart, CartItem, Order, OrderItem.
+// No variants, no inventory ledger, no payments. Seed-only users.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pg_trgm]
+}
+
+model User {
+  id           String   @id @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  displayName  String   @map("display_name")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  cart         Cart?
+  orders       Order[]
+
+  @@map("users")
+}
+
+model Product {
+  id           String      @id @db.Uuid
+  handle       String      @unique
+  name         String
+  description  String
+  priceCents   Int         @map("price_cents")
+  imageUrl     String      @map("image_url")
+  inStock      Boolean     @default(true) @map("in_stock")
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  cartItems    CartItem[]
+  orderItems   OrderItem[]
+
+  @@index([name])
+  @@index([description])
+  @@map("products")
+}
+
+model Cart {
+  id        String     @id @default(uuid()) @db.Uuid
+  userId    String     @unique @map("user_id") @db.Uuid
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String  @id @default(uuid()) @db.Uuid
+  cartId    String  @map("cart_id") @db.Uuid
+  productId String  @map("product_id") @db.Uuid
+  quantity  Int
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, productId])
+  @@index([cartId])
+  @@map("cart_items")
+}
+
+model Order {
+  id         String      @id @default(uuid()) @db.Uuid
+  userId     String      @map("user_id") @db.Uuid
+  totalCents Int         @map("total_cents")
+  status     String      @default("placed")
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  user       User        @relation(fields: [userId], references: [id])
+  items      OrderItem[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String  @id @default(uuid()) @db.Uuid
+  orderId        String  @map("order_id") @db.Uuid
+  productId      String  @map("product_id") @db.Uuid
+  productName    String  @map("product_name")
+  unitPriceCents Int     @map("unit_price_cents")
+  quantity       Int
+  order          Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product        Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}

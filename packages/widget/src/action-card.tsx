@@ -13,9 +13,9 @@ import type { JSX } from "preact";
 import { useState } from "preact/hooks";
 import type { ActionIntent } from "@atw/scripts/dist/lib/types.js";
 import type { WidgetConfig } from "./config.js";
-import { pendingAction, appendTurn, sessionId } from "./state.js";
-import { executeAction, type ExecuteActionOutcome } from "./api-client-action.js";
-import { postActionFollowUp } from "./api-client.js";
+import { pendingAction, isSending } from "./state.js";
+import { executeIntentForLoop } from "./chat-action-runner.js";
+import { continueLoopFromToolResult } from "./loop-driver.js";
 
 export type CardStatus = "idle" | "executing" | "succeeded" | "failed";
 
@@ -24,6 +24,13 @@ export type CardStatus = "idle" | "executing" | "succeeded" | "failed";
  * specs/003-runtime/contracts/widget-config.md §4 + FR-040.
  * Executes the action only on primary-button click; nothing about this
  * component may bypass the gate.
+ *
+ * Feature 007 (US4): on confirm the card executes the write, then
+ * posts the resulting `tool_result` back to `/v1/chat` via
+ * `continueLoopFromToolResult` so Opus composes a grounded
+ * conversational wrap-up. On cancel, the card posts a synthetic
+ * tool_result with content `"declined by shopper"` so Opus can
+ * acknowledge the cancellation instead of leaving the turn dangling.
  */
 export function ActionCard(props: {
   intent: ActionIntent;
@@ -36,63 +43,39 @@ export function ActionCard(props: {
     if (status !== "idle") return;
     setStatus("executing");
     setError(null);
-    let outcome: ExecuteActionOutcome;
+    isSending.value = true;
     try {
-      outcome = await executeAction(props.intent, props.config);
-    } catch (err) {
-      const message =
-        (err as Error).message || "Something went wrong running that action.";
-      setStatus("failed");
-      setError(message);
-      void postActionFollowUp(
-        props.intent.id,
-        "failed",
-        props.config,
-        sessionId.value,
-        { error: { message } },
-      );
-      return;
-    }
-    if (outcome.ok) {
-      setStatus("succeeded");
-      pendingAction.value = null;
-      appendTurn({
-        role: "assistant",
-        content: outcome.summary ?? "Done.",
-        timestamp: new Date().toISOString(),
-      });
-      void postActionFollowUp(
-        props.intent.id,
-        "succeeded",
-        props.config,
-        sessionId.value,
-        { hostResponseSummary: outcome.summary },
-      );
-    } else {
-      setStatus("failed");
-      setError(outcome.message);
-      if (outcome.status === 401 || outcome.status === 403) {
-        // Anonymous-fallback / US7 surface
-        setError(outcome.message);
+      const exec = await executeIntentForLoop(props.intent, props.config);
+      if (exec.ok) {
+        setStatus("succeeded");
+      } else {
+        setStatus("failed");
+        setError(exec.payload.content);
       }
-      void postActionFollowUp(
-        props.intent.id,
-        "failed",
-        props.config,
-        sessionId.value,
-        { error: { status: outcome.status, message: outcome.message } },
-      );
+      pendingAction.value = null;
+      await continueLoopFromToolResult(exec.payload, props.config);
+    } finally {
+      isSending.value = false;
     }
   }
 
-  function onCancel() {
+  async function onCancel() {
     pendingAction.value = null;
-    void postActionFollowUp(
-      props.intent.id,
-      "cancelled",
-      props.config,
-      sessionId.value,
-    );
+    isSending.value = true;
+    try {
+      await continueLoopFromToolResult(
+        {
+          tool_use_id: props.intent.id,
+          content: "declined by shopper",
+          is_error: false,
+          status: 0,
+          truncated: false,
+        },
+        props.config,
+      );
+    } finally {
+      isSending.value = false;
+    }
   }
 
   const summary = props.intent.summary ?? {};

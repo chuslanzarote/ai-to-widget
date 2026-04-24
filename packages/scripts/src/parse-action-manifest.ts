@@ -434,7 +434,9 @@ function parseSourceLine(
   line: string,
   toolName: string,
 ): ActionManifestEntry["source"] {
-  const m = line.match(/^(GET|POST|PUT|PATCH|DELETE)\s+(\/\S*)\s*$/);
+  const m = line.match(
+    /^(GET|POST|PUT|PATCH|DELETE)\s+(\/\S*?)(?:\s+\(([^)]+)\))?\s*$/,
+  );
   if (!m) {
     throw new ManifestFormatError(
       `tool "${toolName}": Source line must be \`<METHOD> <path>\` — got "${line}"`,
@@ -443,10 +445,17 @@ function parseSourceLine(
   // operationId is derived from OpenAPI cross-reference when available;
   // otherwise we seed it with toolName so the Zod schema still validates.
   // The caller's crossValidateAgainstOpenAPI replaces with the true id.
+  const security = m[3]
+    ? m[3]
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+    : undefined;
   return {
     method: m[1] as ActionManifestEntry["source"]["method"],
     path: m[2],
     operationId: toolName,
+    ...(security && security.length > 0 ? { security } : {}),
   };
 }
 

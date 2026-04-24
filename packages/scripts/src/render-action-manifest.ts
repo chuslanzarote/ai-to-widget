@@ -124,7 +124,11 @@ function renderToolBlock(entry: ActionManifestEntry): string[] {
   lines.push("");
   lines.push(`requires_confirmation: ${entry.requiresConfirmation}`);
   lines.push(`is_action: ${entry.isAction}`);
-  lines.push(`Source: ${entry.source.method} ${entry.source.path}`);
+  const sec = entry.source.security ?? [];
+  const securitySuffix = sec.length > 0 ? ` (${sec.join(", ")})` : "";
+  lines.push(
+    `Source: ${entry.source.method} ${entry.source.path}${securitySuffix}`,
+  );
   if (entry.parameterSources !== undefined) {
     lines.push(`Parameter sources: ${entry.parameterSources}`);
   }

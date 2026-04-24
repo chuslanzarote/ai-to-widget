@@ -1,10 +1,14 @@
 /**
  * Tool descriptors rendered at build time from
- * `.atw/artifacts/action-manifest.md`. Keep the split between safe-read
- * and action tools strict — the runtime uses it to decide whether to
- * execute server-side or to emit an action intent for the widget.
+ * `.atw/artifacts/action-manifest.md`.
  *
- * Source: specs/003-runtime/contracts/chat-endpoint.md §5.
+ * Feature 007 collapses the safe-read / action split: every tool is
+ * executed by the widget over the shop API with the shopper's bearer
+ * token. `is_action` is kept only to decide whether the emitted
+ * `ActionIntent` carries `confirmation_required: true` (writes) or
+ * `false` (reads).
+ *
+ * Source: specs/007-widget-tool-loop/contracts/chat-endpoint-v2.md.
  */
 import type Anthropic from "@anthropic-ai/sdk";
 
@@ -13,7 +17,7 @@ export interface RuntimeToolDescriptor {
   description: string;
   input_schema: Record<string, unknown>;
   http: { method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; path: string };
-  /** When true the backend builds an action-intent instead of executing. */
+  /** True for writes (POST/PUT/PATCH/DELETE) — drives confirmation UI. */
   is_action: boolean;
   /** Human-readable template for the confirmation-card description. */
   description_template?: string;
@@ -26,13 +30,8 @@ export const RUNTIME_TOOLS: RuntimeToolDescriptor[] = {{{toolsJson}}};
 export const RUNTIME_TOOLS: RuntimeToolDescriptor[] = [];
 {{/if}}
 
-export const SAFE_READ_TOOLS: string[] = RUNTIME_TOOLS.filter(
-  (t) => !t.is_action,
-).map((t) => t.name);
-
-export const ACTION_TOOLS: string[] = RUNTIME_TOOLS.filter(
-  (t) => t.is_action,
-).map((t) => t.name);
+/** Every declared tool — Feature 007 executes them all in the widget. */
+export const ACTION_TOOLS: string[] = RUNTIME_TOOLS.map((t) => t.name);
 
 export function toolsForAnthropic(): Anthropic.Messages.Tool[] {
   return RUNTIME_TOOLS.map((t) => ({

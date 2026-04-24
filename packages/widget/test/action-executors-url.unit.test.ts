@@ -263,7 +263,10 @@ describe("buildRequestFromEntry — headers (T051)", () => {
     expect(h["content-type"] ?? h["Content-Type"]).toBe("application/json");
   });
 
-  it("cookie authMode → credentials: 'include' on init", () => {
+  it("Feature 007: credentials is always 'omit' — no cookie auto-attach", () => {
+    // The legacy cookie `credentialMode` is retired; every shop fetch
+    // is bearer-localstorage driven and cross-origin safe. The shopper
+    // cookie never reaches the widget's fetch.
     const r = buildRequestFromEntry(
       ADD_TO_CART_ENTRY,
       intent("add_to_cart", {
@@ -273,7 +276,7 @@ describe("buildRequestFromEntry — headers (T051)", () => {
       }),
       cfg({ authMode: "cookie" }),
     );
-    expect(r.init.credentials).toBe("include");
+    expect(r.init.credentials).toBe("omit");
   });
 
   it("GET catalog entry with no headers → headers object is empty-ish (no credential keys)", () => {

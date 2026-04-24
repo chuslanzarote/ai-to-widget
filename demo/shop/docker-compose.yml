@@ -1,0 +1,56 @@
+name: atw-shop
+
+services:
+  shop_postgres:
+    image: postgres:16.3-alpine
+    environment:
+      POSTGRES_DB: shop
+      POSTGRES_USER: shop
+      POSTGRES_PASSWORD: shop_local
+    ports:
+      - "5434:5432"
+    volumes:
+      - shop_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shop -d shop"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  shop_backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgres://shop:shop_local@shop_postgres:5432/shop
+      JWT_SECRET: dev_shop_jwt_secret_change_me
+      PORT: "3200"
+      NODE_ENV: production
+      LOG_LEVEL: info
+    depends_on:
+      shop_postgres:
+        condition: service_healthy
+    ports:
+      - "3200:3200"
+    healthcheck:
+      test:
+        ["CMD-SHELL", "node -e \"fetch('http://localhost:3200/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
+
+  shop_frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_SHOP_BACKEND_URL: http://localhost:3200
+    depends_on:
+      shop_backend:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+
+volumes:
+  shop_pg_data:

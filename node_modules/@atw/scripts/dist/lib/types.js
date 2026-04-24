@@ -557,10 +557,32 @@ export const SessionContextSchema = z.object({
         .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null(), ActionFollowUpSchema]))
         .optional(),
 });
+/**
+ * Feature 007 — Tool-result payload posted back by the widget after a
+ * client-side fetch. Contract: specs/007-widget-tool-loop/contracts/
+ * chat-endpoint-v2.md §Request shape.
+ *
+ * `content` is an opaque string (the widget truncates the shop response
+ * to BODY_LIMIT=4096 bytes before posting) that the backend forwards
+ * verbatim into the Anthropic `tool_result` block.
+ */
+export const ToolResultPayloadSchema = z.object({
+    tool_use_id: z.string().min(1),
+    content: z.string().max(4096),
+    is_error: z.boolean(),
+    status: z.number().int(),
+    truncated: z.boolean(),
+});
 export const ChatRequestSchema = z.object({
     message: z.string().min(1).max(4000),
     history: z.array(ConversationTurnSchema).max(20),
     context: SessionContextSchema,
+    /** Feature 007 — carried across posts of the same turn. */
+    pending_turn_id: z.string().min(1).nullable().optional(),
+    /** Feature 007 — present on resume posts; skips retrieval/embedding. */
+    tool_result: ToolResultPayloadSchema.optional(),
+    /** Feature 007 — decrements by 1 on each action_intent emitted. */
+    tool_call_budget_remaining: z.number().int().optional(),
 });
 export const CitationSchema = z.object({
     entity_id: z.string().min(1),
@@ -569,22 +591,43 @@ export const CitationSchema = z.object({
     href: z.string().optional(),
     title: z.string().optional(),
 });
+/**
+ * Feature 007 — action intent emitted by the backend on `tool_use`.
+ * The widget resolves it through `action-executors.json`, fetches the
+ * shop, and posts the result back.
+ *
+ * `confirmation_required` is a union now: reads (Feature 007 US2/US3)
+ * run inline with `false`; writes (US4) keep the existing confirmation
+ * card flow with `true`.
+ */
 export const ActionIntentSchema = z.object({
     id: z.string().min(1),
     tool: z.string().min(1),
     arguments: z.record(z.string(), z.unknown()),
     description: z.string().min(1),
-    confirmation_required: z.literal(true),
+    confirmation_required: z.boolean(),
     http: z.object({
-        method: z.enum(["GET", "POST", "PATCH", "DELETE"]),
+        method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]),
         path: z.string().min(1),
     }),
     summary: z.record(z.string(), z.string()).optional(),
 });
+/**
+ * Feature 007 — the two response variants from `POST /v1/chat`:
+ *   - final text (stop_reason !== "tool_use"): {message, citations, pending_turn_id: null}
+ *   - action intent (stop_reason === "tool_use"): {action_intent, pending_turn_id, tool_call_budget_remaining}
+ *
+ * `actions[]` is kept as a pass-through for backward-compat consumers
+ * that still read the old shape; it carries the same single intent when
+ * present so existing v1 unit tests keep passing.
+ */
 export const ChatResponseSchema = z.object({
-    message: z.string().min(1),
+    message: z.string(),
     citations: z.array(CitationSchema),
     actions: z.array(ActionIntentSchema),
+    action_intent: ActionIntentSchema.optional(),
+    pending_turn_id: z.string().min(1).nullable().optional(),
+    tool_call_budget_remaining: z.number().int().optional(),
     suggestions: z.array(z.string()).optional(),
     request_id: z.string().min(1),
 });
