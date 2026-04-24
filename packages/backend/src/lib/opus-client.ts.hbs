@@ -75,9 +75,11 @@ export async function runOpusStep(
     (createParams as { tool_choice?: unknown }).tool_choice = { type: "none" };
   }
 
-  let resp;
+  let resp: Anthropic.Messages.Message;
   try {
-    resp = await input.client.messages.create(createParams);
+    resp = (await input.client.messages.create(
+      createParams,
+    )) as Anthropic.Messages.Message;
   } catch (err) {
     const status = (err as { status?: number })?.status;
     if (

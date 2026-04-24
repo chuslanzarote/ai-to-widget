@@ -10,4 +10,4 @@ coverage
 .idea
 tests
 specs
-demo/atw-aurelia/.atw/state
+demo/atw-shop-host/.atw/state

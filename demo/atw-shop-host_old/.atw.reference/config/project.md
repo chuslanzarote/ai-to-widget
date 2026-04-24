@@ -15,7 +15,7 @@ createdAt: "2026-04-22T00:00:00Z"
 - **Created at**: 2026-04-22T00:00:00Z
 
 This is the pre-built demo project file for the Aurelia Medusa host. It
-ships under `demo/atw-aurelia/.atw/` so a reviewer running `make demo`
+ships under `demo/atw-shop-host/.atw/` so a reviewer running `make demo`
 does not need to run the five Feature 001 commands before the widget
 works. For the filmed setup-flow portion of the demo video, run
 `make fresh` to clear this directory and rebuild from scratch via

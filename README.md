@@ -46,12 +46,31 @@ make demo                     # docker compose up the Aurelia storefront + ATW r
 # open http://localhost:8000, click the launcher, ask a catalog question
 ```
 
+The only required env var is `ANTHROPIC_API_KEY`. As of Feature 007
+(widget-driven tool loop) the backend no longer talks to the host shop
+API, so `HOST_API_BASE_URL` and `HOST_API_KEY` are retired — every
+shop-side call runs in the widget with the shopper's bearer JWT, and
+`atw_backend` never reaches the shop (Principle I).
+
 Full reviewer and fresh-install paths:
 [`specs/003-runtime/quickstart.md`](specs/003-runtime/quickstart.md). The
 runtime layer ships the embedded widget, the `/v1/chat` backend with
 structural Principle-I enforcement (no shopper credentials ever reach
 the backend), and the `/atw.embed` slash command for integrating the
 widget into any host app.
+
+### Run the reference shop (Feature 007)
+
+```bash
+cd demo/shop
+docker compose up -d
+# open http://localhost:8080, log in as alice@example.com / alicepass
+```
+
+`demo/shop` is a self-contained reference ecommerce (Fastify + Prisma +
+Vite/React) that replaces the retired Medusa testbed. End-to-end
+validation steps live in [`TESTING.md`](TESTING.md) and
+[`specs/007-widget-tool-loop/quickstart.md`](specs/007-widget-tool-loop/quickstart.md).
 
 ---
 

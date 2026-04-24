@@ -149,6 +149,15 @@ On every request, in order:
 
 ## 5. Tool-use semantics
 
+> **Superseded by Feature 007.** The safe-read / action split described
+> below is **historical**. As of Feature 007 every shop-API call —
+> including the safe-reads previously executed server-side — runs in
+> the widget with the shopper's bearer JWT, and `atw_backend` never
+> contacts the shop. The current authoritative behavioural reference
+> for the chat route is
+> [`specs/007-widget-tool-loop/contracts/chat-endpoint-v2.md`](../../007-widget-tool-loop/contracts/chat-endpoint-v2.md).
+> The rest of this section remains as the v1 record.
+
 The runtime distinguishes **safe-read** tools and **action** tools by
 a flag in `action-manifest.md` (Feature 001 output). The flag is
 rendered into `tools.ts` at build time and split into two arrays:

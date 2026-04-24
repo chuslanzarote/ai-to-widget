@@ -172,7 +172,7 @@ ai-to-widget/
 │   │   │   └── tsconfig.json
 │   │   ├── docker-compose.yml       # shop_postgres + shop_backend + shop_frontend
 │   │   └── README.md                # quickstart for the testbed alone
-│   └── atw-aurelia/                 # EXISTING — remains; its ATW artefacts
+│   └── atw-shop-host/                 # EXISTING — remains; its ATW artefacts
 │                                    # are regenerated against the new shop
 │                                    # as part of US1–US4 acceptance
 ├── packages/
@@ -204,7 +204,7 @@ ai-to-widget/
 └── demo/medusa/                     # DELETED as part of FR-007
 ```
 
-**Structure Decision**: Extend the existing monorepo in place. The reference ecommerce lives under `demo/shop` as a sibling to `demo/atw-aurelia` and is independently deployable (its own compose file). ATW code lives in `packages/` as before; three packages are touched (`backend`, `widget`, `scripts`). The Medusa testbed under `demo/medusa` is removed wholesale; no coexistence window.
+**Structure Decision**: Extend the existing monorepo in place. The reference ecommerce lives under `demo/shop` as a sibling to `demo/atw-shop-host` and is independently deployable (its own compose file). ATW code lives in `packages/` as before; three packages are touched (`backend`, `widget`, `scripts`). The Medusa testbed under `demo/medusa` is removed wholesale; no coexistence window.
 
 ## Complexity Tracking
 

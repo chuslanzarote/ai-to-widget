@@ -1,44 +1,31 @@
 # Business Brief
 
 ## Business scope
-The client operates an e-commerce business selling coffee. Customers can browse the full product catalog, view each product's detail page, and place orders.
+The business is a coffee ecommerce. Its core product category is coffee, with a specialization in offerings for baristas and gourmet coffee tasters.
 
 ## Customers
-The client serves retail and wholesale customers in the United Kingdom, targeted at professional baristas.
+Customers are baristas and gourmet coffee tasters. No additional detail was supplied about segment, geography, or sophistication.
 
 ## Agent's allowed actions
-- Browse products.
-- Recommend products.
-- Suggest products.
+- List products.
 - Compare products.
-- Add items to the cart.
+- Understand products (answer questions about them).
+- Add products to the cart.
+- Retrieve and explain the user's past orders.
 
 ## Agent's forbidden actions
-- Processing payments.
-- Completing or submitting an order.
-- Offering discounts.
+- Place an order on behalf of the user.
 
 ## Tone
-The agent should read as expert/technical and warm.
+Professional.
 
 ## Primary use cases
-- A barista wants a single-origin espresso roast under £40/kg; the agent surfaces 2–3 matches, compares their acidity and body, and adds the chosen one to the cart.
-- Decaf for a café menu.
-- A blend for milk-based drinks.
-- A gift bundle.
+- A user is trying to find the coffee that best suits them.
+- A user wants to recall or search their older orders.
+- A user wants to add a recommended product to the cart.
 
 ## Business vocabulary
-Terms were supplied without definitions:
-- single-origin
-- blend
-- roast level
-- acidity
-- body
-- SCA score
-- grind size
-- dose
-- kg bag vs. retail bag
-- wholesale tier
+No business vocabulary was supplied in this brief.
 
 ## Anti-patterns
 No anti-patterns were supplied in this brief.

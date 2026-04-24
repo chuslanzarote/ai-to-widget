@@ -1,10 +1,10 @@
 {
-  "build_id": "atw-build-20260423T152735-6b43",
-  "completed_at": "2026-04-23T15:28:26.811Z",
+  "build_id": "atw-build-20260424T084548-ceb7",
+  "completed_at": "2026-04-24T08:46:16.958Z",
   "compliance_scan": {
     "clean": true,
     "matches": [],
-    "ran": false,
+    "ran": true,
     "values_checked": 0
   },
   "concurrency": {
@@ -12,7 +12,7 @@
     "effective_max": 10,
     "reductions": []
   },
-  "duration_seconds": 51.664,
+  "duration_seconds": 28.539,
   "environment": {
     "docker_server_version": "unknown",
     "embedding_model": "Xenova/bge-small-en-v1.5",
@@ -22,13 +22,13 @@
   },
   "failures": [],
   "input_hashes": {
-    "action-manifest.md": "sha256:96b633201e0afbe52da902f8fdaaf6fa5dfa34171ab61d2d8a9b911887ae60ab",
-    "backend_source_tree": "sha256:7b0d24cb7801d24fab55b2ce0d527bb839ee105bfb335f79b13b5727c937241e",
-    "brief.md": "sha256:b2ae1a1494b6408d0919850b22a8e29ac9b5d9217f83632eea55f6ff0c7a911e",
-    "build-plan.md": "sha256:916d072d60caa25f93ed7677d9214277af662bffb2117a2b8c156065ff914953",
-    "project.md": "sha256:caa5c7ba82b1d2b1bba5a836598ba4d5122df16423a42278762ca61856b4de66",
+    "action-manifest.md": "sha256:5cf4a20c021f4bc212b1f597270688711bfb18cdea8b70800497f6da0fd4919b",
+    "backend_source_tree": "sha256:ca792899f7d59613cd26dda4a29da103193a47d8d9380c26a71ca2f00ffd8514",
+    "brief.md": "sha256:cd0ba2e1cd9ca94494a632b80d1f0b099a4c2a8a20cf6dec19af32643ac88899",
+    "build-plan.md": "sha256:0ba2dc927120815225366dfd14bb5659f24e1b499ca7f208e9c3fc4ff528a25e",
+    "project.md": "sha256:9e83cb34c32280228c5547cad04ac9102b49bda2a20255dac7c03473c6cd41f5",
     "prompt_template_version": "enrich-v1",
-    "schema-map.md": "sha256:ba0e503e48232b855c644e695f2f74ff3dc1ccc2c8c6fc3f99e0fa1059cea8d9"
+    "schema-map.md": "sha256:104f1126d5a193dab48af25e9ad332d1868816bb5596783dc29dcb224fa00f40"
   },
   "opus": {
     "calls": 0,
@@ -86,13 +86,13 @@
         "action": "rewritten",
         "bytes": 2563,
         "path": "src/index.ts",
-        "sha256": "55355808fe12cfe7313e8dfe1285c30d6c8c82dad80c48c7de25d7229282d75d"
+        "sha256": "cbee73df0c35251dcee18d1dda11985ed7dea23bb0989cd406b4245cd92bd527"
       },
       {
         "action": "unchanged",
-        "bytes": 2095,
+        "bytes": 2087,
         "path": "src/prompts.ts",
-        "sha256": "dfc8387cbff44c2f2fabb08d756dc1f9505e231913dd4c45cdbcddc96788b9e7"
+        "sha256": "6b85503ce74e1c56089263971e44d5156569e6666fd69f0f391973cb4b9dc350"
       },
       {
         "action": "unchanged",
@@ -102,15 +102,15 @@
       },
       {
         "action": "unchanged",
-        "bytes": 10263,
+        "bytes": 4641,
         "path": "src/tools.ts",
-        "sha256": "d3e9a952e9275f8674c4a0d26414671468308c10f6f28dd3b6e28502759ab43c"
+        "sha256": "7ecb83aebc1b9ac1d6cfe00119b97cf56f366afc5c534734949e17bb498cf3c2"
       },
       {
         "action": "unchanged",
-        "bytes": 2784,
+        "bytes": 3016,
         "path": "src/lib/action-intent.ts",
-        "sha256": "1f04618da9bba9b555d6624885cc7d54b721c4954908578afcca90daa465b517"
+        "sha256": "512778db8fecd31102cb852fe7175dca7ee6e5b8775711d6d7f30ec2e778d0da"
       },
       {
         "action": "unchanged",
@@ -131,10 +131,10 @@
         "sha256": "8a84151392e97bd9df30d6cd76ee4e612a2fd7a15e7831a7ef687aedc1c135f4"
       },
       {
-        "action": "unchanged",
-        "bytes": 1987,
+        "action": "rewritten",
+        "bytes": 2008,
         "path": "src/lib/errors.ts",
-        "sha256": "d41b8117aaf11697c207ef47bc3fa07defdd4db0e306554ab74d7f8c861a37d0"
+        "sha256": "f9fde89e7a575d36b5fbde356120796e8bbb6317b8b1ff162823d492cec138c9"
       },
       {
         "action": "unchanged",
@@ -143,10 +143,10 @@
         "sha256": "e6a5334c228ec5d4214578c2263076b0cfa38240102daa00fc5577cb9d4168c8"
       },
       {
-        "action": "unchanged",
-        "bytes": 7177,
+        "action": "rewritten",
+        "bytes": 4671,
         "path": "src/lib/opus-client.ts",
-        "sha256": "eba7afa1e37fedb459b8a2bf5437d8a8c4b16cefcf4a69579c9f4b2d21934201"
+        "sha256": "244a307df8985c916e4dde431c6aa1a2d346f304e4eb8ecb854db5b3a8f6c39f"
       },
       {
         "action": "unchanged",
@@ -173,16 +173,10 @@
         "sha256": "77bbaee5db1fd58cbfcef6c3bb6e408ba250a59d6d00ab9078ddc042ceca1855"
       },
       {
-        "action": "rewritten",
-        "bytes": 1897,
-        "path": "src/lib/tool-execution.ts",
-        "sha256": "c8b6b4905523aaaa4a9f5dd5e98c9fd3a802177dee98291a4393c1214296bcce"
-      },
-      {
         "action": "unchanged",
-        "bytes": 5079,
+        "bytes": 7570,
         "path": "src/routes/chat.ts",
-        "sha256": "6876125d87ab9862624baedec37362d225bf3f5b6a56c6a8fa55b937ba84ec11"
+        "sha256": "9757ab98ed93769f81f20fba99773c9eafb07dd01f2deb8cfba7110dad74b926"
       },
       {
         "action": "unchanged",
@@ -191,16 +185,16 @@
         "sha256": "01abc7545ba7a6d293c77d08fd5bfaf1f99892c8326111bc6d764e655a78656d"
       },
       {
-        "action": "unchanged",
-        "bytes": 1120,
+        "action": "rewritten",
+        "bytes": 1221,
         "path": "backend/src/_shared/error-codes.ts",
-        "sha256": "f852c93d6c8ab5e93a2a5ff27a1a146ba4344c1d2e1c4746dfd8f780fe6c3acf"
+        "sha256": "7fbde650fef07c75bd260d26fe116d6370306520afb0266ac5b95128577dbe81"
       },
       {
         "action": "unchanged",
-        "bytes": 2617,
+        "bytes": 2446,
         "path": "backend/src/_shared/runtime-config.ts",
-        "sha256": "8707a1066eac33088de991ecba7857c1a8e531b6b560dc7604120c61921a18a9"
+        "sha256": "c7d08a7bf46da7a0913615ebd15b818c8adec5ecd303a84d0c5439220c576076"
       },
       {
         "action": "unchanged",
@@ -221,45 +215,52 @@
         "sha256": "d450219010d3b3d5e2030e2d43bf75e9a58c69ef81e2805df55f4e39bd9cd55e"
       },
       {
-        "action": "rewritten",
-        "bytes": 23609,
+        "action": "unchanged",
+        "bytes": 25646,
         "path": "backend/src/_shared/types.ts",
-        "sha256": "4fbf787df73c8b8211bae6a42cb44fc94b2117dc7fa878c7b668b6ce793f9482"
+        "sha256": "0624d0dd1bf9bfcb6d3db63fb5ba5f4172313c351dc1fa1fa25b2935682126ab"
       }
     ],
     "backend_image": {
-      "image_id": "sha256:872cc4c7c183fcd75453f0dec1609ec2fca501b695019cc25681ddc789397d90",
+      "image_id": "sha256:a8f0b05f436768e608c087472a97bf58ae12901d372b78b9dc14990edfb1c229",
       "ref": "atw_backend:latest",
-      "size_bytes": 439661820
+      "size_bytes": 439653714
     },
     "widget_bundle": {
       "css": {
         "bytes": 5048,
         "gzip_bytes": 1374,
-        "path": "C:\\Desarrollo\\Personal\\ai-to-widget\\demo\\atw-aurelia\\dist\\widget.css",
+        "path": "C:\\Desarrollo\\Personal\\ai-to-widget\\demo\\atw-shop-host\\dist\\widget.css",
         "sha256": "fc2b9cfa03478e6e954edf4a085a2c747b143fb745e960275d1d14048346936d"
       },
       "js": {
-        "bytes": 186112,
-        "gzip_bytes": 57149,
-        "path": "C:\\Desarrollo\\Personal\\ai-to-widget\\demo\\atw-aurelia\\dist\\widget.js",
-        "sha256": "d38e33d394ec8dd97c7c377af4fadd00fccbaa205d736c808984fb4bcbe83e2f"
+        "bytes": 187670,
+        "gzip_bytes": 57672,
+        "path": "C:\\Desarrollo\\Personal\\ai-to-widget\\demo\\atw-shop-host\\dist\\widget.js",
+        "sha256": "3a0ceddcfd999962e9bdf0240cb765a6914127ef6c8b4665981a876e5184a755"
       },
       "source": {
         "package_version": "0.1.0",
-        "tree_hash": "sha256:218b8d20401a3b3de14be2bf7c75c577cfc772da5cc7fd52154acc2eef07b3e8"
+        "tree_hash": "sha256:99e68ad3be8f85929e9b4426905dd4cf2a4b591033bf050e0b0225c46bdbd1ea"
       }
     }
   },
-  "result": "nothing-to-do",
+  "pipeline_failures": [
+    {
+      "code": "COMPOSE_ACTIVATE_FAILED",
+      "message": "compose file at C:\\Desarrollo\\Personal\\ai-to-widget\\demo\\atw-shop-host\\docker-compose.yml has no atw:begin/atw:end block",
+      "step": "compose"
+    }
+  ],
+  "result": "success",
   "schema_version": "1",
-  "started_at": "2026-04-23T15:27:35.147Z",
+  "started_at": "2026-04-24T08:45:48.419Z",
   "steps": {
     "bundle": {
       "action": "created"
     },
     "compose": {
-      "action": "unchanged"
+      "action": "skipped"
     },
     "image": {
       "action": "created"
@@ -268,69 +269,37 @@
       "action": "rewritten",
       "action_executors": {
         "action": "unchanged",
-        "bytes": 11972,
+        "bytes": 4196,
         "path": ".atw/artifacts/action-executors.json",
-        "sha256": "06e8e018dd3ba61c02a400f9c8dbb8190fdd04a812f1dd621936367f933aa5af",
+        "sha256": "5f5f98ed265fb434903d9d0220579c4c44580dba6f4bc148e33806ef8bd11043",
         "warnings": [
-          "cross-origin action \"add_line_item\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"delete_line_item\": host http://localhost:9000 !== widget http://localhost:8000",
           "cross-origin action \"get_cart\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"remove_discount_from_cart\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"update_line_item\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"get_collection\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"get_collections\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"add_my_address\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"delete_my_address\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"get_me\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"list_my_addresses\": host http://localhost:9000 !== widget http://localhost:8000",
+          "cross-origin action \"add_cart_item\": host http://localhost:9000 !== widget http://localhost:8000",
+          "cross-origin action \"update_cart_item\": host http://localhost:9000 !== widget http://localhost:8000",
+          "cross-origin action \"remove_cart_item\": host http://localhost:9000 !== widget http://localhost:8000",
+          "cross-origin action \"get_my_profile\": host http://localhost:9000 !== widget http://localhost:8000",
           "cross-origin action \"list_my_orders\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"update_my_address\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"get_order\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"get_product_tags\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"get_product_types\": host http://localhost:9000 !== widget http://localhost:8000",
           "cross-origin action \"get_product\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"get_products\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"get_product_by_handle\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"get_region\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"get_regions\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"create_review\": host http://localhost:9000 !== widget http://localhost:8000",
-          "cross-origin action \"get_shipping_options_for_cart\": host http://localhost:9000 !== widget http://localhost:8000",
-          "large catalog (23 actions): consider curating action-manifest.md"
+          "cross-origin action \"list_products\": host http://localhost:9000 !== widget http://localhost:8000"
         ]
       },
-      "files_changed": 3
+      "files_changed": 4
     }
   },
   "totals": {
     "enriched": 0,
     "failed": 0,
-    "skipped_unchanged": 0,
-    "total_entities": 0
+    "skipped_unchanged": 20,
+    "total_entities": 20
   },
   "warnings": [
-    "cross-origin action \"add_line_item\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"delete_line_item\": host http://localhost:9000 !== widget http://localhost:8000",
     "cross-origin action \"get_cart\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"remove_discount_from_cart\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"update_line_item\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"get_collection\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"get_collections\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"add_my_address\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"delete_my_address\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"get_me\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"list_my_addresses\": host http://localhost:9000 !== widget http://localhost:8000",
+    "cross-origin action \"add_cart_item\": host http://localhost:9000 !== widget http://localhost:8000",
+    "cross-origin action \"update_cart_item\": host http://localhost:9000 !== widget http://localhost:8000",
+    "cross-origin action \"remove_cart_item\": host http://localhost:9000 !== widget http://localhost:8000",
+    "cross-origin action \"get_my_profile\": host http://localhost:9000 !== widget http://localhost:8000",
     "cross-origin action \"list_my_orders\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"update_my_address\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"get_order\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"get_product_tags\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"get_product_types\": host http://localhost:9000 !== widget http://localhost:8000",
     "cross-origin action \"get_product\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"get_products\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"get_product_by_handle\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"get_region\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"get_regions\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"create_review\": host http://localhost:9000 !== widget http://localhost:8000",
-    "cross-origin action \"get_shipping_options_for_cart\": host http://localhost:9000 !== widget http://localhost:8000",
-    "large catalog (23 actions): consider curating action-manifest.md"
+    "cross-origin action \"list_products\": host http://localhost:9000 !== widget http://localhost:8000"
   ]
 }

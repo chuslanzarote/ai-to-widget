@@ -1,4 +1,4 @@
-# demo/atw-aurelia
+# demo/atw-shop-host
 
 Pre-generated artefacts so `make demo` can reach a working widget in
 under 3 minutes without the reviewer running Features 001 or 002.
@@ -39,18 +39,18 @@ node demo/medusa/seed/generate-products.mjs > demo/medusa/seed/products.json
 # 2) Bring only the Medusa services up so seeding can run:
 make fresh
 
-# 3) From this `demo/atw-aurelia/` directory, run the five setup-flow
+# 3) From this `demo/atw-shop-host/` directory, run the five setup-flow
 #    commands in Claude Code — or skip them (they are already committed
 #    under .atw/).
 
 # 4) Run the build pipeline:
-cd demo/atw-aurelia && claude
+cd demo/atw-shop-host && claude
 > /atw.build    # ~15 min, ~$14 in Opus calls
 
 # 5) Export atw_documents:
 pg_dump --no-owner --no-privileges \
   --data-only --table=atw_documents --table=atw_migrations \
-  -U atw -h 127.0.0.1 -p 5433 atw > demo/atw-aurelia/atw.sql
+  -U atw -h 127.0.0.1 -p 5433 atw > demo/atw-shop-host/atw.sql
 
 # 6) Commit atw.sql. Review the diff: changes should be additive
 #    unless the seed catalog rotated.

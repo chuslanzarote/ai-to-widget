@@ -12,7 +12,7 @@ export class ValidationError extends Error {
   readonly code: RuntimeErrorCode;
   readonly status: number;
   readonly userMessage: string;
-  constructor(userMessage: string, code: "validation_failed" | "message_too_long" = "validation_failed") {
+  constructor(userMessage: string, code: "validation_failed" | "message_too_long" | "tool_not_allowed" = "validation_failed") {
     super(userMessage);
     this.code = code;
     this.status = 400;

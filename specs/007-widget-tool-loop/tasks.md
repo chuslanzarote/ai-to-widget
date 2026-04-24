@@ -21,7 +21,7 @@ description: "Task list for Feature 007 — Widget-driven tool loop over a self-
 
 - New shop testbed: `demo/shop/backend/`, `demo/shop/frontend/`, `demo/shop/`.
 - ATW package changes: `packages/backend/`, `packages/scripts/`, `packages/widget/`.
-- Rendered demo artefacts under: `demo/atw-aurelia/.atw/`.
+- Rendered demo artefacts under: `demo/atw-shop-host/.atw/`.
 - Retired: `demo/medusa/` (deleted wholesale — FR-007).
 
 ---
@@ -109,8 +109,8 @@ description: "Task list for Feature 007 — Widget-driven tool loop over a self-
 
 ### Contract tests for User Story 2
 
-- [ ] T037 [P] [US2] Contract test in `packages/backend/test/chat-endpoint-v2.contract.test.ts`: POST `/v1/chat` with a body carrying a `tool_result` block and `pending_turn_id`. Stub the retrieval module; assert zero calls to it. Stub the Anthropic SDK to return a `stop_reason === "end_turn"` response; assert the route returns `{text, citations}` without re-running retrieval. (Covers [contracts/chat-endpoint-v2.md](./contracts/chat-endpoint-v2.md) test #1.)
-- [ ] T038 [P] [US2] Contract test in `packages/backend/test/chat-endpoint-v2.contract.test.ts` (same file, separate `it`): POST with `tool_call_budget_remaining: 0` while Anthropic returns `stop_reason === "tool_use"`; assert the route forces composition (`tool_choice: {type: "none"}`) and returns a final text response rather than emitting another `action_intent`. (Test #2.)
+- [X] T037 [P] [US2] Contract test in `packages/backend/test/chat-endpoint-v2.contract.test.ts`: POST `/v1/chat` with a body carrying a `tool_result` block and `pending_turn_id`. Stub the retrieval module; assert zero calls to it. Stub the Anthropic SDK to return a `stop_reason === "end_turn"` response; assert the route returns `{text, citations}` without re-running retrieval. (Covers [contracts/chat-endpoint-v2.md](./contracts/chat-endpoint-v2.md) test #1.)
+- [X] T038 [P] [US2] Contract test in `packages/backend/test/chat-endpoint-v2.contract.test.ts` (same file, separate `it`): POST with `tool_call_budget_remaining: 0` while Anthropic returns `stop_reason === "tool_use"`; assert the route forces composition (`tool_choice: {type: "none"}`) and returns a final text response rather than emitting another `action_intent`. (Test #2.)
 - [X] T039 [P] [US2] Contract test in `packages/scripts/test/manifest-builder.credential-source.contract.test.ts`: run `manifest-builder` against a fixture OpenAPI declaring `bearerAuth` on `GET /orders`; assert the emitted action-catalog entry has `credentialSource: {type: "bearer-localstorage", key: "shop_auth_token", header: "Authorization", scheme: "Bearer"}`. Assert an unauthenticated operation (e.g. `GET /products`) has NO `credentialSource` block. (Covers [contracts/action-catalog-v2.md](./contracts/action-catalog-v2.md) test #1.)
 - [X] T040 [P] [US2] Contract test in `packages/scripts/test/manifest-builder.reproducibility.contract.test.ts`: run the builder twice against the same fixture; assert byte-identical `action-executors.json` (FR-022, test #2 in contracts/action-catalog-v2.md).
 
@@ -136,9 +136,9 @@ description: "Task list for Feature 007 — Widget-driven tool loop over a self-
 
 ### Regenerate demo artefacts for User Story 2
 
-- [ ] T055 [US2] Inside `demo/atw-aurelia`, run `/atw.setup` pointing at `http://localhost:<shop-port>/openapi.json`; accept the classification proposals. Commit the updated `.atw/` markdown artefacts (schema-map, action-manifest, build-plan).
-- [ ] T056 [US2] Run `/atw.build` inside `demo/atw-aurelia`; commit the regenerated `action-executors.json`, `backend/`, `widget/` artefacts. Confirm `action-executors.json` contains `credentialSource` blocks on every authenticated tool.
-- [ ] T057 [US2] Update `docker-compose.yml` at repo root: remove `HOST_API_BASE_URL` and `HOST_API_KEY` from `atw_backend` environment; add a depends_on-free networking path so `atw_backend` and `demo/shop/shop_backend` share the same compose network only if needed for the health endpoint (NOT for shop-API calls — Principle I).
+- [ ] T055 [US2] Inside `demo/atw-shop-host`, run `/atw.setup` pointing at `http://localhost:<shop-port>/openapi.json`; accept the classification proposals. Commit the updated `.atw/` markdown artefacts (schema-map, action-manifest, build-plan).
+- [ ] T056 [US2] Run `/atw.build` inside `demo/atw-shop-host`; commit the regenerated `action-executors.json`, `backend/`, `widget/` artefacts. Confirm `action-executors.json` contains `credentialSource` blocks on every authenticated tool.
+- [X] T057 [US2] Update `docker-compose.yml` at repo root: remove `HOST_API_BASE_URL` and `HOST_API_KEY` from `atw_backend` environment; add a depends_on-free networking path so `atw_backend` and `demo/shop/shop_backend` share the same compose network only if needed for the health endpoint (NOT for shop-API calls — Principle I).
 - [ ] T058 [US2] Run the full US2 manual scenario end-to-end: log in on `demo/shop`, ask "what were my last three orders?" in the widget, confirm the two Spanish placeholders appear and the final answer references real order IDs/dates/totals. Record the trace in a comment on this task.
 
 **Checkpoint — US2 acceptance**: "show me my last three orders" produces a grounded answer with the Spanish progress placeholders. `atw_backend` logs show zero outbound shop calls during the turn.
@@ -153,7 +153,7 @@ description: "Task list for Feature 007 — Widget-driven tool loop over a self-
 
 **Independent Test**: Unauthenticated shopper (or simply: no active session) asks "what's the price of the Midnight Roast?", sees progress placeholders, gets an answer matching the shop's live response.
 
-- [ ] T059 [US3] In `packages/widget/src/chat/action-runner.ts` (already touched in T049/T050), verify the `credentialSource`-absent branch: a tool with no `credentialSource` runs without `Authorization` header. Add/confirm unit test coverage in the existing widget test suite.
+- [X] T059 [US3] In `packages/widget/src/chat/action-runner.ts` (already touched in T049/T050), verify the `credentialSource`-absent branch: a tool with no `credentialSource` runs without `Authorization` header. Add/confirm unit test coverage in the existing widget test suite.
 - [ ] T060 [US3] Run US3 manual scenario: log out of `demo/shop`, ask the widget "what's the price of Midnight Roast 1 kg whole bean?". Confirm progress placeholders appear, fetch runs without auth header, answer matches the storefront price. Record the trace on this task.
 - [ ] T061 [US3] Run US3 AC2 (not-found) manually: ask about a nonexistent product ("what's the price of the Mars Blend?"). Confirm the assistant states the product was not found rather than fabricating details (Principle V).
 
@@ -190,7 +190,7 @@ description: "Task list for Feature 007 — Widget-driven tool loop over a self-
 - [X] T067 [US5] Implement `packages/scripts/test/sovereignty.contract.test.ts` per [contracts/sovereignty-probe.md](./contracts/sovereignty-probe.md): scan the rendered backend output, parse every `.ts` with the TypeScript compiler API, visit every `CallExpression` whose callee resolves to `fetch`, classify the URL per the allowlist rules (string literal → allowlisted prefix; template literal → static head; identifier → follow to definition; anything else → fail closed), and fail the test if any call-site falls outside the allowlist.
 - [X] T068 [P] [US5] Wire the sovereignty probe into the CI command surface (whatever `packages/scripts` uses as its test entrypoint — `npm test` in that package). Confirm it runs in under 60 s (SC-008).
 - [ ] T069 [P] [US5] Search repo-wide for lingering references to `HOST_API_BASE_URL`, `HOST_API_KEY`, or the string `executeSafeRead` in source (not in archived specs): `grep -r "HOST_API_BASE_URL\|HOST_API_KEY\|executeSafeRead" packages/ demo/ docker-compose.yml`. Every hit that is not a historical comment in `specs/003-runtime/` is a defect. Fix each by removing or migrating.
-- [ ] T070 [US5] Update the root `README.md` (or the project's primary quickstart document) to reflect that ATW runs without `HOST_API_*` env vars. If the README does not yet exist, defer to the quickstart in [quickstart.md](./quickstart.md) and leave a TODO.
+- [X] T070 [US5] Update the root `README.md` (or the project's primary quickstart document) to reflect that ATW runs without `HOST_API_*` env vars. If the README does not yet exist, defer to the quickstart in [quickstart.md](./quickstart.md) and leave a TODO.
 - [ ] T071 [US5] Run US5 acceptance manually per quickstart.md Step 6: confirm `atw_backend` log contains zero shop-API outbound calls during a full demo session; confirm `docker-compose.yml` contains no `HOST_API_*`; confirm the sovereignty probe is green.
 
 **Checkpoint — US5 acceptance**: sovereignty is mechanically enforced. A regression fails in CI with a clear pointer.
@@ -219,14 +219,14 @@ description: "Task list for Feature 007 — Widget-driven tool loop over a self-
 
 **Purpose**: Cleanup, the Medusa retirement, and a final reproducibility pass.
 
-- [ ] T077 Delete `demo/medusa/` wholesale (all tracked files, including `storefront/`, `admin/`, `backend/`, seed dumps, compose files, and any `.atw/` artefacts pinned to the Medusa OpenAPI). Leave no residue (FR-007).
-- [ ] T078 Remove any `medusa_*` service definitions, `medusa_*` named volumes, and `medusa_*` networks from the repo-root `docker-compose.yml`. Confirm `docker compose config` validates cleanly.
-- [ ] T079 [P] Delete the Medusa-specific action-executors snapshot in `demo/medusa/storefront/public/action-executors.json` (gone via T077) and the duplicate under `demo/atw-aurelia/.atw/artifacts/action-executors.json` IF it still references Medusa operationIds; allow T056 to have already replaced it with the shop-based version.
-- [ ] T080 [P] Update `specs/003-runtime/contracts/chat-endpoint.md` with a §5 addendum pointing at [contracts/chat-endpoint-v2.md](./contracts/chat-endpoint-v2.md) as the current authoritative contract (the v1 version remains as historical record; the addendum makes the supersession explicit).
-- [ ] T081 [P] Update the `.atw/` build-plan template (wherever `/atw.build` records its outputs) to reflect that `lib/tool-execution.ts` is no longer rendered. Confirm re-running `/atw.build` does not try to render it.
-- [ ] T082 Run `/atw.setup` + `/atw.build` inside `demo/atw-aurelia` a second time after all other tasks are complete. Confirm every step reports "unchanged" and `git status` is clean (SC-009 reproducibility invariant).
+- [X] T077 Delete `demo/medusa/` wholesale (all tracked files, including `storefront/`, `admin/`, `backend/`, seed dumps, compose files, and any `.atw/` artefacts pinned to the Medusa OpenAPI). Leave no residue (FR-007).
+- [X] T078 Remove any `medusa_*` service definitions, `medusa_*` named volumes, and `medusa_*` networks from the repo-root `docker-compose.yml`. Confirm `docker compose config` validates cleanly.
+- [X] T079 [P] Delete the Medusa-specific action-executors snapshot in `demo/medusa/storefront/public/action-executors.json` (gone via T077) and the duplicate under `demo/atw-shop-host/.atw/artifacts/action-executors.json` IF it still references Medusa operationIds; allow T056 to have already replaced it with the shop-based version.
+- [X] T080 [P] Update `specs/003-runtime/contracts/chat-endpoint.md` with a §5 addendum pointing at [contracts/chat-endpoint-v2.md](./contracts/chat-endpoint-v2.md) as the current authoritative contract (the v1 version remains as historical record; the addendum makes the supersession explicit).
+- [X] T081 [P] Update the `.atw/` build-plan template (wherever `/atw.build` records its outputs) to reflect that `lib/tool-execution.ts` is no longer rendered. Confirm re-running `/atw.build` does not try to render it.
+- [ ] T082 Run `/atw.setup` + `/atw.build` inside `demo/atw-shop-host` a second time after all other tasks are complete. Confirm every step reports "unchanged" and `git status` is clean (SC-009 reproducibility invariant).
 - [ ] T083 Run the quickstart.md end-to-end in under 10 minutes from a clean clone on at least one platform (macOS, Linux, or WSL2). Record the elapsed time and any deviations on this task (SC-001).
-- [ ] T084 Final documentation sweep: verify `CLAUDE.md` points at the 007 plan (already done during plan phase), `demo/shop/README.md` has seeded credentials, and the root `README.md` (if present) does not reference Medusa.
+- [X] T084 Final documentation sweep: verify `CLAUDE.md` points at the 007 plan (already done during plan phase), `demo/shop/README.md` has seeded credentials, and the root `README.md` (if present) does not reference Medusa.
 
 ---
 

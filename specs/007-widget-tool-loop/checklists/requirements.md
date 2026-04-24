@@ -57,7 +57,7 @@ Judgement calls recorded for auditors:
 ## Changes from v1 → v2
 
 - **Added US1** — the reference ecommerce testbed is now an explicit user story with acceptance criteria, rather than an implicit dependency.
-- **Reframed US2–US4** — now target `demo/shop` instead of `demo/atw-aurelia`; account-scoped reads use the shopper's bearer token rather than a session cookie.
+- **Reframed US2–US4** — now target `demo/shop` instead of `demo/atw-shop-host`; account-scoped reads use the shopper's bearer token rather than a session cookie.
 - **Merged prior US4+US5** (credential removal + auditor verification) into a single US5. They had the same rationale; splitting them doubled the spec surface without adding clarity.
 - **Added FRs 001–007** covering the reference ecommerce (compose-up, OpenAPI publication, capability set, SPA screens, seed, bearer-token storage contract, Medusa retirement).
 - **Added FR-013** (storefront cart-indicator sync after widget action) — this is new behaviour the Medusa testbed did not exercise.

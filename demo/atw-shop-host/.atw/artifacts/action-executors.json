@@ -1,0 +1,179 @@
+{
+  "actions": [
+    {
+      "headers": {
+        "content-type": "application/json"
+      },
+      "method": "POST",
+      "pathTemplate": "/cart/items",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200,
+          201
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Add a product to the cart (merge-by-product)."
+      },
+      "substitution": {
+        "body": {
+          "product_id": "arguments.product_id",
+          "quantity": "arguments.quantity"
+        },
+        "path": {},
+        "query": {}
+      },
+      "tool": "add_cart_item"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/cart",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Get the shopper's active cart (lazy-created)."
+      },
+      "substitution": {
+        "body": {},
+        "path": {},
+        "query": {}
+      },
+      "tool": "get_cart"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/customers/me",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Return the authenticated shopper's profile."
+      },
+      "substitution": {
+        "body": {},
+        "path": {},
+        "query": {}
+      },
+      "tool": "get_my_profile"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/products/{id}",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Get one product by its UUID."
+      },
+      "substitution": {
+        "body": {},
+        "path": {
+          "id": "arguments.id"
+        },
+        "query": {}
+      },
+      "tool": "get_product"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/orders",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "List the shopper's past orders, newest first."
+      },
+      "substitution": {
+        "body": {},
+        "path": {},
+        "query": {}
+      },
+      "tool": "list_my_orders"
+    },
+    {
+      "headers": {},
+      "method": "GET",
+      "pathTemplate": "/products",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "List all products, optionally filtered by q substring."
+      },
+      "substitution": {
+        "body": {},
+        "path": {},
+        "query": {
+          "q": "arguments.q"
+        }
+      },
+      "tool": "list_products"
+    },
+    {
+      "headers": {
+        "content-type": "application/json"
+      },
+      "method": "DELETE",
+      "pathTemplate": "/cart/items/{id}",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200,
+          204
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Remove a line item from the cart."
+      },
+      "substitution": {
+        "body": {},
+        "path": {
+          "id": "arguments.id"
+        },
+        "query": {}
+      },
+      "tool": "remove_cart_item"
+    },
+    {
+      "headers": {
+        "content-type": "application/json"
+      },
+      "method": "PATCH",
+      "pathTemplate": "/cart/items/{id}",
+      "responseHandling": {
+        "errorMessageField": "message",
+        "successStatuses": [
+          200
+        ],
+        "summaryFields": [],
+        "summaryTemplate": "Set the quantity of a cart line item. Quantity 0 removes the line."
+      },
+      "substitution": {
+        "body": {
+          "quantity": "arguments.quantity"
+        },
+        "path": {
+          "id": "arguments.id"
+        },
+        "query": {}
+      },
+      "tool": "update_cart_item"
+    }
+  ],
+  "credentialMode": "bearer-localstorage",
+  "version": 1
+}

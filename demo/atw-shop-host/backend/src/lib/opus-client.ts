@@ -3,239 +3,155 @@ import Debug from "debug";
 import type { ActionIntent, SessionContext } from "../_shared/types.js";
 import { ModelUnavailableError } from "./errors.js";
 import { buildActionIntent } from "./action-intent.js";
-import {
-  executeSafeRead,
-  type SafeReadResult,
-} from "./tool-execution.js";
-import {
-  ACTION_TOOLS,
-  SAFE_READ_TOOLS,
-  findTool,
-  toolsForAnthropic,
-} from "../tools.js";
+import { findTool, toolsForAnthropic } from "../tools.js";
 
 const debug = Debug("atw:opus");
 
 /**
- * Single-turn + tool-use loop. Source:
- * specs/003-runtime/contracts/chat-endpoint.md §4 step 9 and §5.
+ * Feature 007 — single-step Opus invocation.
+ *
+ * The server-side tool-use loop is gone. Every `tool_use` emitted by
+ * Opus turns into an `ActionIntent` the backend returns to the widget,
+ * which executes the fetch and re-posts the result. One call to
+ * `messages.create()` per `runOpusStep()` invocation — the loop is now
+ * driven by successive HTTP posts from the widget.
+ *
+ * Contract: specs/007-widget-tool-loop/contracts/chat-endpoint-v2.md.
  */
 
-export interface AnyTurn {
-  role: "user" | "assistant";
-  content: string;
-  timestamp: string;
-}
+export type AnthropicMessages = Parameters<
+  Anthropic["messages"]["create"]
+>[0]["messages"];
 
-export interface OpusTurnInput {
-  system: string;
-  history: AnyTurn[];
-  userMessage: string;
-  retrievalContext: string;
-  model: string;
+export interface RunOpusStepInput {
   client: Anthropic;
-  maxTokens?: number;
-  maxToolCalls: number;
+  model: string;
+  system: string;
+  messages: AnthropicMessages;
   sessionContext: SessionContext;
-  hostApiBaseUrl: string | null;
-  hostApiKey: string | null;
+  maxTokens?: number;
+  /**
+   * When true, the backend forces composition (budget exhausted path):
+   * Opus is called with `tool_choice: {type: "none"}` so it cannot emit
+   * another `tool_use` block. Contract: chat-endpoint-v2.md §Budget
+   * enforcement.
+   */
+  forceComposition?: boolean;
 }
 
-export interface OpusTurnResult {
-  text: string;
-  usage: { input_tokens: number; output_tokens: number };
-  actions: ActionIntent[];
-}
+export type OpusStepResult =
+  | {
+      kind: "text";
+      text: string;
+      usage: { input_tokens: number; output_tokens: number };
+    }
+  | {
+      kind: "action_intent";
+      intent: ActionIntent;
+      usage: { input_tokens: number; output_tokens: number };
+    };
 
-type AnthropicMessages = Parameters<Anthropic["messages"]["create"]>[0]["messages"];
-
-export async function runTurn(input: OpusTurnInput): Promise<OpusTurnResult> {
-  const messages: AnthropicMessages = [
-    ...input.history.map((t) => ({ role: t.role, content: t.content })),
-    {
-      role: "user",
-      content:
-        input.userMessage +
-        "\n\n[Retrieval context — use only facts from this block; reply that the catalog does not cover the topic if nothing relevant is here.]\n" +
-        input.retrievalContext,
-    },
-  ];
-
-  let inputTokens = 0;
-  let outputTokens = 0;
-  let toolCalls = 0;
-  const actions: ActionIntent[] = [];
+export async function runOpusStep(
+  input: RunOpusStepInput,
+): Promise<OpusStepResult> {
   const tools = toolsForAnthropic();
+  debug(
+    "opus step: model=%s messages=%d tools=%d force_composition=%s",
+    input.model,
+    input.messages.length,
+    tools.length,
+    String(input.forceComposition ?? false),
+  );
 
-  while (true) {
-    debug(
-      "opus call: model=%s tool_calls_so_far=%d/%d messages=%d",
-      input.model,
-      toolCalls,
-      input.maxToolCalls,
-      messages.length,
-    );
-    let resp;
-    try {
-      resp = await input.client.messages.create({
-        model: input.model,
-        max_tokens: input.maxTokens ?? 1024,
-        system: input.system,
-        messages,
-        tools: tools.length > 0 ? tools : undefined,
-      });
-    } catch (err) {
-      const status = (err as { status?: number })?.status;
-      if (
-        status === 401 ||
-        status === 403 ||
-        (typeof status === "number" && status >= 500)
-      ) {
-        throw new ModelUnavailableError();
-      }
-      throw err;
+  const createParams: Parameters<Anthropic["messages"]["create"]>[0] = {
+    model: input.model,
+    max_tokens: input.maxTokens ?? 1024,
+    system: input.system,
+    messages: input.messages,
+    tools: tools.length > 0 ? tools : undefined,
+  };
+
+  if (input.forceComposition) {
+    (createParams as { tool_choice?: unknown }).tool_choice = { type: "none" };
+  }
+
+  let resp: Anthropic.Messages.Message;
+  try {
+    resp = (await input.client.messages.create(
+      createParams,
+    )) as Anthropic.Messages.Message;
+  } catch (err) {
+    const status = (err as { status?: number })?.status;
+    if (
+      status === 401 ||
+      status === 403 ||
+      (typeof status === "number" && status >= 500)
+    ) {
+      throw new ModelUnavailableError();
     }
-    inputTokens += resp.usage.input_tokens;
-    outputTokens += resp.usage.output_tokens;
+    throw err;
+  }
 
-    const stopReason = resp.stop_reason;
-    const text = resp.content
-      .filter((b): b is Extract<typeof b, { type: "text" }> => b.type === "text")
-      .map((b) => b.text)
-      .join("\n")
-      .trim();
+  const usage = {
+    input_tokens: resp.usage.input_tokens,
+    output_tokens: resp.usage.output_tokens,
+  };
 
-    if (stopReason !== "tool_use") {
-      return {
-        text,
-        usage: { input_tokens: inputTokens, output_tokens: outputTokens },
-        actions,
-      };
-    }
-
-    const toolUseBlocks = resp.content.filter(
+  if (resp.stop_reason === "tool_use") {
+    const toolUseBlock = resp.content.find(
       (b): b is Extract<typeof b, { type: "tool_use" }> => b.type === "tool_use",
     );
-    // Record the assistant turn so the next call keeps conversational shape.
-    messages.push({ role: "assistant", content: resp.content });
-
-    const toolResults: Array<{
-      type: "tool_result";
-      tool_use_id: string;
-      content: string;
-      is_error?: boolean;
-    }> = [];
-
-    for (const block of toolUseBlocks) {
-      const tool = findTool(block.name);
+    if (toolUseBlock) {
+      const tool = findTool(toolUseBlock.name);
       if (!tool) {
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: block.id,
-          content: `Unknown tool "${block.name}" — ignored.`,
-          is_error: true,
-        });
-        continue;
+        // Opus asked for a tool the catalog does not expose — compose a
+        // text response from whatever text blocks it also emitted.
+        const fallbackText = collectText(resp.content);
+        return {
+          kind: "text",
+          text:
+            fallbackText.length > 0
+              ? fallbackText
+              : `I tried to call a tool (${toolUseBlock.name}) that is not available.`,
+          usage,
+        };
       }
-      const args = (block.input as Record<string, unknown>) ?? {};
-      if (ACTION_TOOLS.includes(block.name)) {
-        const intent = buildActionIntent({
-          tool,
-          toolUseId: block.id,
-          args,
-          sessionContext: input.sessionContext,
-        });
-        if ("unresolved" in intent) {
-          toolResults.push({
-            type: "tool_result",
-            tool_use_id: block.id,
-            content:
-              `The action ${tool.name} could not be offered to the user because these fields were missing: ${intent.unresolved.join(", ")}. ` +
-              "Ask the user for them or suggest an alternative.",
-            is_error: true,
-          });
-          continue;
-        }
-        actions.push(intent);
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: block.id,
-          content: `Action ${tool.name} prepared and pending user confirmation. The UI will show a confirmation card.`,
-        });
-        continue;
+      const args = (toolUseBlock.input as Record<string, unknown>) ?? {};
+      const built = buildActionIntent({
+        tool,
+        toolUseId: toolUseBlock.id,
+        args,
+        sessionContext: input.sessionContext,
+      });
+      if ("unresolved" in built) {
+        const msg = collectText(resp.content);
+        return {
+          kind: "text",
+          text:
+            msg.length > 0
+              ? msg
+              : `I need more information to call ${tool.name}: missing ${built.unresolved.join(", ")}.`,
+          usage,
+        };
       }
-      if (!SAFE_READ_TOOLS.includes(block.name)) {
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: block.id,
-          content: `Tool "${block.name}" has no execution policy — refused.`,
-          is_error: true,
-        });
-        continue;
-      }
-      toolCalls += 1;
-      if (toolCalls > input.maxToolCalls) {
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: block.id,
-          content: `Tool call budget (${input.maxToolCalls}) exceeded. Summarise with what you already know.`,
-          is_error: true,
-        });
-        continue;
-      }
-      try {
-        const resolvedPath = resolvePath(tool.http.path, args, input.sessionContext);
-        const result: SafeReadResult = await executeSafeRead({
-          tool,
-          resolvedPath,
-          method: tool.http.method,
-          body: tool.http.method === "GET" ? undefined : args,
-          hostApiBaseUrl: input.hostApiBaseUrl ?? "",
-          hostApiKey: input.hostApiKey,
-        });
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: block.id,
-          content: `HTTP ${result.status}:\n${result.body}${result.truncated ? "\n(truncated)" : ""}`,
-          is_error: result.status >= 400,
-        });
-      } catch (err) {
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: block.id,
-          content: `Tool ${tool.name} failed: ${(err as Error).message}. Degrade gracefully in your reply.`,
-          is_error: true,
-        });
-      }
-    }
-
-    messages.push({ role: "user", content: toolResults });
-
-    if (toolCalls >= input.maxToolCalls) {
-      // Force the next iteration to settle text-only (no more tool use).
-      // We let the model run one final pass to compose its answer.
-      // Next iteration's tool_use will hit the budget branch above.
+      return { kind: "action_intent", intent: built, usage };
     }
   }
+
+  return { kind: "text", text: collectText(resp.content), usage };
 }
 
-function resolvePath(
-  template: string,
-  args: Record<string, unknown>,
-  ctx: SessionContext,
-): string {
-  return template.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key) => {
-    const v =
-      key in args
-        ? args[key]
-        : key === "cart_id"
-          ? ctx.cart_id
-          : key === "customer_id"
-            ? ctx.customer_id
-            : key === "region_id"
-              ? ctx.region_id
-              : null;
-    if (v === null || v === undefined) return `{${key}}`;
-    return encodeURIComponent(String(v));
-  });
+function collectText(content: unknown): string {
+  if (!Array.isArray(content)) return "";
+  return content
+    .filter(
+      (b): b is { type: "text"; text: string } =>
+        typeof b === "object" &&
+        b !== null &&
+        (b as { type?: string }).type === "text" &&
+        typeof (b as { text?: unknown }).text === "string",
+    )
+    .map((b) => b.text)
+    .join("\n")
+    .trim();
 }

@@ -1,10 +1,46 @@
 # docker-compose.yml
 #
-# The canonical reviewer compose lives at the repo root — this file is
-# the Feature 002 activation anchor and is left intentionally empty
-# between the atw:begin/atw:end markers. /atw.build's COMPOSE step
-# reports `unchanged` against it. A reviewer brings the full stack up
-# with `docker compose up -d --wait` from the repo root, not from here.
+# AI-to-Widget runtime services. Commented out until Feature 002
+# (`/atw.build`) uncomments and parameterizes them with values from
+# `.atw/artifacts/build-plan.md`.
+#
+# Pinned image digests are supplied by Feature 002 for reproducibility
+# (Constitution Principle VIII). Do not remove this file — it is the
+# anchor point the build phase writes into.
 
-# ----- atw:begin -----
-# ----- atw:end -----
+# services:
+#   postgres:
+#     # Postgres + pgvector. Image tag + digest pinned by Feature 002.
+#     image: pgvector/pgvector:pg16
+#     container_name: atw-postgres
+#     environment:
+#       POSTGRES_DB: atw
+#       POSTGRES_USER: atw
+#       POSTGRES_PASSWORD: atw
+#     volumes:
+#       - atw-pgdata:/var/lib/postgresql/data
+#     ports:
+#       - "5433:5432"
+#     healthcheck:
+#       test: ["CMD-SHELL", "pg_isready -U atw -d atw"]
+#       interval: 5s
+#       timeout: 5s
+#       retries: 10
+#
+#   atw-backend:
+#     # Scaffolded here, implemented in Feature 002.
+#     image: atw/backend:local
+#     container_name: atw-backend
+#     depends_on:
+#       postgres:
+#         condition: service_healthy
+#     environment:
+#       ATW_DATABASE_URL: postgres://atw:atw@postgres:5432/atw
+#       # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+#     ports:
+#       - "8080:8080"
+#     volumes:
+#       - ./.atw:/app/.atw:ro
+#
+# volumes:
+#   atw-pgdata:

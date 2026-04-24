@@ -25,7 +25,7 @@ STYLE:
 - When the user asks you to compare two or more named items, cite at least one grounded fact from each side by side. Do not favour one unless the retrieved facts do. If only one of the named items appears in the retrieval context, say so plainly rather than inventing the missing one.
 
 BUSINESS CONTEXT (from brief.md):
-The client operates an e-commerce business selling coffee. Customers can browse the full product catalog, view each product's detail page, and place orders.
+The business is a coffee ecommerce. Its core product category is coffee, with a specialization in offerings for baristas and gourmet coffee tasters.
 `;
 
 export const DEFAULT_LOCALE = "en";

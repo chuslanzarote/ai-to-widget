@@ -1,13 +1,13 @@
 {
   "schema_version": "1",
   "files": {
-    ".atw/config/project.md": "sha256:caa5c7ba82b1d2b1bba5a836598ba4d5122df16423a42278762ca61856b4de66",
-    ".atw/config/brief.md": "sha256:b2ae1a1494b6408d0919850b22a8e29ac9b5d9217f83632eea55f6ff0c7a911e",
-    ".atw/artifacts/schema-map.md": "sha256:ba0e503e48232b855c644e695f2f74ff3dc1ccc2c8c6fc3f99e0fa1059cea8d9",
-    ".atw/artifacts/action-manifest.md": "sha256:96b633201e0afbe52da902f8fdaaf6fa5dfa34171ab61d2d8a9b911887ae60ab",
-    ".atw/artifacts/build-plan.md": "sha256:916d072d60caa25f93ed7677d9214277af662bffb2117a2b8c156065ff914953",
-    ".atw/artifacts/openapi.json": "sha256:b2835c14071fc5a42acfbc593c421b3e2c79a4356d62833b3e0d7d7b30d0a3fa",
-    ".atw/inputs/medusa-dump.sql": "sha256:3a713dfffdad6c16706a759b752f98a5bc613e7ece4ea539c8480f560d9d54c9"
+    ".atw/config/project.md": "sha256:9e83cb34c32280228c5547cad04ac9102b49bda2a20255dac7c03473c6cd41f5",
+    ".atw/config/brief.md": "sha256:cd0ba2e1cd9ca94494a632b80d1f0b099a4c2a8a20cf6dec19af32643ac88899",
+    ".atw/artifacts/schema-map.md": "sha256:104f1126d5a193dab48af25e9ad332d1868816bb5596783dc29dcb224fa00f40",
+    ".atw/artifacts/action-manifest.md": "sha256:5cf4a20c021f4bc212b1f597270688711bfb18cdea8b70800497f6da0fd4919b",
+    ".atw/artifacts/build-plan.md": "sha256:0ba2dc927120815225366dfd14bb5659f24e1b499ca7f208e9c3fc4ff528a25e",
+    ".atw/artifacts/openapi.json": "sha256:e3454f47d39457732b3bb6d01bb4255d98393b35e08532dffddf388867f6932a",
+    ".atw/inputs/shop-products.sql": "sha256:7f4a4101677b6b22ab97a8ea1a301c8988f65d7ee7e661cd35797ed3382e4206"
   },
   "prompt_template_version": "enrich-v1"
 }

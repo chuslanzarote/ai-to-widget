@@ -93,13 +93,13 @@ function Invoke-CheckImage {
         Write-Host "     but retrieval replies 'not in catalog'):"
         Write-Host ''
         Write-Host '       .\scripts\make.ps1 fresh'
-        Write-Host '       cd demo\atw-aurelia; claude'
+        Write-Host '       cd demo\atw-shop-host; claude'
         Write-Host '       > /atw.build --no-enrich'
         Write-Host ''
         Write-Host "  2) Full (~`$14 Opus, one-time) with full enrichment:"
         Write-Host ''
         Write-Host '       .\scripts\make.ps1 fresh'
-        Write-Host '       cd demo\atw-aurelia; claude'
+        Write-Host '       cd demo\atw-shop-host; claude'
         Write-Host '       > /atw.build'
         Write-Host ''
         Write-Host '  3) Skip ATW entirely and see only the Medusa storefront:'
@@ -134,8 +134,8 @@ function Invoke-Fresh {
     Invoke-StageWidget
     Invoke-Docker compose down -v
 
-    if (Test-Path 'demo\atw-aurelia\.atw\state') {
-        Remove-Item -Recurse -Force 'demo\atw-aurelia\.atw\state\*' -ErrorAction SilentlyContinue
+    if (Test-Path 'demo\atw-shop-host\.atw\state') {
+        Remove-Item -Recurse -Force 'demo\atw-shop-host\.atw\state\*' -ErrorAction SilentlyContinue
     }
 
     # The publishable key is minted by the backend seed on first boot and
@@ -176,7 +176,7 @@ function Invoke-Fresh {
     Write-Host 'Medusa backend:      http://localhost:9000'
     Write-Host 'Aurelia storefront:  http://localhost:8000'
     Write-Host 'ATW runtime is NOT started. Next:'
-    Write-Host '  cd demo\atw-aurelia; claude'
+    Write-Host '  cd demo\atw-shop-host; claude'
     Write-Host '  > /atw.init  /atw.brief  /atw.schema  /atw.api  /atw.plan  /atw.build  /atw.embed'
     Write-Host 'Then, after /atw.build produces dist/widget.{js,css}:'
     Write-Host '  .\scripts\make.ps1 stage-widget'

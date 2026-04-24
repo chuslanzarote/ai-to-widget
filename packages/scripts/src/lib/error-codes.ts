@@ -5,6 +5,7 @@
 export const RUNTIME_ERROR_CODES = [
   "validation_failed",
   "message_too_long",
+  "tool_not_allowed",
   "rate_limited",
   "retrieval_unavailable",
   "model_unavailable",
@@ -23,6 +24,7 @@ export interface RuntimeErrorBody {
 export const DEFAULT_RUNTIME_ERROR_MESSAGES: Record<RuntimeErrorCode, string> = {
   validation_failed: "Some of the fields you sent were malformed.",
   message_too_long: "That message is too long. Please shorten and try again.",
+  tool_not_allowed: "The assistant tried to use a tool that isn't available.",
   rate_limited: "You're sending messages too quickly. Try again in a moment.",
   retrieval_unavailable: "Having trouble reaching the catalog. Please try again.",
   model_unavailable: "The assistant is offline for a moment. Please try again.",
