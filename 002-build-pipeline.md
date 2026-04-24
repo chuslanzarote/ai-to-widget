@@ -504,7 +504,7 @@ commands/
 - The SQL dump is loaded into a local Postgres container over a local socket; it never leaves the Builder's machine except as the content of Opus enrichment prompts (which the Builder has chosen to send).
 - Opus prompts for enrichment never include fields flagged as PII in `schema-map.md`.
 - The backend image does not bake in any secrets; secrets are provided at runtime via environment variables.
-- The `atw_postgres` container's credentials are local-only (`atw_local` or similar) and do not grant any privileges outside the container.
+- The `atw_postgres` container's credentials are local-only (`atw` or similar) and do not grant any privileges outside the container.
 
 **Reproducibility.**
 - The build runs on macOS, Linux, and WSL2 with Docker installed. No platform-specific steps.

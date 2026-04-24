@@ -229,7 +229,7 @@ services:
     environment:
       POSTGRES_DB: atw
       POSTGRES_USER: atw
-      POSTGRES_PASSWORD: atw_local
+      POSTGRES_PASSWORD: atw
     volumes:
       - atw_pg_data:/var/lib/postgresql/data
       - ./backend/migrations:/docker-entrypoint-initdb.d
@@ -238,7 +238,7 @@ services:
     build: ./backend
     ports: ["3100:3100"]
     environment:
-      DATABASE_URL: postgres://atw:atw_local@atw_postgres:5432/atw
+      DATABASE_URL: postgres://atw:atw@atw_postgres:5432/atw
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       ALLOWED_ORIGINS: http://localhost:5173,http://localhost:8080
     depends_on:

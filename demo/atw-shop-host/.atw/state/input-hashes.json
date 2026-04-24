@@ -4,8 +4,8 @@
     ".atw/config/project.md": "sha256:9e83cb34c32280228c5547cad04ac9102b49bda2a20255dac7c03473c6cd41f5",
     ".atw/config/brief.md": "sha256:cd0ba2e1cd9ca94494a632b80d1f0b099a4c2a8a20cf6dec19af32643ac88899",
     ".atw/artifacts/schema-map.md": "sha256:104f1126d5a193dab48af25e9ad332d1868816bb5596783dc29dcb224fa00f40",
-    ".atw/artifacts/action-manifest.md": "sha256:5cf4a20c021f4bc212b1f597270688711bfb18cdea8b70800497f6da0fd4919b",
-    ".atw/artifacts/build-plan.md": "sha256:0ba2dc927120815225366dfd14bb5659f24e1b499ca7f208e9c3fc4ff528a25e",
+    ".atw/artifacts/action-manifest.md": "sha256:06323ba6800d0d7537357f3b32b17b7d33e35d8aa269acd9f5081b58a48f9238",
+    ".atw/artifacts/build-plan.md": "sha256:a5a64108d002104284a56045391c2e13ab673a7ffc497a4fdf073c2cb41d714d",
     ".atw/artifacts/openapi.json": "sha256:e3454f47d39457732b3bb6d01bb4255d98393b35e08532dffddf388867f6932a",
     ".atw/inputs/shop-products.sql": "sha256:7f4a4101677b6b22ab97a8ea1a301c8988f65d7ee7e661cd35797ed3382e4206"
   },

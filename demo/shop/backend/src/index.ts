@@ -3,6 +3,7 @@
  * Contract: specs/007-widget-tool-loop/contracts/shop-openapi.md.
  */
 import Fastify, { type FastifyInstance } from "fastify";
+import fastifyCors from "@fastify/cors";
 import fastifyJwt from "@fastify/jwt";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
@@ -42,6 +43,17 @@ export async function buildApp(): Promise<FastifyInstance> {
   for (const schema of ALL_SCHEMAS) {
     app.addSchema(schema);
   }
+
+  const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:8080")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+  await app.register(fastifyCors, {
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: false,
+  });
 
   await app.register(fastifyJwt, { secret: JWT_SECRET as string });
 

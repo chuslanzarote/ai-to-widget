@@ -1,6 +1,6 @@
 {
-  "build_id": "atw-build-20260424T084548-ceb7",
-  "completed_at": "2026-04-24T08:46:16.958Z",
+  "build_id": "atw-build-20260424T135827-d0a3",
+  "completed_at": "2026-04-24T13:58:29.138Z",
   "compliance_scan": {
     "clean": true,
     "matches": [],
@@ -12,7 +12,7 @@
     "effective_max": 10,
     "reductions": []
   },
-  "duration_seconds": 28.539,
+  "duration_seconds": 1.685,
   "environment": {
     "docker_server_version": "unknown",
     "embedding_model": "Xenova/bge-small-en-v1.5",
@@ -22,10 +22,10 @@
   },
   "failures": [],
   "input_hashes": {
-    "action-manifest.md": "sha256:5cf4a20c021f4bc212b1f597270688711bfb18cdea8b70800497f6da0fd4919b",
+    "action-manifest.md": "sha256:06323ba6800d0d7537357f3b32b17b7d33e35d8aa269acd9f5081b58a48f9238",
     "backend_source_tree": "sha256:ca792899f7d59613cd26dda4a29da103193a47d8d9380c26a71ca2f00ffd8514",
     "brief.md": "sha256:cd0ba2e1cd9ca94494a632b80d1f0b099a4c2a8a20cf6dec19af32643ac88899",
-    "build-plan.md": "sha256:0ba2dc927120815225366dfd14bb5659f24e1b499ca7f208e9c3fc4ff528a25e",
+    "build-plan.md": "sha256:a5a64108d002104284a56045391c2e13ab673a7ffc497a4fdf073c2cb41d714d",
     "project.md": "sha256:9e83cb34c32280228c5547cad04ac9102b49bda2a20255dac7c03473c6cd41f5",
     "prompt_template_version": "enrich-v1",
     "schema-map.md": "sha256:104f1126d5a193dab48af25e9ad332d1868816bb5596783dc29dcb224fa00f40"
@@ -86,7 +86,7 @@
         "action": "rewritten",
         "bytes": 2563,
         "path": "src/index.ts",
-        "sha256": "cbee73df0c35251dcee18d1dda11985ed7dea23bb0989cd406b4245cd92bd527"
+        "sha256": "ef236a230f5159c3eccabbd5d123212420ede764895eb42f754caa1bd22e1e87"
       },
       {
         "action": "unchanged",
@@ -131,7 +131,7 @@
         "sha256": "8a84151392e97bd9df30d6cd76ee4e612a2fd7a15e7831a7ef687aedc1c135f4"
       },
       {
-        "action": "rewritten",
+        "action": "unchanged",
         "bytes": 2008,
         "path": "src/lib/errors.ts",
         "sha256": "f9fde89e7a575d36b5fbde356120796e8bbb6317b8b1ff162823d492cec138c9"
@@ -143,7 +143,7 @@
         "sha256": "e6a5334c228ec5d4214578c2263076b0cfa38240102daa00fc5577cb9d4168c8"
       },
       {
-        "action": "rewritten",
+        "action": "unchanged",
         "bytes": 4671,
         "path": "src/lib/opus-client.ts",
         "sha256": "244a307df8985c916e4dde431c6aa1a2d346f304e4eb8ecb854db5b3a8f6c39f"
@@ -185,7 +185,7 @@
         "sha256": "01abc7545ba7a6d293c77d08fd5bfaf1f99892c8326111bc6d764e655a78656d"
       },
       {
-        "action": "rewritten",
+        "action": "unchanged",
         "bytes": 1221,
         "path": "backend/src/_shared/error-codes.ts",
         "sha256": "7fbde650fef07c75bd260d26fe116d6370306520afb0266ac5b95128577dbe81"
@@ -222,7 +222,7 @@
       }
     ],
     "backend_image": {
-      "image_id": "sha256:a8f0b05f436768e608c087472a97bf58ae12901d372b78b9dc14990edfb1c229",
+      "image_id": "sha256:be89da1db1deece8f88027338983ce9c5da6b9737d6297303b0da9f090e6c8be",
       "ref": "atw_backend:latest",
       "size_bytes": 439653714
     },
@@ -245,33 +245,26 @@
       }
     }
   },
-  "pipeline_failures": [
-    {
-      "code": "COMPOSE_ACTIVATE_FAILED",
-      "message": "compose file at C:\\Desarrollo\\Personal\\ai-to-widget\\demo\\atw-shop-host\\docker-compose.yml has no atw:begin/atw:end block",
-      "step": "compose"
-    }
-  ],
   "result": "success",
   "schema_version": "1",
-  "started_at": "2026-04-24T08:45:48.419Z",
+  "started_at": "2026-04-24T13:58:27.453Z",
   "steps": {
     "bundle": {
       "action": "created"
     },
     "compose": {
-      "action": "skipped"
+      "action": "unchanged"
     },
     "image": {
-      "action": "created"
+      "action": "unchanged"
     },
     "render": {
       "action": "rewritten",
       "action_executors": {
-        "action": "unchanged",
-        "bytes": 4196,
+        "action": "rewritten",
+        "bytes": 5572,
         "path": ".atw/artifacts/action-executors.json",
-        "sha256": "5f5f98ed265fb434903d9d0220579c4c44580dba6f4bc148e33806ef8bd11043",
+        "sha256": "67cdd9bfc97c4062a154e2691f0c4187a0b55760a2e087199568df8fba06b745",
         "warnings": [
           "cross-origin action \"get_cart\": host http://localhost:9000 !== widget http://localhost:8000",
           "cross-origin action \"add_cart_item\": host http://localhost:9000 !== widget http://localhost:8000",
@@ -283,7 +276,7 @@
           "cross-origin action \"list_products\": host http://localhost:9000 !== widget http://localhost:8000"
         ]
       },
-      "files_changed": 4
+      "files_changed": 1
     }
   },
   "totals": {

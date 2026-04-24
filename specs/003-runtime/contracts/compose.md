@@ -78,7 +78,7 @@ Pgvector-enabled Postgres for ATW runtime.
 - Env:
   - `POSTGRES_DB=atw`
   - `POSTGRES_USER=atw`
-  - `POSTGRES_PASSWORD=atw_local`
+  - `POSTGRES_PASSWORD=atw`
 - Volumes: named volume `atw_pg_data:/var/lib/postgresql/data`
 - On first boot, an init script imports the pre-built database dump
   from `demo/atw-aurelia/atw.sql` so reviewers skip Feature 002
@@ -94,7 +94,7 @@ The runtime backend — the image produced by Feature 002's
 - Image: `atw_backend:latest`
 - Ports: `3100:3100`
 - Env:
-  - `DATABASE_URL=postgres://atw:atw_local@atw_postgres:5432/atw`
+  - `DATABASE_URL=postgres://atw:atw@atw_postgres:5432/atw`
   - `ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}` *(from .env; the reviewer
     must set this)*
   - `ALLOWED_ORIGINS=http://localhost:8000`

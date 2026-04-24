@@ -39,7 +39,7 @@ Parameters:
 
 requires_confirmation: false
 is_action: false
-Source: GET /products/{id}
+Source: GET /products/{id} (bearerAuth)
 Parameter sources: tool arguments (OpenAPI-derived)
 
 ### list_products
@@ -62,7 +62,7 @@ Parameters:
 
 requires_confirmation: false
 is_action: false
-Source: GET /products
+Source: GET /products (bearerAuth)
 Parameter sources: tool arguments (OpenAPI-derived)
 
 ## Tools: cart
@@ -83,7 +83,7 @@ Parameters:
 
 requires_confirmation: false
 is_action: false
-Source: GET /cart
+Source: GET /cart (bearerAuth)
 Parameter sources: tool arguments (OpenAPI-derived)
 
 ### add_cart_item
@@ -114,7 +114,7 @@ Parameters:
 
 requires_confirmation: true
 is_action: true
-Source: POST /cart/items
+Source: POST /cart/items (bearerAuth)
 Parameter sources: tool arguments (OpenAPI-derived)
 
 ### update_cart_item
@@ -145,7 +145,7 @@ Parameters:
 
 requires_confirmation: true
 is_action: true
-Source: PATCH /cart/items/{id}
+Source: PATCH /cart/items/{id} (bearerAuth)
 Parameter sources: tool arguments (OpenAPI-derived)
 
 ### remove_cart_item
@@ -171,7 +171,7 @@ Parameters:
 
 requires_confirmation: true
 is_action: true
-Source: DELETE /cart/items/{id}
+Source: DELETE /cart/items/{id} (bearerAuth)
 Parameter sources: tool arguments (OpenAPI-derived)
 
 ## Tools: orders
@@ -192,7 +192,7 @@ Parameters:
 
 requires_confirmation: false
 is_action: false
-Source: GET /orders
+Source: GET /orders (bearerAuth)
 Parameter sources: tool arguments (OpenAPI-derived)
 
 ## Tools: customers
@@ -213,7 +213,7 @@ Parameters:
 
 requires_confirmation: false
 is_action: false
-Source: GET /customers/me
+Source: GET /customers/me (bearerAuth)
 Parameter sources: tool arguments (OpenAPI-derived)
 
 ## Excluded

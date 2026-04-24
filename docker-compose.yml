@@ -20,7 +20,7 @@ services:
     environment:
       POSTGRES_DB: atw
       POSTGRES_USER: atw
-      POSTGRES_PASSWORD: atw_local
+      POSTGRES_PASSWORD: atw
     ports:
       - "5433:5432"
     volumes:
@@ -35,7 +35,7 @@ services:
   atw_backend:
     image: atw_backend:latest
     environment:
-      DATABASE_URL: postgres://atw:atw_local@atw_postgres:5432/atw
+      DATABASE_URL: postgres://atw:atw@atw_postgres:5432/atw
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       ALLOWED_ORIGINS: http://localhost:8000,http://localhost:8080
       # Feature 007 — atw_backend no longer reaches the shop API.
