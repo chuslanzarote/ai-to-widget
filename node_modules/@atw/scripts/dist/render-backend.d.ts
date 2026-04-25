@@ -24,6 +24,10 @@ export interface RenderContext {
     tools?: RuntimeToolEntry[];
     /** Pre-stringified JSON of `tools` (set automatically before render). */
     toolsJson?: string;
+    /** IETF locale tag (or common name) used in prompts.ts.hbs. */
+    defaultLocale?: string;
+    /** Plain-text business-scope summary used in prompts.ts.hbs. */
+    briefSummary?: string;
 }
 export declare function manifestOperationsToRuntimeTools(ops: ReadonlyArray<ManifestOperation>): RuntimeToolEntry[];
 export declare function loadRuntimeToolsFromManifest(manifestPath: string): RuntimeToolEntry[];

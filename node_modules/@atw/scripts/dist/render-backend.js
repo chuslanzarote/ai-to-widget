@@ -48,10 +48,14 @@ export async function renderBackend(opts) {
     const results = [];
     await fs.mkdir(opts.outputDir, { recursive: true });
     // Pre-stringify the tool list so the template can splat it raw via {{{toolsJson}}}.
+    // Provide safe defaults for optional template fields so Handlebars `strict`
+    // mode doesn't throw when the orchestrator omits them.
     const ctx = {
         ...opts.context,
         toolsJson: opts.context.toolsJson ??
             (opts.context.tools ? JSON.stringify(opts.context.tools, null, 2) : "[]"),
+        defaultLocale: opts.context.defaultLocale ?? "en",
+        briefSummary: opts.context.briefSummary ?? "",
     };
     for (const name of templates) {
         const src = await fs.readFile(path.join(opts.templatesDir, name), "utf8");

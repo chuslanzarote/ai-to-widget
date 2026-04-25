@@ -33,6 +33,10 @@ export interface RenderContext {
   tools?: RuntimeToolEntry[];
   /** Pre-stringified JSON of `tools` (set automatically before render). */
   toolsJson?: string;
+  /** IETF locale tag (or common name) used in prompts.ts.hbs. */
+  defaultLocale?: string;
+  /** Plain-text business-scope summary used in prompts.ts.hbs. */
+  briefSummary?: string;
 }
 
 export function manifestOperationsToRuntimeTools(
@@ -101,11 +105,15 @@ export async function renderBackend(opts: RenderOptions): Promise<RenderedFile[]
   await fs.mkdir(opts.outputDir, { recursive: true });
 
   // Pre-stringify the tool list so the template can splat it raw via {{{toolsJson}}}.
+  // Provide safe defaults for optional template fields so Handlebars `strict`
+  // mode doesn't throw when the orchestrator omits them.
   const ctx: RenderContext = {
     ...opts.context,
     toolsJson:
       opts.context.toolsJson ??
       (opts.context.tools ? JSON.stringify(opts.context.tools, null, 2) : "[]"),
+    defaultLocale: opts.context.defaultLocale ?? "en",
+    briefSummary: opts.context.briefSummary ?? "",
   };
 
   for (const name of templates) {

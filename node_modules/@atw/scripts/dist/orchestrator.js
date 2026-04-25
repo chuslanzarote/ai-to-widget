@@ -26,7 +26,7 @@ import { startPhase, readProvenance, findCachedSuccess, summarize as summarizePr
 import { loadProjectConfig, ProjectConfigError } from "./lib/runtime-config.js";
 const log = Debug("atw:orchestrator");
 const DEFAULT_OPUS_MODEL = "claude-opus-4-7";
-const DEFAULT_EMBEDDING_MODEL = "Xenova/bge-small-multilingual-v1.5";
+const DEFAULT_EMBEDDING_MODEL = "Xenova/bge-small-en-v1.5";
 const DEFAULT_POSTGRES_PORT = 5433;
 const DEFAULT_CONCURRENCY = 10;
 const REQUIRED_ARTIFACTS = [
@@ -291,7 +291,7 @@ export async function runBuild(flags) {
                         dumpPath,
                         schemaMap: schemaArtifactToImport(schemaMap),
                         connectionConfig,
-                        replace: false,
+                        replace: true,
                     });
                     await rec.finish(provenanceProjectRoot, { status: "success" });
                 }
@@ -557,6 +557,8 @@ export async function runBuild(flags) {
                             anthropicModel: DEFAULT_OPUS_MODEL,
                             generatedAt: new Date().toISOString(),
                             tools: runtimeTools,
+                            defaultLocale: readDefaultLocale(flags.projectRoot),
+                            briefSummary: readBriefSummary(flags.projectRoot),
                         },
                         backup: Boolean(flags.backup),
                     });
@@ -1072,6 +1074,33 @@ function readProjectName(projectRoot) {
         // fall through
     }
     return "atw-project";
+}
+function readDefaultLocale(projectRoot) {
+    try {
+        const cfg = loadProjectConfig({ projectRoot });
+        const langs = cfg.languages;
+        if (Array.isArray(langs) && typeof langs[0] === "string" && langs[0]) {
+            return langs[0];
+        }
+    }
+    catch {
+        // fall through
+    }
+    return "en";
+}
+function readBriefSummary(projectRoot) {
+    try {
+        const briefPath = join(projectRoot, ".atw", "config", "brief.md");
+        if (!existsSync(briefPath))
+            return "";
+        const raw = readFileSync(briefPath, "utf8");
+        const scopeMatch = raw.match(/##\s+Business scope\s*\n+([\s\S]*?)(?=\n##\s|$)/);
+        const text = (scopeMatch?.[1] ?? raw).trim();
+        return text.length > 800 ? text.slice(0, 800).trimEnd() + "..." : text;
+    }
+    catch {
+        return "";
+    }
 }
 export function generateBuildId(nowMs = Date.now()) {
     const iso = new Date(nowMs).toISOString();

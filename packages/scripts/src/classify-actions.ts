@@ -82,9 +82,12 @@ export class ClassifyValidationError extends Error {
 const SYSTEM_PROMPT = `You are an API-classification assistant for ai-to-widget.
 
 You will receive:
-  1. <project_md> — the Builder's stated intent (deployment, brief).
-  2. <openapi> — the bundled OpenAPI document.
-  3. <output_schema> — the JSON schema your tool call must conform to.
+  1. <project_md> — the Builder's project metadata (deployment, origins).
+  2. <brief_md> — the Builder's business brief, including the agent's
+     allowed and forbidden actions. (May be empty if the Builder has
+     not run /atw.brief yet.)
+  3. <openapi> — the bundled OpenAPI document.
+  4. <output_schema> — the JSON schema your tool call must conform to.
 
 Your job: emit a single tool call to \`emit_manifest\` whose arguments
 form the action manifest for the operations the widget should expose.
@@ -98,14 +101,15 @@ Constraints (Constitution V — Anchored Generation):
     \`input_schema.properties\` of the same operation.
   - Mark \`requires_confirmation: true\` for non-idempotent writes
     (POST/PUT/PATCH/DELETE) that mutate user-visible state.
-  - Exclude operations the Builder's project_md indicates are admin-only
-    or out-of-scope; favor inclusion when in doubt and let the Builder
-    edit the manifest.
+  - Exclude operations the Builder's brief_md lists under "forbidden
+    actions" or that project_md indicates are admin-only / out-of-scope;
+    favor inclusion when in doubt and let the Builder edit the manifest.
 
 No prose, no apology, no narrowing passes. One tool call. Done.`;
 
 function buildUserMessage(
   projectMd: string,
+  briefMd: string,
   openapiJson: string,
   outputSchemaJson: string,
 ): string {
@@ -113,6 +117,10 @@ function buildUserMessage(
     "<project_md>",
     projectMd,
     "</project_md>",
+    "",
+    "<brief_md>",
+    briefMd,
+    "</brief_md>",
     "",
     "<openapi>",
     openapiJson,
@@ -139,13 +147,20 @@ export async function classifyActions(
   const bundledJson = JSON.stringify(raw, null, 2);
   const projectMdPath = path.join(projectRoot, ".atw/config/project.md");
   const projectMdRaw = readFileSync(projectMdPath, "utf8");
+  const briefMdPath = path.join(projectRoot, ".atw/config/brief.md");
+  let briefMdRaw = "";
+  try {
+    briefMdRaw = readFileSync(briefMdPath, "utf8");
+  } catch {
+    briefMdRaw = "";
+  }
 
   const openapiSha = sha256(bundledJson);
   const projectMdSha = sha256(projectMdRaw);
   const outputSchema = actionManifestJsonSchema();
   const outputSchemaJson = JSON.stringify(outputSchema, null, 2);
 
-  const userMessage = buildUserMessage(projectMdRaw, bundledJson, outputSchemaJson);
+  const userMessage = buildUserMessage(projectMdRaw, briefMdRaw, bundledJson, outputSchemaJson);
 
   const apiKey = opts.anthropicApiKey ?? process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -182,10 +197,12 @@ export async function classifyActions(
   const seed = `${modelSnapshot}|${openapiSha}|${projectMdSha}`;
   const retryResult = await withLLMRetry(
     async () => {
+      // claude-opus-4-7 deprecated `temperature`; omit it for that snapshot.
+      const supportsTemperature = !modelSnapshot.startsWith("claude-opus-4-7");
       return await anthropic.messages.create({
         model: modelSnapshot,
         max_tokens: 16_000,
-        temperature: 0,
+        ...(supportsTemperature ? { temperature: 0 } : {}),
         system: SYSTEM_PROMPT,
         tools: [
           {

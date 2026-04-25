@@ -1,0 +1,266 @@
+{
+  "schema_version": "1.0",
+  "entries": [
+    {
+      "build_id": "01KQ2Q9BQ24V83FA3XDYDV6SAK",
+      "phase": "IMPORT",
+      "started_at": "2026-04-25T16:24:18.246Z",
+      "finished_at": "2026-04-25T16:24:18.446Z",
+      "status": "success"
+    },
+    {
+      "build_id": "01KQ2Q9BQ24V83FA3XDYDV6SAK",
+      "phase": "ENRICH",
+      "started_at": "2026-04-25T16:24:18.455Z",
+      "finished_at": "2026-04-25T16:24:18.770Z",
+      "status": "skipped",
+      "model_snapshot": "claude-opus-4-7",
+      "skipped_reason": "no indexable entities found",
+      "next_hint": "Check schema-map.md classification — at least one entity must be `indexable`"
+    },
+    {
+      "build_id": "01KQ2Q9BQ24V83FA3XDYDV6SAK",
+      "phase": "RENDER",
+      "started_at": "2026-04-25T16:24:18.779Z",
+      "finished_at": "2026-04-25T16:24:18.994Z",
+      "status": "failed",
+      "failed_reason": "Template prompts.ts.hbs compile error: \"defaultLocale\" not defined in [object Object] - 22:36",
+      "next_hint": "Inspect the offending template, then re-run /atw.build"
+    },
+    {
+      "build_id": "01KQ2QPNW1QK4JQ10VVC60HJE3",
+      "phase": "IMPORT",
+      "started_at": "2026-04-25T16:31:28.812Z",
+      "finished_at": "2026-04-25T16:31:28.855Z",
+      "status": "failed",
+      "failed_reason": "relation \"products\" already exists",
+      "next_hint": "Inspect the SQL dump for parse errors, then re-run /atw.build"
+    },
+    {
+      "build_id": "01KQ2QRGTDWENTB70R0C19N1EA",
+      "phase": "IMPORT",
+      "started_at": "2026-04-25T16:32:29.109Z",
+      "finished_at": "2026-04-25T16:32:29.168Z",
+      "status": "success"
+    },
+    {
+      "build_id": "01KQ2QRGTDWENTB70R0C19N1EA",
+      "phase": "ENRICH",
+      "started_at": "2026-04-25T16:32:29.171Z",
+      "finished_at": "2026-04-25T16:32:29.292Z",
+      "status": "skipped",
+      "model_snapshot": "claude-opus-4-7",
+      "skipped_reason": "no indexable entities found",
+      "next_hint": "Check schema-map.md classification — at least one entity must be `indexable`"
+    },
+    {
+      "build_id": "01KQ2QRGTDWENTB70R0C19N1EA",
+      "phase": "RENDER",
+      "started_at": "2026-04-25T16:32:29.297Z",
+      "finished_at": "2026-04-25T16:32:29.394Z",
+      "status": "success",
+      "input_hashes": {
+        "project_name_sha256": "a3166a4ee58ed613703742f60d98ebd79e18c51f3bea6b1e3b28ccd21cd37af0",
+        "action_manifest_sha256": "4de06062612f909eb119ec389ee8bf6203c2efa0adf2996bd3855612a96243e2",
+        "backend_templates_sha256": "0e50b9b8250f5093c4846437738ad698d3d5a73cde3ed9dfa8fc81edc2d5cc3a"
+      },
+      "model_snapshot": "claude-opus-4-7"
+    },
+    {
+      "build_id": "01KQ2QRGTDWENTB70R0C19N1EA",
+      "phase": "COMPOSE",
+      "started_at": "2026-04-25T16:32:29.967Z",
+      "finished_at": "2026-04-25T16:32:29.971Z",
+      "status": "success"
+    },
+    {
+      "build_id": "01KQ2R0387FS314HXWER8DAYE2",
+      "phase": "IMPORT",
+      "started_at": "2026-04-25T16:36:37.506Z",
+      "finished_at": "2026-04-25T16:36:37.555Z",
+      "status": "failed",
+      "failed_reason": "relation \"client_ref.products\" does not exist",
+      "next_hint": "Inspect the SQL dump for parse errors, then re-run /atw.build"
+    },
+    {
+      "build_id": "01KQ2R62RHVPQH0AQ9NC1AZF42",
+      "phase": "IMPORT",
+      "started_at": "2026-04-25T16:39:53.791Z",
+      "finished_at": "2026-04-25T16:39:53.894Z",
+      "status": "success"
+    },
+    {
+      "build_id": "01KQ2R62RHVPQH0AQ9NC1AZF42",
+      "phase": "ENRICH",
+      "started_at": "2026-04-25T16:39:53.902Z",
+      "finished_at": "2026-04-25T16:39:54.360Z",
+      "status": "warning",
+      "model_snapshot": "claude-opus-4-7",
+      "warnings": [
+        "Product#354c7d58-f757-5181-b75f-e3151f95a2c3: opus_400",
+        "Product#3fddb2a7-6993-52df-be95-86dc66c854f9: opus_400",
+        "Product#5bf55db6-d2ab-5198-9333-0b26efa840c2: opus_400",
+        "Product#5acb8659-b460-538d-af6b-34621b530a5e: opus_400",
+        "Product#26834f83-ec01-5e7a-976f-66ae1cd69116: opus_400"
+      ],
+      "next_hint": "Inspect the failures listed in build-manifest.json, then re-run /atw.build"
+    },
+    {
+      "build_id": "01KQ2R62RHVPQH0AQ9NC1AZF42",
+      "phase": "RENDER",
+      "started_at": "2026-04-25T16:39:54.364Z",
+      "finished_at": "2026-04-25T16:39:54.408Z",
+      "status": "success_cached",
+      "input_hashes": {
+        "project_name_sha256": "a3166a4ee58ed613703742f60d98ebd79e18c51f3bea6b1e3b28ccd21cd37af0",
+        "action_manifest_sha256": "4de06062612f909eb119ec389ee8bf6203c2efa0adf2996bd3855612a96243e2",
+        "backend_templates_sha256": "0e50b9b8250f5093c4846437738ad698d3d5a73cde3ed9dfa8fc81edc2d5cc3a"
+      },
+      "model_snapshot": "claude-opus-4-7"
+    },
+    {
+      "build_id": "01KQ2R62RHVPQH0AQ9NC1AZF42",
+      "phase": "COMPOSE",
+      "started_at": "2026-04-25T16:39:54.998Z",
+      "finished_at": "2026-04-25T16:39:55.002Z",
+      "status": "success"
+    },
+    {
+      "build_id": "01KQ2R7B9C8YFSMGF643PXJG9E",
+      "phase": "IMPORT",
+      "started_at": "2026-04-25T16:40:34.805Z",
+      "finished_at": "2026-04-25T16:40:34.831Z",
+      "status": "failed",
+      "failed_reason": "relation \"products\" already exists",
+      "next_hint": "Inspect the SQL dump for parse errors, then re-run /atw.build"
+    },
+    {
+      "build_id": "01KQ2R7YKEJT3C8CW1GESDEYMY",
+      "phase": "IMPORT",
+      "started_at": "2026-04-25T16:40:54.553Z",
+      "finished_at": "2026-04-25T16:40:54.615Z",
+      "status": "success"
+    },
+    {
+      "build_id": "01KQ2R7YKEJT3C8CW1GESDEYMY",
+      "phase": "ENRICH",
+      "started_at": "2026-04-25T16:40:54.619Z",
+      "finished_at": "2026-04-25T16:41:09.692Z",
+      "status": "warning",
+      "model_snapshot": "claude-opus-4-7",
+      "warnings": [
+        "Product#354c7d58-f757-5181-b75f-e3151f95a2c3: opus_400",
+        "Product#2eb710cd-0c2a-569c-932e-0c1ab47b5bac: opus_400",
+        "Product#3fddb2a7-6993-52df-be95-86dc66c854f9: opus_400",
+        "Product#26834f83-ec01-5e7a-976f-66ae1cd69116: opus_400",
+        "Product#542ae265-70a3-5b38-88e9-9966c13d8da6: opus_400"
+      ],
+      "next_hint": "Inspect the failures listed in build-manifest.json, then re-run /atw.build"
+    },
+    {
+      "build_id": "01KQ2R7YKEJT3C8CW1GESDEYMY",
+      "phase": "RENDER",
+      "started_at": "2026-04-25T16:41:09.695Z",
+      "finished_at": "2026-04-25T16:41:09.715Z",
+      "status": "success_cached",
+      "input_hashes": {
+        "project_name_sha256": "a3166a4ee58ed613703742f60d98ebd79e18c51f3bea6b1e3b28ccd21cd37af0",
+        "action_manifest_sha256": "4de06062612f909eb119ec389ee8bf6203c2efa0adf2996bd3855612a96243e2",
+        "backend_templates_sha256": "0e50b9b8250f5093c4846437738ad698d3d5a73cde3ed9dfa8fc81edc2d5cc3a"
+      },
+      "model_snapshot": "claude-opus-4-7"
+    },
+    {
+      "build_id": "01KQ2R7YKEJT3C8CW1GESDEYMY",
+      "phase": "COMPOSE",
+      "started_at": "2026-04-25T16:41:10.010Z",
+      "finished_at": "2026-04-25T16:41:10.012Z",
+      "status": "success"
+    },
+    {
+      "build_id": "01KQ2RA81AH3MNKY1DKTMWFGJ5",
+      "phase": "IMPORT",
+      "started_at": "2026-04-25T16:42:09.728Z",
+      "finished_at": "2026-04-25T16:42:09.790Z",
+      "status": "success"
+    },
+    {
+      "build_id": "01KQ2RA81AH3MNKY1DKTMWFGJ5",
+      "phase": "ENRICH",
+      "started_at": "2026-04-25T16:42:09.793Z",
+      "finished_at": "2026-04-25T16:42:47.284Z",
+      "status": "warning",
+      "model_snapshot": "claude-opus-4-7",
+      "warnings": [
+        "Product#354c7d58-f757-5181-b75f-e3151f95a2c3: opus_400",
+        "Product#542ae265-70a3-5b38-88e9-9966c13d8da6: opus_400"
+      ],
+      "next_hint": "Inspect the failures listed in build-manifest.json, then re-run /atw.build"
+    },
+    {
+      "build_id": "01KQ2RA81AH3MNKY1DKTMWFGJ5",
+      "phase": "RENDER",
+      "started_at": "2026-04-25T16:42:47.289Z",
+      "finished_at": "2026-04-25T16:42:47.342Z",
+      "status": "success_cached",
+      "input_hashes": {
+        "project_name_sha256": "a3166a4ee58ed613703742f60d98ebd79e18c51f3bea6b1e3b28ccd21cd37af0",
+        "action_manifest_sha256": "4de06062612f909eb119ec389ee8bf6203c2efa0adf2996bd3855612a96243e2",
+        "backend_templates_sha256": "0e50b9b8250f5093c4846437738ad698d3d5a73cde3ed9dfa8fc81edc2d5cc3a"
+      },
+      "model_snapshot": "claude-opus-4-7"
+    },
+    {
+      "build_id": "01KQ2RA81AH3MNKY1DKTMWFGJ5",
+      "phase": "COMPOSE",
+      "started_at": "2026-04-25T16:42:47.756Z",
+      "finished_at": "2026-04-25T16:42:47.758Z",
+      "status": "success"
+    },
+    {
+      "build_id": "01KQ2RBVKJ4PSFTXYDYB5WY4H2",
+      "phase": "IMPORT",
+      "started_at": "2026-04-25T16:43:02.534Z",
+      "finished_at": "2026-04-25T16:43:02.559Z",
+      "status": "failed",
+      "failed_reason": "relation \"products\" already exists",
+      "next_hint": "Inspect the SQL dump for parse errors, then re-run /atw.build"
+    },
+    {
+      "build_id": "01KQ2RCY1C7QQ8C3RTJV4D6YN5",
+      "phase": "IMPORT",
+      "started_at": "2026-04-25T16:43:38.757Z",
+      "finished_at": "2026-04-25T16:43:38.951Z",
+      "status": "success"
+    },
+    {
+      "build_id": "01KQ2RCY1C7QQ8C3RTJV4D6YN5",
+      "phase": "ENRICH",
+      "started_at": "2026-04-25T16:43:38.959Z",
+      "finished_at": "2026-04-25T16:43:46.813Z",
+      "status": "success",
+      "model_snapshot": "claude-opus-4-7",
+      "next_hint": null
+    },
+    {
+      "build_id": "01KQ2RCY1C7QQ8C3RTJV4D6YN5",
+      "phase": "RENDER",
+      "started_at": "2026-04-25T16:43:46.816Z",
+      "finished_at": "2026-04-25T16:43:46.852Z",
+      "status": "success_cached",
+      "input_hashes": {
+        "project_name_sha256": "a3166a4ee58ed613703742f60d98ebd79e18c51f3bea6b1e3b28ccd21cd37af0",
+        "action_manifest_sha256": "4de06062612f909eb119ec389ee8bf6203c2efa0adf2996bd3855612a96243e2",
+        "backend_templates_sha256": "0e50b9b8250f5093c4846437738ad698d3d5a73cde3ed9dfa8fc81edc2d5cc3a"
+      },
+      "model_snapshot": "claude-opus-4-7"
+    },
+    {
+      "build_id": "01KQ2RCY1C7QQ8C3RTJV4D6YN5",
+      "phase": "COMPOSE",
+      "started_at": "2026-04-25T16:43:47.250Z",
+      "finished_at": "2026-04-25T16:43:47.252Z",
+      "status": "success"
+    }
+  ]
+}

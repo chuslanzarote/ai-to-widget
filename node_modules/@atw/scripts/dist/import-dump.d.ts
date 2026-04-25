@@ -29,7 +29,7 @@ export interface SchemaMapForImport {
     }>;
 }
 export interface ParsedStatement {
-    kind: "create_table" | "copy" | "alter_table" | "create_index" | "set" | "other";
+    kind: "create_table" | "copy" | "alter_table" | "create_index" | "insert" | "set" | "other";
     tableRef?: string;
     text: string;
     columns?: string[];

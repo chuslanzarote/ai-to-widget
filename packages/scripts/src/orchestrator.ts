@@ -57,7 +57,7 @@ import { loadProjectConfig, ProjectConfigError } from "./lib/runtime-config.js";
 const log = Debug("atw:orchestrator");
 
 const DEFAULT_OPUS_MODEL = "claude-opus-4-7";
-const DEFAULT_EMBEDDING_MODEL = "Xenova/bge-small-multilingual-v1.5";
+const DEFAULT_EMBEDDING_MODEL = "Xenova/bge-small-en-v1.5";
 const DEFAULT_POSTGRES_PORT = 5433;
 const DEFAULT_CONCURRENCY = 10;
 
@@ -394,7 +394,7 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
             dumpPath,
             schemaMap: schemaArtifactToImport(schemaMap),
             connectionConfig,
-            replace: false,
+            replace: true,
           });
           await rec.finish(provenanceProjectRoot, { status: "success" });
         } else if (!dumpPath) {
@@ -688,6 +688,8 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
               anthropicModel: DEFAULT_OPUS_MODEL,
               generatedAt: new Date().toISOString(),
               tools: runtimeTools,
+              defaultLocale: readDefaultLocale(flags.projectRoot),
+              briefSummary: readBriefSummary(flags.projectRoot),
             },
             backup: Boolean(flags.backup),
           });
@@ -1267,6 +1269,32 @@ function readProjectName(projectRoot: string): string {
     // fall through
   }
   return "atw-project";
+}
+
+function readDefaultLocale(projectRoot: string): string {
+  try {
+    const cfg = loadProjectConfig({ projectRoot });
+    const langs = (cfg as unknown as { languages?: unknown }).languages;
+    if (Array.isArray(langs) && typeof langs[0] === "string" && langs[0]) {
+      return langs[0];
+    }
+  } catch {
+    // fall through
+  }
+  return "en";
+}
+
+function readBriefSummary(projectRoot: string): string {
+  try {
+    const briefPath = join(projectRoot, ".atw", "config", "brief.md");
+    if (!existsSync(briefPath)) return "";
+    const raw = readFileSync(briefPath, "utf8");
+    const scopeMatch = raw.match(/##\s+Business scope\s*\n+([\s\S]*?)(?=\n##\s|$)/);
+    const text = (scopeMatch?.[1] ?? raw).trim();
+    return text.length > 800 ? text.slice(0, 800).trimEnd() + "..." : text;
+  } catch {
+    return "";
+  }
 }
 
 export function generateBuildId(nowMs: number = Date.now()): string {

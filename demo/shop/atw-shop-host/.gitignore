@@ -1,0 +1,6 @@
+# === ai-to-widget ===
+# Schema dumps and API specs staged under .atw/inputs/ tend to carry
+# customer-facing details. Keep them local. Artifacts under .atw/
+# config/, .atw/artifacts/, and .atw/state/ are safe and should be
+# committed.
+.atw/inputs/

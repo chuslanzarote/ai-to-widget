@@ -1,0 +1,71 @@
+{
+  "schema_version": "1",
+  "build_id": "atw-build-20260425T164337-2328",
+  "started_at": "2026-04-25T16:43:37.388Z",
+  "completed_at": "2026-04-25T16:43:47.286Z",
+  "duration_seconds": 9.898,
+  "result": "success",
+  "totals": {
+    "enriched": 2,
+    "failed": 0,
+    "skipped_unchanged": 18,
+    "total_entities": 20
+  },
+  "failures": [],
+  "opus": {
+    "calls": 2,
+    "cost_usd": 0.08,
+    "cost_variance_pct": 0,
+    "estimated_cost_usd": 0,
+    "input_tokens": 988,
+    "output_tokens": 848
+  },
+  "concurrency": {
+    "configured": 10,
+    "effective_max": 10,
+    "reductions": []
+  },
+  "input_hashes": {
+    "action-manifest.md": "sha256:4de06062612f909eb119ec389ee8bf6203c2efa0adf2996bd3855612a96243e2",
+    "brief.md": "sha256:9679ee253af3916ed58427e7a0d9d5b7ba9d2724113dbc4f7c56ca1fff86c951",
+    "build-plan.md": "sha256:96902e61aadcd6a5317a08f9b2797eb5ddfe3c2ea46c9e34bb6f09a146df6cc6",
+    "project.md": "sha256:018169d66b9586dab0aeac8acbd4526c9e64c47820fde506bfe542b770d67998",
+    "prompt_template_version": "enrich-v1",
+    "schema-map.md": "sha256:deb47f9905a8370ffb9cd84e9444caee96b887a41adc8743da054ace50dceea1"
+  },
+  "outputs": {
+    "backend_files": [],
+    "backend_image": null,
+    "widget_bundle": {
+      "css": {
+        "bytes": 4656,
+        "gzip_bytes": 1305,
+        "path": "C:\\Desarrollo\\Personal\\ai-to-widget\\demo\\shop\\atw-shop-host\\dist\\widget.css",
+        "sha256": "e5a36953ce0ac5c465e68e36d2a435e1b4e087687ab843636ad35ddc758c6c9f"
+      },
+      "js": {
+        "bytes": 168106,
+        "gzip_bytes": 51388,
+        "path": "C:\\Desarrollo\\Personal\\ai-to-widget\\demo\\shop\\atw-shop-host\\dist\\widget.js",
+        "sha256": "6e6e8aa2fc7cec7f664e17cd7d33d90217c99fb38ba438c3b333b6f11f60558c"
+      },
+      "source": {
+        "package_version": "0.1.0",
+        "tree_hash": "sha256:d0f29146d181bd122c1694ff250a00802459296816d0c4b98b3cfea4e1e1ebd7"
+      }
+    }
+  },
+  "environment": {
+    "docker_server_version": "unknown",
+    "embedding_model": "Xenova/bge-small-en-v1.5",
+    "node_version": "24.13.0",
+    "platform": "win32-x64",
+    "postgres_image_digest": "unknown"
+  },
+  "compliance_scan": {
+    "clean": true,
+    "matches": [],
+    "ran": true,
+    "values_checked": 0
+  }
+}

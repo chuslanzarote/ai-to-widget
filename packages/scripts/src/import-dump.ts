@@ -52,7 +52,14 @@ export interface SchemaMapForImport {
  */
 
 export interface ParsedStatement {
-  kind: "create_table" | "copy" | "alter_table" | "create_index" | "set" | "other";
+  kind:
+    | "create_table"
+    | "copy"
+    | "alter_table"
+    | "create_index"
+    | "insert"
+    | "set"
+    | "other";
   tableRef?: string;
   text: string;
   columns?: string[];
@@ -137,19 +144,30 @@ export function splitStatements(sql: string): ParsedStatement[] {
         i++;
         continue;
       }
-      const head = text.slice(0, 200).toUpperCase();
+      // Strip leading SQL line-comments and blank lines so the kind regex
+      // anchors against the first real token (pg_dump prefixes every
+      // statement with a TOC comment block).
+      const codeStart = text.replace(/^(?:\s*--[^\n]*\n|\s*\n)+/, "");
+      const head = codeStart.slice(0, 200).toUpperCase();
       if (/^CREATE\s+TABLE/.test(head)) {
-        const after = text.replace(/^CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?/i, "");
+        const after = codeStart.replace(/^CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?/i, "");
         const tableRef = extractTableRef(after);
         out.push({ kind: "create_table", tableRef, text });
       } else if (/^ALTER\s+TABLE/.test(head)) {
-        const after = text.replace(/^ALTER\s+TABLE\s+(?:ONLY\s+)?/i, "");
+        const after = codeStart.replace(/^ALTER\s+TABLE\s+(?:ONLY\s+)?/i, "");
         const tableRef = extractTableRef(after);
         out.push({ kind: "alter_table", tableRef, text });
       } else if (/^CREATE\s+(?:UNIQUE\s+)?INDEX/.test(head)) {
-        const m = text.match(/\bON\s+(?:ONLY\s+)?(?:"?(\w+)"?\.)?"?(\w+)"?/i);
+        const m = codeStart.match(/\bON\s+(?:ONLY\s+)?(?:"?(\w+)"?\.)?"?(\w+)"?/i);
         out.push({
           kind: "create_index",
+          tableRef: m ? m[2].toLowerCase() : undefined,
+          text,
+        });
+      } else if (/^INSERT\s+INTO/.test(head)) {
+        const m = codeStart.match(/^INSERT\s+INTO\s+(?:"?(\w+)"?\.)?"?(\w+)"?/i);
+        out.push({
+          kind: "insert",
           tableRef: m ? m[2].toLowerCase() : undefined,
           text,
         });
@@ -282,6 +300,43 @@ export function filterDump(
       // Emit the DDL only for kept tables; rewrite public. prefix.
       const rewritten = st.text.replace(/\bpublic\./g, `${targetSchema}.`);
       lines.push(rewritten);
+      continue;
+    }
+    if (st.kind === "insert") {
+      // INSERTs land alongside the rewritten CREATE TABLE in `${targetSchema}`.
+      // Strip PII columns whose values are positional inside VALUES (...).
+      const dropFor = piiCols.get(st.tableRef);
+      let text = st.text.replace(/\bpublic\./g, `${targetSchema}.`);
+      if (dropFor && dropFor.size > 0) {
+        // Best-effort: only safe when the INSERT lists explicit columns.
+        const colList = text.match(/^INSERT\s+INTO\s+[^()]+\(([^)]*)\)/i);
+        if (colList) {
+          const cols = colList[1]
+            .split(",")
+            .map((c) => c.trim().replace(/^"|"$/g, "").toLowerCase());
+          const keepMask = cols.map((c) => !dropFor.has(c));
+          if (keepMask.some((k) => !k)) {
+            const keptCols = cols.filter((_c, i) => keepMask[i]);
+            const valuesIdx = text.toUpperCase().indexOf("VALUES");
+            const head = text.slice(0, valuesIdx);
+            const tail = text.slice(valuesIdx);
+            const newHead = head.replace(
+              /\(([^)]*)\)\s*$/,
+              `(${keptCols.map((c) => `"${c}"`).join(", ")}) `,
+            );
+            const newTail = tail.replace(
+              /\(([^)]*)\)/,
+              (_m, body: string) => {
+                const parts = splitTopLevel(body, ",");
+                const kept = parts.filter((_p, i) => keepMask[i]);
+                return `(${kept.join(",")})`;
+              },
+            );
+            text = newHead + newTail;
+          }
+        }
+      }
+      lines.push(text);
       continue;
     }
   }

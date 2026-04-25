@@ -1,0 +1,241 @@
+import type Anthropic from "@anthropic-ai/sdk";
+import Debug from "debug";
+import type { ActionIntent, SessionContext } from "@atw/scripts/dist/lib/types.js";
+import { ModelUnavailableError } from "./errors.js";
+import { buildActionIntent } from "./action-intent.js";
+import {
+  executeSafeRead,
+  type SafeReadResult,
+} from "./tool-execution.js";
+import {
+  ACTION_TOOLS,
+  SAFE_READ_TOOLS,
+  findTool,
+  toolsForAnthropic,
+} from "../tools.js";
+
+const debug = Debug("atw:opus");
+
+/**
+ * Single-turn + tool-use loop. Source:
+ * specs/003-runtime/contracts/chat-endpoint.md §4 step 9 and §5.
+ */
+
+export interface AnyTurn {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+}
+
+export interface OpusTurnInput {
+  system: string;
+  history: AnyTurn[];
+  userMessage: string;
+  retrievalContext: string;
+  model: string;
+  client: Anthropic;
+  maxTokens?: number;
+  maxToolCalls: number;
+  sessionContext: SessionContext;
+  hostApiBaseUrl: string | null;
+  hostApiKey: string | null;
+}
+
+export interface OpusTurnResult {
+  text: string;
+  usage: { input_tokens: number; output_tokens: number };
+  actions: ActionIntent[];
+}
+
+type AnthropicMessages = Parameters<Anthropic["messages"]["create"]>[0]["messages"];
+
+export async function runTurn(input: OpusTurnInput): Promise<OpusTurnResult> {
+  const messages: AnthropicMessages = [
+    ...input.history.map((t) => ({ role: t.role, content: t.content })),
+    {
+      role: "user",
+      content:
+        input.userMessage +
+        "\n\n[Retrieval context — use only facts from this block; reply that the catalog does not cover the topic if nothing relevant is here.]\n" +
+        input.retrievalContext,
+    },
+  ];
+
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let toolCalls = 0;
+  const actions: ActionIntent[] = [];
+  const tools = toolsForAnthropic();
+
+  while (true) {
+    debug(
+      "opus call: model=%s tool_calls_so_far=%d/%d messages=%d",
+      input.model,
+      toolCalls,
+      input.maxToolCalls,
+      messages.length,
+    );
+    let resp;
+    try {
+      resp = await input.client.messages.create({
+        model: input.model,
+        max_tokens: input.maxTokens ?? 1024,
+        system: input.system,
+        messages,
+        tools: tools.length > 0 ? tools : undefined,
+      });
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      if (
+        status === 401 ||
+        status === 403 ||
+        (typeof status === "number" && status >= 500)
+      ) {
+        throw new ModelUnavailableError();
+      }
+      throw err;
+    }
+    inputTokens += resp.usage.input_tokens;
+    outputTokens += resp.usage.output_tokens;
+
+    const stopReason = resp.stop_reason;
+    const text = resp.content
+      .filter((b): b is Extract<typeof b, { type: "text" }> => b.type === "text")
+      .map((b) => b.text)
+      .join("\n")
+      .trim();
+
+    if (stopReason !== "tool_use") {
+      return {
+        text,
+        usage: { input_tokens: inputTokens, output_tokens: outputTokens },
+        actions,
+      };
+    }
+
+    const toolUseBlocks = resp.content.filter(
+      (b): b is Extract<typeof b, { type: "tool_use" }> => b.type === "tool_use",
+    );
+    // Record the assistant turn so the next call keeps conversational shape.
+    messages.push({ role: "assistant", content: resp.content });
+
+    const toolResults: Array<{
+      type: "tool_result";
+      tool_use_id: string;
+      content: string;
+      is_error?: boolean;
+    }> = [];
+
+    for (const block of toolUseBlocks) {
+      const tool = findTool(block.name);
+      if (!tool) {
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: block.id,
+          content: `Unknown tool "${block.name}" — ignored.`,
+          is_error: true,
+        });
+        continue;
+      }
+      const args = (block.input as Record<string, unknown>) ?? {};
+      if (ACTION_TOOLS.includes(block.name)) {
+        const intent = buildActionIntent({
+          tool,
+          toolUseId: block.id,
+          args,
+          sessionContext: input.sessionContext,
+        });
+        if ("unresolved" in intent) {
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: block.id,
+            content:
+              `The action ${tool.name} could not be offered to the user because these fields were missing: ${intent.unresolved.join(", ")}. ` +
+              "Ask the user for them or suggest an alternative.",
+            is_error: true,
+          });
+          continue;
+        }
+        actions.push(intent);
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: block.id,
+          content: `Action ${tool.name} prepared and pending user confirmation. The UI will show a confirmation card.`,
+        });
+        continue;
+      }
+      if (!SAFE_READ_TOOLS.includes(block.name)) {
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: block.id,
+          content: `Tool "${block.name}" has no execution policy — refused.`,
+          is_error: true,
+        });
+        continue;
+      }
+      toolCalls += 1;
+      if (toolCalls > input.maxToolCalls) {
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: block.id,
+          content: `Tool call budget (${input.maxToolCalls}) exceeded. Summarise with what you already know.`,
+          is_error: true,
+        });
+        continue;
+      }
+      try {
+        const resolvedPath = resolvePath(tool.http.path_template, args, input.sessionContext);
+        const result: SafeReadResult = await executeSafeRead({
+          tool,
+          resolvedPath,
+          method: tool.http.method,
+          body: tool.http.method === "GET" ? undefined : args,
+          hostApiBaseUrl: input.hostApiBaseUrl ?? "",
+          hostApiKey: input.hostApiKey,
+        });
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: block.id,
+          content: `HTTP ${result.status}:\n${result.body}${result.truncated ? "\n(truncated)" : ""}`,
+          is_error: result.status >= 400,
+        });
+      } catch (err) {
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: block.id,
+          content: `Tool ${tool.name} failed: ${(err as Error).message}. Degrade gracefully in your reply.`,
+          is_error: true,
+        });
+      }
+    }
+
+    messages.push({ role: "user", content: toolResults });
+
+    if (toolCalls >= input.maxToolCalls) {
+      // Force the next iteration to settle text-only (no more tool use).
+      // We let the model run one final pass to compose its answer.
+      // Next iteration's tool_use will hit the budget branch above.
+    }
+  }
+}
+
+function resolvePath(
+  template: string,
+  args: Record<string, unknown>,
+  ctx: SessionContext,
+): string {
+  return template.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key) => {
+    const v =
+      key in args
+        ? args[key]
+        : key === "cart_id"
+          ? ctx.cart_id
+          : key === "customer_id"
+            ? ctx.customer_id
+            : key === "region_id"
+              ? ctx.region_id
+              : null;
+    if (v === null || v === undefined) return `{${key}}`;
+    return encodeURIComponent(String(v));
+  });
+}
