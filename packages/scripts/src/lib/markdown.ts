@@ -564,13 +564,26 @@ function toClassification(line: string): SchemaMapArtifact["entities"][number]["
 function parseCSVField(line: string): string[] {
   return line
     .split(",")
-    .map((s) => s.trim().replace(/\\([\\_*`~\[\]()#+\-.!])/g, "$1"))
+    .map((s) =>
+      s
+        .trim()
+        .replace(/\\([\\_*`~\[\]()#+\-.!])/g, "$1")
+        .replace(/^`+|`+$/g, "")
+        .replace(/^\*+|\*+$/g, "")
+        .trim(),
+    )
     .filter(Boolean);
 }
 
 function extractFieldLine(section: Section, fieldLabel: string): string | null {
   const body = sectionText(section);
-  const re = new RegExp(`^\\s*\\*?\\*?${fieldLabel}\\*?\\*?\\s*:\\s*(.+)$`, "im");
+  // Accept the canonical paragraph form ("Source tables: x") and the list-bulleted
+  // bold form an LLM tends to produce ("- **Source tables**: x"). The optional
+  // list marker matches `-`, `*`, or `+`.
+  const re = new RegExp(
+    `^\\s*(?:[-*+]\\s+)?\\*?\\*?${fieldLabel}\\*?\\*?\\s*:\\s*(.+)$`,
+    "im",
+  );
   const m = body.match(re);
   return m ? m[1].trim() : null;
 }

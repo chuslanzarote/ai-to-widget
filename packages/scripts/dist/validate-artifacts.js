@@ -67,6 +67,20 @@ export async function validateArtifacts(options) {
 // plural classifier tags (`products`) collapse onto singular schema-map
 // entity names (`Product`) without spurious mismatches.
 const normalize = normaliseName;
+/**
+ * Feature 008 / T060 — D-RUNTIMEONLY text per
+ * specs/008-atw-hardening/contracts/builder-diagnostics.md. Exported
+ * so `test/diagnostics.text.test.ts` can assert byte-for-byte match.
+ */
+export function formatRuntimeOnlyHalt(groupName, entityName) {
+    return (`ERROR: Tool group "${groupName}" references entity "${entityName}" which is not present in schema-map.md.\n\n` +
+        `Options:\n` +
+        `  (a) If this group legitimately targets per-shopper runtime endpoints that are not indexed, flag\n` +
+        `      the group as runtime-only:\n\n` +
+        `      ## Tools: ${groupName} (runtime-only)\n\n` +
+        `  (b) If this is an indexed entity, add it to schema-map.md.\n\n` +
+        `Build halted.`);
+}
 function checkActionReferencesExcludedEntity(actionManifest, schemaMap, leftPath, rightPath) {
     const indexableEntities = new Set(schemaMap.entities
         .filter((e) => e.classification === "indexable")
@@ -84,7 +98,7 @@ function checkActionReferencesExcludedEntity(actionManifest, schemaMap, leftPath
         if (!knownEntities.has(norm) && !indexableEntities.has(norm)) {
             out.push({
                 kind: "action-references-excluded-entity",
-                detail: `action-manifest tool group "${group.entity}" has no matching entity in schema-map`,
+                detail: formatRuntimeOnlyHalt(group.entity, group.entity),
                 leftPath,
                 rightPath,
             });
@@ -93,7 +107,7 @@ function checkActionReferencesExcludedEntity(actionManifest, schemaMap, leftPath
         if (piiTables.has(norm)) {
             out.push({
                 kind: "action-references-excluded-entity",
-                detail: `action-manifest tool group "${group.entity}" targets a PII-excluded table in schema-map`,
+                detail: formatRuntimeOnlyHalt(group.entity, group.entity),
                 leftPath,
                 rightPath,
             });

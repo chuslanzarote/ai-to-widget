@@ -1,0 +1,304 @@
+{
+  "build_id": "atw-build-20260425T073931-5009",
+  "completed_at": "2026-04-25T07:39:32.920Z",
+  "compliance_scan": {
+    "clean": true,
+    "matches": [],
+    "ran": true,
+    "values_checked": 0
+  },
+  "concurrency": {
+    "configured": 10,
+    "effective_max": 10,
+    "reductions": []
+  },
+  "duration_seconds": 1.121,
+  "environment": {
+    "docker_server_version": "unknown",
+    "embedding_model": "Xenova/bge-small-en-v1.5",
+    "node_version": "24.13.0",
+    "platform": "win32-x64",
+    "postgres_image_digest": "unknown"
+  },
+  "failures": [],
+  "input_hashes": {
+    "action-manifest.md": "sha256:09ebcd267e170e998c86a86e8baea26bd9664dca92cb4c56f61fb2a7fda994eb",
+    "backend_source_tree": "sha256:23265c87b96d8d33214992f5abc88bf3244969bd650dfacfcfb70a4d15b44daf",
+    "brief.md": "sha256:8282bcfb45726388396916755d4b9c50e4b3741dc67ec822e68ad4c509f387ff",
+    "build-plan.md": "sha256:627fd4579450246b960edc0612ae326943d4ea148f23cafa57f35a3486577082",
+    "project.md": "sha256:b43e00519e4adf2c6971129fa5b0e25ac831826e300caf8df3fd58e3e101b73a",
+    "prompt_template_version": "enrich-v1",
+    "schema-map.md": "sha256:67dcd07fde2107a0e7597ef3eebf8dfc2157c06ba63c68337b131ca8a6a2a0fd"
+  },
+  "opus": {
+    "calls": 0,
+    "cost_usd": 0,
+    "cost_variance_pct": 0,
+    "estimated_cost_usd": 0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "outputs": {
+    "backend_files": [
+      {
+        "action": "unchanged",
+        "bytes": 1748,
+        "path": "backend/Dockerfile",
+        "sha256": "d994e28057d49566d417828e05265e363ceea53808a82ee5e0543839ea96c315"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 78,
+        "path": "backend/.dockerignore",
+        "sha256": "e1f0c22ddfc129e0e6d83fdc7bbb3043a9d9f6655496cf830b5307de8be9a2f4"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 1111,
+        "path": "backend/package.json",
+        "sha256": "d399f17663e14f263309787c194d662f1a67ea31cef49b289b2a66e12d7d6e30"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 853,
+        "path": "backend/tsconfig.json",
+        "sha256": "41ae7bfabf9029a380899e40b518b3620de858c2c8aece2f3d0facf61a625650"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 469,
+        "path": "src/config.ts",
+        "sha256": "b5e48f21877b27db69cef1b935fdff562ce9832fc38319810f465919fe446649"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 1182,
+        "path": "src/enrich-prompt-sharpen.ts",
+        "sha256": "32301056aa97a262559ac85603d67d49a98abab955ee1f4b1c04915876de5d1b"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 1026,
+        "path": "src/enrich-prompt.ts",
+        "sha256": "6a3d368a70d788c5a35b0b744c22fd6dc26b7f5d31051f79480876c9e9123789"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 2563,
+        "path": "src/index.ts",
+        "sha256": "083c65e4a2ea469879045bf2a4f268ad8926d4caf22e1a52d189d70d8b9dd543"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 1979,
+        "path": "src/prompts.ts",
+        "sha256": "1ba9b4294d5c99bb2b2d2005a21ec7e3f518fb44c9759765b29e0d9c4ead30f1"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 736,
+        "path": "src/retrieval.ts",
+        "sha256": "fcbe12b298b2b38fcd90a7cd800be90b5e598fae780f01c30c36e7bca933d454"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 4307,
+        "path": "src/tools.ts",
+        "sha256": "98b2cc5a77bd9bec38b041384a09ad92dd77b1a55bbc32e73bf765359a8caf1c"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 3016,
+        "path": "src/lib/action-intent.ts",
+        "sha256": "512778db8fecd31102cb852fe7175dca7ee6e5b8775711d6d7f30ec2e778d0da"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 649,
+        "path": "src/lib/cors.ts",
+        "sha256": "7ecebc30ed987012733a51fe45c0dcd6e077f109da67f12a575cc3093b8a1503"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 951,
+        "path": "src/lib/credential-strip.ts",
+        "sha256": "ad34610feb65313b751634796b1e326e03afb2c17bb3c0633c2a2bee0e72a204"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 987,
+        "path": "src/lib/embedding.ts",
+        "sha256": "8a84151392e97bd9df30d6cd76ee4e612a2fd7a15e7831a7ef687aedc1c135f4"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 2008,
+        "path": "src/lib/errors.ts",
+        "sha256": "f9fde89e7a575d36b5fbde356120796e8bbb6317b8b1ff162823d492cec138c9"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 1290,
+        "path": "src/lib/logger.ts",
+        "sha256": "e6a5334c228ec5d4214578c2263076b0cfa38240102daa00fc5577cb9d4168c8"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 4671,
+        "path": "src/lib/opus-client.ts",
+        "sha256": "244a307df8985c916e4dde431c6aa1a2d346f304e4eb8ecb854db5b3a8f6c39f"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 305,
+        "path": "src/lib/pii-scrub.ts",
+        "sha256": "02395c34469a6a05cf4a8fc1fd9b67171e2c726748446da2a93ad53634efe1ad"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 1058,
+        "path": "src/lib/rate-limit.ts",
+        "sha256": "6ef1775816d26089280fe8da51fe7c509135c3bdfec67eb8ced8a3abe0cd3309"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 1563,
+        "path": "src/lib/retrieval-context.ts",
+        "sha256": "6ccfc2a3c26b4d0af19ebaac39fa10f2f0f66fc6181d4003c26427c865eb7274"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 3039,
+        "path": "src/lib/retrieval.ts",
+        "sha256": "77bbaee5db1fd58cbfcef6c3bb6e408ba250a59d6d00ab9078ddc042ceca1855"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 1907,
+        "path": "src/lib/tool-result-assembly.ts",
+        "sha256": "e024f6755a5c134a5b1fd9054de39009386d2fde0d1f667726b242849f881d13"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 10307,
+        "path": "src/routes/chat.ts",
+        "sha256": "21b0ce12a13167d8bbaf3d3edbf58ee0be37aead8491c54346716c60550b261b"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 1038,
+        "path": "src/routes/health.ts",
+        "sha256": "01abc7545ba7a6d293c77d08fd5bfaf1f99892c8326111bc6d764e655a78656d"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 1221,
+        "path": "backend/src/_shared/error-codes.ts",
+        "sha256": "7fbde650fef07c75bd260d26fe116d6370306520afb0266ac5b95128577dbe81"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 2446,
+        "path": "backend/src/_shared/runtime-config.ts",
+        "sha256": "c7d08a7bf46da7a0913615ebd15b818c8adec5ecd303a84d0c5439220c576076"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 1349,
+        "path": "backend/src/_shared/runtime-credential-strip.ts",
+        "sha256": "2490a33a9decb7f44baa38d96c26b3eec34b5c815eea1a318dbfd80d88da72dc"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 1687,
+        "path": "backend/src/_shared/runtime-logger.ts",
+        "sha256": "4974c9058ea96d987621baf99bc81d16fdd919a7c749d3ba8a448435a2fdd362"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 1172,
+        "path": "backend/src/_shared/runtime-pii-scrub.ts",
+        "sha256": "d450219010d3b3d5e2030e2d43bf75e9a58c69ef81e2805df55f4e39bd9cd55e"
+      },
+      {
+        "action": "unchanged",
+        "bytes": 28487,
+        "path": "backend/src/_shared/types.ts",
+        "sha256": "aa154ce4d94451fa08de8e1b1f811ae21a7909d78f86cee806ad23e529eba4e8"
+      }
+    ],
+    "backend_image": {
+      "image_id": "sha256:7805de78e0a86269520aee81f03de2720190edc4a1c0d59b17dbb50c1a5a2c99",
+      "ref": "atw_backend:latest",
+      "size_bytes": 439670945
+    },
+    "widget_bundle": {
+      "css": {
+        "bytes": 5048,
+        "gzip_bytes": 1374,
+        "path": "C:\\Desarrollo\\Personal\\ai-to-widget\\demo\\shop\\atw-shop-host\\dist\\widget.css",
+        "sha256": "fc2b9cfa03478e6e954edf4a085a2c747b143fb745e960275d1d14048346936d"
+      },
+      "js": {
+        "bytes": 190657,
+        "gzip_bytes": 58496,
+        "path": "C:\\Desarrollo\\Personal\\ai-to-widget\\demo\\shop\\atw-shop-host\\dist\\widget.js",
+        "sha256": "cf3eab4345fc14648e0507d4b61bf0accf8204b0bfbd4aef2bdc740e24a3a6fd"
+      },
+      "source": {
+        "package_version": "0.1.0",
+        "tree_hash": "sha256:4ec7029cc64a1c957eff958bf4b5bf239aef65309d120d495b8b38a6f6e38d19"
+      }
+    }
+  },
+  "result": "success",
+  "schema_version": "1",
+  "started_at": "2026-04-25T07:39:31.799Z",
+  "steps": {
+    "bundle": {
+      "action": "created"
+    },
+    "compose": {
+      "action": "unchanged"
+    },
+    "image": {
+      "action": "unchanged"
+    },
+    "render": {
+      "action": "rewritten",
+      "action_executors": {
+        "action": "unchanged",
+        "bytes": 5238,
+        "path": ".atw/artifacts/action-executors.json",
+        "sha256": "b4235a8fe57581381bf504bf50fd618cd5ad6e8047637bcd2fd721323ea63c26",
+        "warnings": [
+          "cross-origin action \"add_cart_item\": host http://localhost:9000 !== widget http://localhost:8000",
+          "cross-origin action \"get_cart\": host http://localhost:9000 !== widget http://localhost:8000",
+          "cross-origin action \"remove_cart_item\": host http://localhost:9000 !== widget http://localhost:8000",
+          "cross-origin action \"update_cart_item\": host http://localhost:9000 !== widget http://localhost:8000",
+          "cross-origin action \"get_my_profile\": host http://localhost:9000 !== widget http://localhost:8000",
+          "cross-origin action \"list_my_orders\": host http://localhost:9000 !== widget http://localhost:8000",
+          "cross-origin action \"get_product\": host http://localhost:9000 !== widget http://localhost:8000",
+          "cross-origin action \"list_products\": host http://localhost:9000 !== widget http://localhost:8000"
+        ]
+      },
+      "files_changed": 1
+    }
+  },
+  "totals": {
+    "enriched": 0,
+    "failed": 0,
+    "skipped_unchanged": 20,
+    "total_entities": 20
+  },
+  "warnings": [
+    "cross-origin action \"add_cart_item\": host http://localhost:9000 !== widget http://localhost:8000",
+    "cross-origin action \"get_cart\": host http://localhost:9000 !== widget http://localhost:8000",
+    "cross-origin action \"remove_cart_item\": host http://localhost:9000 !== widget http://localhost:8000",
+    "cross-origin action \"update_cart_item\": host http://localhost:9000 !== widget http://localhost:8000",
+    "cross-origin action \"get_my_profile\": host http://localhost:9000 !== widget http://localhost:8000",
+    "cross-origin action \"list_my_orders\": host http://localhost:9000 !== widget http://localhost:8000",
+    "cross-origin action \"get_product\": host http://localhost:9000 !== widget http://localhost:8000",
+    "cross-origin action \"list_products\": host http://localhost:9000 !== widget http://localhost:8000"
+  ]
+}

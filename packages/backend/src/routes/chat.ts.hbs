@@ -116,7 +116,7 @@ export function registerChat(
       if (!ACTION_TOOLS.includes(body.tool_result.tool_name)) {
         throw new ValidationError(
           `tool_result.tool_name "${body.tool_result.tool_name}" is not in the deployed manifest`,
-          "tool_name_not_in_manifest",
+          "tool_not_allowed",
         );
       }
       messagesForOpus = assembleToolResultMessages({

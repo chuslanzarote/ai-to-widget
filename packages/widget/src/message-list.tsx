@@ -3,7 +3,6 @@ import type { JSX } from "preact";
 import { turns, thinking } from "./state.js";
 import { renderMarkdown } from "./markdown.js";
 import type { WidgetConfig } from "./config.js";
-import { resolveCitationHref } from "./config.js";
 import type { Citation } from "@atw/scripts/dist/lib/types.js";
 
 export interface AssistantTurnPayload {
@@ -48,29 +47,15 @@ export function MessageList(props: {
             </div>
           );
         }
-        const citations = turnCitations.get(t as unknown as object) ?? [];
+        // FR-027: citations are not rendered as clickable pills until a
+        // proper client-routing integration exists. The data still flows
+        // (turnCitations WeakMap is populated by the panel) so a future
+        // routing feature can re-introduce a non-pill UI without touching
+        // the data path.
         const html = renderMarkdown(t.content);
         return (
           <div class="atw-turn atw-turn--assistant" key={idx}>
             <div class="atw-bubble" dangerouslySetInnerHTML={{ __html: html }} />
-            {citations.length > 0 ? (
-              <div class="atw-citations">
-                {citations.map((c) => {
-                  const href = resolveCitationHref(c, props.config);
-                  return (
-                    <a
-                      key={c.entity_type + "/" + c.entity_id}
-                      class="atw-citation"
-                      href={href ?? "#"}
-                      target="_self"
-                      rel="noopener"
-                    >
-                      {c.title ?? `${c.entity_type}/${c.entity_id}`}
-                    </a>
-                  );
-                })}
-              </div>
-            ) : null}
           </div>
         );
       })}

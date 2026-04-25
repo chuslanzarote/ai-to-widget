@@ -27,6 +27,12 @@ services:
       PORT: "3200"
       NODE_ENV: production
       LOG_LEVEL: info
+      # Must match the origin where shop_frontend is exposed (port 8080
+      # below). Without this, @fastify/cors falls back to the dev-time
+      # default (localhost:5173) and silently rejects requests from the
+      # demo's own frontend — the failure surfaces as a "CORS error" in
+      # the browser even though the request is well-formed.
+      ALLOWED_ORIGINS: http://localhost:8080
     depends_on:
       shop_postgres:
         condition: service_healthy

@@ -1,0 +1,157 @@
+import type Anthropic from "@anthropic-ai/sdk";
+import Debug from "debug";
+import type { ActionIntent, SessionContext } from "../_shared/types.js";
+import { ModelUnavailableError } from "./errors.js";
+import { buildActionIntent } from "./action-intent.js";
+import { findTool, toolsForAnthropic } from "../tools.js";
+
+const debug = Debug("atw:opus");
+
+/**
+ * Feature 007 — single-step Opus invocation.
+ *
+ * The server-side tool-use loop is gone. Every `tool_use` emitted by
+ * Opus turns into an `ActionIntent` the backend returns to the widget,
+ * which executes the fetch and re-posts the result. One call to
+ * `messages.create()` per `runOpusStep()` invocation — the loop is now
+ * driven by successive HTTP posts from the widget.
+ *
+ * Contract: specs/007-widget-tool-loop/contracts/chat-endpoint-v2.md.
+ */
+
+export type AnthropicMessages = Parameters<
+  Anthropic["messages"]["create"]
+>[0]["messages"];
+
+export interface RunOpusStepInput {
+  client: Anthropic;
+  model: string;
+  system: string;
+  messages: AnthropicMessages;
+  sessionContext: SessionContext;
+  maxTokens?: number;
+  /**
+   * When true, the backend forces composition (budget exhausted path):
+   * Opus is called with `tool_choice: {type: "none"}` so it cannot emit
+   * another `tool_use` block. Contract: chat-endpoint-v2.md §Budget
+   * enforcement.
+   */
+  forceComposition?: boolean;
+}
+
+export type OpusStepResult =
+  | {
+      kind: "text";
+      text: string;
+      usage: { input_tokens: number; output_tokens: number };
+    }
+  | {
+      kind: "action_intent";
+      intent: ActionIntent;
+      usage: { input_tokens: number; output_tokens: number };
+    };
+
+export async function runOpusStep(
+  input: RunOpusStepInput,
+): Promise<OpusStepResult> {
+  const tools = toolsForAnthropic();
+  debug(
+    "opus step: model=%s messages=%d tools=%d force_composition=%s",
+    input.model,
+    input.messages.length,
+    tools.length,
+    String(input.forceComposition ?? false),
+  );
+
+  const createParams: Parameters<Anthropic["messages"]["create"]>[0] = {
+    model: input.model,
+    max_tokens: input.maxTokens ?? 1024,
+    system: input.system,
+    messages: input.messages,
+    tools: tools.length > 0 ? tools : undefined,
+  };
+
+  if (input.forceComposition) {
+    (createParams as { tool_choice?: unknown }).tool_choice = { type: "none" };
+  }
+
+  let resp: Anthropic.Messages.Message;
+  try {
+    resp = (await input.client.messages.create(
+      createParams,
+    )) as Anthropic.Messages.Message;
+  } catch (err) {
+    const status = (err as { status?: number })?.status;
+    if (
+      status === 401 ||
+      status === 403 ||
+      (typeof status === "number" && status >= 500)
+    ) {
+      throw new ModelUnavailableError();
+    }
+    throw err;
+  }
+
+  const usage = {
+    input_tokens: resp.usage.input_tokens,
+    output_tokens: resp.usage.output_tokens,
+  };
+
+  if (resp.stop_reason === "tool_use") {
+    const toolUseBlock = resp.content.find(
+      (b): b is Extract<typeof b, { type: "tool_use" }> => b.type === "tool_use",
+    );
+    if (toolUseBlock) {
+      const tool = findTool(toolUseBlock.name);
+      if (!tool) {
+        // Opus asked for a tool the catalog does not expose — compose a
+        // text response from whatever text blocks it also emitted.
+        const fallbackText = collectText(resp.content);
+        return {
+          kind: "text",
+          text:
+            fallbackText.length > 0
+              ? fallbackText
+              : `I tried to call a tool (${toolUseBlock.name}) that is not available.`,
+          usage,
+        };
+      }
+      const args = (toolUseBlock.input as Record<string, unknown>) ?? {};
+      const built = buildActionIntent({
+        tool,
+        toolUseId: toolUseBlock.id,
+        args,
+        sessionContext: input.sessionContext,
+      });
+      if ("unresolved" in built) {
+        const msg = collectText(resp.content);
+        return {
+          kind: "text",
+          text:
+            msg.length > 0
+              ? msg
+              : `I need more information to call ${tool.name}: missing ${built.unresolved.join(", ")}.`,
+          usage,
+        };
+      }
+      return { kind: "action_intent", intent: built, usage };
+    }
+  }
+
+  return { kind: "text", text: collectText(resp.content), usage };
+}
+
+function collectText(content: unknown): string {
+  if (!Array.isArray(content)) return "";
+  return content
+    .filter(
+      (b): b is { type: "text"; text: string } =>
+        typeof b === "object" &&
+        b !== null &&
+        (b as { type?: string }).type === "text" &&
+        typeof (b as { text?: unknown }).text === "string",
+    )
+    .map((b) => b.text)
+    .join("\n")
+    .trim();
+}

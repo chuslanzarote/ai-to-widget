@@ -241,9 +241,8 @@ export class SchemaMapZeroEntityError extends Error {
             ? `Detected H3 "### Entity:" headings — the parser expects H2 "## Entity:".\n\n` +
                 `Fix: convert your H3 headings one level up, or regenerate the file with /atw.schema.\n` +
                 `See examples/sample-schema-map.md for the expected convention.`
-            : `No "Entity:" headings found at H2 or H3.\n\n` +
-                `Fix: add at least one "## Entity: <name>" section, or regenerate the file with /atw.schema.\n` +
-                `See examples/sample-schema-map.md for the expected convention.`;
+            : `Expected H2 headings of the form "## Entity: <name>". Found none.\n\n` +
+                `Fix: see examples/sample-schema-map.md for the expected convention, or regenerate with /atw.schema.`;
         super(`${base}\n${body}`);
         this.variant = variant;
         this.path = path;
@@ -504,12 +503,20 @@ function toClassification(line) {
 function parseCSVField(line) {
     return line
         .split(",")
-        .map((s) => s.trim().replace(/\\([\\_*`~\[\]()#+\-.!])/g, "$1"))
+        .map((s) => s
+        .trim()
+        .replace(/\\([\\_*`~\[\]()#+\-.!])/g, "$1")
+        .replace(/^`+|`+$/g, "")
+        .replace(/^\*+|\*+$/g, "")
+        .trim())
         .filter(Boolean);
 }
 function extractFieldLine(section, fieldLabel) {
     const body = sectionText(section);
-    const re = new RegExp(`^\\s*\\*?\\*?${fieldLabel}\\*?\\*?\\s*:\\s*(.+)$`, "im");
+    // Accept the canonical paragraph form ("Source tables: x") and the list-bulleted
+    // bold form an LLM tends to produce ("- **Source tables**: x"). The optional
+    // list marker matches `-`, `*`, or `+`.
+    const re = new RegExp(`^\\s*(?:[-*+]\\s+)?\\*?\\*?${fieldLabel}\\*?\\*?\\s*:\\s*(.+)$`, "im");
     const m = body.match(re);
     return m ? m[1].trim() : null;
 }

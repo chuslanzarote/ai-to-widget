@@ -14,7 +14,7 @@ import { useState } from "preact/hooks";
 import type { ActionIntent } from "@atw/scripts/dist/lib/types.js";
 import type { WidgetConfig } from "./config.js";
 import { pendingAction, isSending } from "./state.js";
-import { executeIntentForLoop } from "./chat-action-runner.js";
+import { executeIntentForLoop, isStopOutcome } from "./chat-action-runner.js";
 import { continueLoopFromToolResult } from "./loop-driver.js";
 import { getLoadedCatalog } from "./action-executors.js";
 
@@ -73,6 +73,13 @@ export function ActionCard(props: {
     isSending.value = true;
     try {
       const exec = await executeIntentForLoop(props.intent, props.config);
+      if (isStopOutcome(exec)) {
+        // FR-022: D-TOOLNOTALLOWED already rendered + state cleared by
+        // the runner; do not POST a synthetic tool_result.
+        pendingAction.value = null;
+        setStatus("failed");
+        return;
+      }
       if (exec.ok) {
         setStatus("succeeded");
       } else {
