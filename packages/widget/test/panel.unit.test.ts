@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { render } from "@testing-library/preact";
+import { render, cleanup } from "@testing-library/preact";
 import { h } from "preact";
 import { ChatPanel } from "../src/panel.js";
 import { open, sessionId, turns } from "../src/state.js";
@@ -31,6 +31,7 @@ describe("ChatPanel accessibility (T112)", () => {
     sessionId.value = "test-session";
   });
   afterEach(() => {
+    cleanup();
     open.value = false;
     turns.value = [];
   });

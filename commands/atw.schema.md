@@ -37,6 +37,37 @@ If the Builder pastes one of the above, refuse with:
    - Path to an optional `--data-only --inserts` sample file; up to
      50 rows per table are used as classification evidence.
 
+   **Interactive SQL-dump capture (FR-004).** If the Builder does not
+   yet have a dump, walk them through producing one *here* so
+   `/atw.build` never halts with D-SQLDUMP later:
+
+   a. Ask for connection info one field at a time — host, port,
+      username, dbname — or accept a full `postgres://user@host:port/db`
+      URL and destructure it. Never accept a password; `pg_dump` reads
+      `PGPASSWORD` / `~/.pgpass` from the Builder's environment.
+   b. Compose the exact invocation:
+
+      ```bash
+      pg_dump \
+        --host=<host> \
+        --port=<port> \
+        --username=<user> \
+        --dbname=<db> \
+        --schema-only \
+        --no-owner --no-privileges \
+        > .atw/inputs/<name>.sql
+      ```
+
+      `<name>` matches the schema input filename the Builder will
+      reference from `/atw.build` (default: `schema`).
+   c. Write the invocation verbatim into `.atw/inputs/README.md` via
+      `atw-write-artifact --target .atw/inputs/README.md` so the
+      Builder can re-run it any time. The file is a plain
+      Builder-facing note; it is **not** hashed as a build input.
+   d. Ask the Builder to run the command in another terminal and
+      supply the resulting path. Proceed with the normal flow once
+      the file exists.
+
 2. **Deterministic parse.** Run `atw-parse-schema --schema <path>
    [--data <sample-path>]`. On parse failure, surface the reported
    line and column and halt (FR-017). No LLM call on parse failure.

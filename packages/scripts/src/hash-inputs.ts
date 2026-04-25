@@ -1,21 +1,40 @@
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { parseArgs } from "node:util";
+import { z } from "zod";
 import { writeArtifactAtomic, exists } from "./lib/atomic.js";
 import { normalizeForHash } from "./lib/normalize.js";
-import {
-  InputHashesStateSchema,
-  type InputHashKind,
-  type InputHashesState,
-  type InputHashRecord,
-} from "./lib/types.js";
+
+/**
+ * Feature 008 / T007 — `atw-hash-inputs` reader/writer shape aligned with
+ * `lib/input-hashes.ts` writer (research R14 / FR-006). On-disk shape:
+ *
+ *   {
+ *     "schema_version": "1",
+ *     "files": { "<relativePath>": "sha256:<hex>" | "<hex>", ... },
+ *     "prompt_template_version": "<string>"
+ *   }
+ *
+ * `sha256:<hex>` prefix is accepted on read (emitted by
+ * `lib/input-hashes.ts#sha256File`) and on write (this CLI) for
+ * round-trip fidelity with the main build pipeline.
+ */
+export const HashInputsStateSchema = z.object({
+  schema_version: z.literal("1"),
+  files: z.record(z.string().regex(/^(sha256:)?[a-f0-9]{64}$/i)),
+  prompt_template_version: z.string().default(""),
+});
+export type HashInputsState = z.infer<typeof HashInputsStateSchema>;
+
+/** Kept for backward-compat with pre-008 consumers (classifyKind result). */
+export type InputHashKind = "sql-dump" | "openapi" | "brief-input" | "other";
 
 interface CliOptions {
   root: string;
   inputs: string[];
   updateState: boolean;
   verbose: boolean;
+  promptTemplateVersion: string;
 }
 
 export interface HashResult {
@@ -36,40 +55,72 @@ function classifyKind(filePath: string): InputHashKind {
   return "other";
 }
 
+function stripPrefix(digest: string): string {
+  return digest.startsWith("sha256:") ? digest.slice(7) : digest;
+}
+
 export async function hashFile(filePath: string): Promise<string> {
   const raw = await fs.readFile(filePath);
   const normalized = normalizeForHash(raw);
   return createHash("sha256").update(normalized).digest("hex");
 }
 
-export async function loadState(statePath: string): Promise<InputHashesState | null> {
+/**
+ * D-HASHMISMATCH (FR-006) — emitted on read when the on-disk file does
+ * not match the aligned schema.
+ */
+export class HashIndexSchemaMismatchError extends Error {
+  constructor(public readonly actualShape: string) {
+    super(
+      `ERROR: hash-index.json failed schema validation.\n` +
+        `Expected shape: { schema_version: "1", files: Record<relativePath, sha256Hex> }\n` +
+        `Found: ${actualShape}\n\n` +
+        `Fix: delete .atw/artifacts/hash-index.json and re-run /atw.build.`,
+    );
+    this.name = "HashIndexSchemaMismatchError";
+  }
+}
+
+export async function loadState(statePath: string): Promise<HashInputsState | null> {
   if (!(await exists(statePath))) return null;
   const raw = await fs.readFile(statePath, "utf8");
   const parsed = JSON.parse(raw);
-  return InputHashesStateSchema.parse(parsed);
+  const result = HashInputsStateSchema.safeParse(parsed);
+  if (!result.success) {
+    const shape = JSON.stringify(
+      {
+        keys: Object.keys(parsed ?? {}),
+        types: Object.fromEntries(
+          Object.entries(parsed ?? {}).map(([k, v]) => [
+            k,
+            Array.isArray(v) ? "array" : typeof v,
+          ]),
+        ),
+      },
+      null,
+      0,
+    );
+    throw new HashIndexSchemaMismatchError(shape);
+  }
+  return result.data;
 }
 
 export async function computeHashResults(opts: {
   rootDir: string;
   inputs: string[];
-  previous: InputHashesState | null;
+  previous: HashInputsState | null;
 }): Promise<HashResult[]> {
-  const previousByPath = new Map<string, InputHashRecord>();
-  if (opts.previous) {
-    for (const entry of opts.previous.entries) {
-      previousByPath.set(entry.path, entry);
-    }
-  }
+  const previousFiles = opts.previous?.files ?? {};
   const results: HashResult[] = [];
   for (const absInput of opts.inputs) {
     const relative = path.relative(opts.rootDir, absInput).replace(/\\/g, "/");
     const sha256 = await hashFile(absInput);
-    const prev = previousByPath.get(relative) ?? null;
+    const prev = previousFiles[relative] ? stripPrefix(previousFiles[relative]) : null;
     results.push({
       path: relative,
       sha256,
-      previousSha256: prev?.sha256 ?? null,
-      changed: prev ? prev.sha256 !== sha256 : true,
+      previousSha256: prev,
+      changed: prev !== null ? prev !== sha256 : true,
       kind: classifyKind(absInput),
     });
   }
@@ -79,40 +130,99 @@ export async function computeHashResults(opts: {
 export async function writeState(
   statePath: string,
   results: HashResult[],
-  now: Date = new Date(),
+  opts: { promptTemplateVersion?: string; existing?: HashInputsState | null } = {},
 ): Promise<void> {
-  const state: InputHashesState = {
-    version: 1,
-    entries: results.map((r) => ({
-      path: r.path,
-      kind: r.kind,
-      sha256: r.sha256,
-      seenAt: now.toISOString(),
-    })),
+  const files: Record<string, string> = { ...(opts.existing?.files ?? {}) };
+  for (const r of results) {
+    files[r.path] = `sha256:${r.sha256}`;
+  }
+  const state: HashInputsState = {
+    schema_version: "1",
+    files,
+    prompt_template_version:
+      opts.promptTemplateVersion ?? opts.existing?.prompt_template_version ?? "",
   };
-  InputHashesStateSchema.parse(state);
+  HashInputsStateSchema.parse(state);
   await writeArtifactAtomic(statePath, JSON.stringify(state, null, 2) + "\n");
 }
 
+/**
+ * D-INPUTSARGS (FR-007 / R15) — positional parser for `--inputs`.
+ * Accepted forms:
+ *   - `--inputs a.md b.md c.md` (whitespace-separated, terminated by next `--flag` or end)
+ *   - `--inputs a.md,b.md,c.md` (legacy comma form, single argv entry)
+ *   - `--inputs a.md` (single file)
+ */
+export function parseInputsPositional(argv: string[]): {
+  root: string | null;
+  inputs: string[];
+  updateState: boolean;
+  verbose: boolean;
+  promptTemplateVersion: string;
+} {
+  const out = {
+    root: null as string | null,
+    inputs: [] as string[],
+    updateState: false,
+    verbose: false,
+    promptTemplateVersion: "",
+  };
+  let i = 0;
+  while (i < argv.length) {
+    const tok = argv[i];
+    if (tok === "--root") {
+      out.root = argv[++i] ?? null;
+      i++;
+    } else if (tok.startsWith("--root=")) {
+      out.root = tok.slice("--root=".length);
+      i++;
+    } else if (tok === "--inputs") {
+      i++;
+      while (i < argv.length && !argv[i].startsWith("--")) {
+        out.inputs.push(argv[i]);
+        i++;
+      }
+      // Legacy comma form: single arg containing commas becomes many
+      if (out.inputs.length === 1 && out.inputs[0].includes(",")) {
+        out.inputs = out.inputs[0].split(",").map((s) => s.trim()).filter(Boolean);
+      }
+    } else if (tok === "--update-state") {
+      out.updateState = true;
+      i++;
+    } else if (tok === "--verbose") {
+      out.verbose = true;
+      i++;
+    } else if (tok === "--prompt-template-version") {
+      out.promptTemplateVersion = argv[++i] ?? "";
+      i++;
+    } else if (tok.startsWith("--prompt-template-version=")) {
+      out.promptTemplateVersion = tok.slice("--prompt-template-version=".length);
+      i++;
+    } else {
+      throw new Error(
+        `ERROR: --inputs expected one or more file paths (space-separated).\n\n` +
+          `Usage: atw-hash-inputs --inputs a.md b.md c.md`,
+      );
+    }
+  }
+  return out;
+}
+
 function parseCli(argv: string[]): CliOptions {
-  const { values } = parseArgs({
-    args: argv,
-    options: {
-      root: { type: "string" },
-      inputs: { type: "string", multiple: true },
-      "update-state": { type: "boolean", default: false },
-      verbose: { type: "boolean", default: false },
-    },
-    strict: true,
-  });
-  if (!values.root) throw new Error("--root is required");
-  const inputs = (values.inputs as string[] | undefined) ?? [];
-  if (inputs.length === 0) throw new Error("--inputs <path>... (at least one) is required");
+  const parsed = parseInputsPositional(argv);
+  if (!parsed.root) throw new Error("--root is required");
+  if (parsed.inputs.length === 0) {
+    throw new Error(
+      `ERROR: --inputs expected one or more file paths (space-separated).\n\n` +
+        `Usage: atw-hash-inputs --inputs a.md b.md c.md`,
+    );
+  }
   return {
-    root: values.root as string,
-    inputs,
-    updateState: Boolean(values["update-state"]),
-    verbose: Boolean(values.verbose),
+    root: parsed.root,
+    inputs: parsed.inputs,
+    updateState: parsed.updateState,
+    verbose: parsed.verbose,
+    promptTemplateVersion: parsed.promptTemplateVersion,
   };
 }
 
@@ -128,12 +238,12 @@ export async function runHashInputs(argv: string[]): Promise<number> {
   const rootDir = path.resolve(opts.root);
   const statePath = path.join(rootDir, "state", "input-hashes.json");
 
-  let previous: InputHashesState | null = null;
+  let previous: HashInputsState | null = null;
   try {
     previous = await loadState(statePath);
   } catch (err) {
     process.stderr.write(
-      `atw-hash-inputs: state file unreadable at ${statePath}: ${(err as Error).message}\n`,
+      `atw-hash-inputs: ${(err as Error).message}\n`,
     );
     return 2;
   }
@@ -152,7 +262,10 @@ export async function runHashInputs(argv: string[]): Promise<number> {
 
   if (opts.updateState) {
     try {
-      await writeState(statePath, results);
+      await writeState(statePath, results, {
+        promptTemplateVersion: opts.promptTemplateVersion,
+        existing: previous,
+      });
     } catch (err) {
       process.stderr.write(`atw-hash-inputs: failed to write state: ${(err as Error).message}\n`);
       return 1;

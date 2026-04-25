@@ -45,3 +45,16 @@ Ports are intentionally not 5432/3000/8000 to avoid colliding with
 This stack runs standalone — no ATW components required to exercise the
 login → browse → cart → order flow. US1 acceptance is demonstrable with
 only this compose file up.
+
+## CORS (Feature 008 / FR-021)
+
+The backend registers `@fastify/cors` before any route. The allowed
+origins come from `ALLOWED_ORIGINS` (comma-separated), defaulting to
+`http://localhost:5173` (Vite dev server). `Authorization` and
+`Content-Type` are on the allow-list; credentials mode is off. Override
+at boot:
+
+```bash
+ALLOWED_ORIGINS="http://localhost:5173,https://shop.example.com" docker compose up
+```
+

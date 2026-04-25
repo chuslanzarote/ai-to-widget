@@ -79,6 +79,15 @@ export const pendingLoopTurnId = signal<string | null>(null);
 // reads this to stay hidden in chat-only mode.
 export const actionCapable = signal<boolean>(false);
 
+/**
+ * Feature 008 / FR-024 — thinking-indicator signal. The panel sets it
+ * to `true` in the same state update that schedules a POST /v1/chat and
+ * clears it in the same update that appends the first assistant reply.
+ * Rendered as a transcript row (not a toast) so screen readers announce
+ * it in conversation flow. See research.md R10.
+ */
+export const thinking = signal<boolean>(false);
+
 export const canSend = computed(() => !isSending.value);
 
 export function appendTurn(turn: ConversationTurn): void {

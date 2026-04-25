@@ -92,6 +92,7 @@ describe("executeIntentForLoop — graceful degradation (T075 / FR-019, FR-020)"
     const pending = executeIntentForLoop(readIntent(), cfg());
     await vi.advanceTimersByTimeAsync(8_000);
     const result = await pending;
+    if ("stop" in result) throw new Error("expected payload, got stop outcome");
     expect(result.ok).toBe(false);
     expect(result.payload.is_error).toBe(true);
     expect(result.payload.status).toBe(0);
@@ -107,6 +108,7 @@ describe("executeIntentForLoop — graceful degradation (T075 / FR-019, FR-020)"
       text: async () => '{"error":"kaboom"}',
     } as unknown as Response);
     const result = await executeIntentForLoop(readIntent(), cfg());
+    if ("stop" in result) throw new Error("expected payload, got stop outcome");
     expect(result.ok).toBe(false);
     expect(result.payload.is_error).toBe(true);
     expect(result.payload.status).toBe(500);
@@ -124,21 +126,15 @@ describe("executeIntentForLoop — graceful degradation (T075 / FR-019, FR-020)"
     const widgetCfg = cfg();
     widgetCfg.allowedTools = [...widgetCfg.allowedTools, "nonexistent_tool"];
     const result = await executeIntentForLoop(unknownIntent, widgetCfg);
+    // Tool-not-in-catalog still returns an ExecuteIntentResult (synthetic
+    // is_error → backend forwards to Opus). The T053 allow-list path is
+    // different: it renders a transcript row and stops. See
+    // chat-action-runner.tool-not-allowed.test.ts.
+    if ("stop" in result) throw new Error("expected payload, got stop outcome");
     expect(result.ok).toBe(false);
     expect(result.payload.is_error).toBe(true);
     expect(result.payload.status).toBe(0);
     expect(result.payload.content).toContain("not found in widget catalog");
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("tool not in widget allowlist → synthetic 'not allowed' payload, no fetch", async () => {
-    const result = await executeIntentForLoop(
-      { ...readIntent(), tool: "delete_everything" },
-      cfg(),
-    );
-    expect(result.ok).toBe(false);
-    expect(result.payload.is_error).toBe(true);
-    expect(result.payload.content).toContain("not allowed");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

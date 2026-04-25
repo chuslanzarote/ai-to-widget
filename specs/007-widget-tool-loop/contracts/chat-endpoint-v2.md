@@ -3,7 +3,7 @@
 **Feature**: 007-widget-tool-loop
 **Amends**: `specs/003-runtime/contracts/chat-endpoint.md` §5.
 **Consumer**: the ATW widget (`packages/widget`).
-**Status**: Breaking amendment — the `is_action: false → executeSafeRead` branch is removed. Existing Feature 003/006 consumers that never emit `tool_result` continue to work; the removal affects only the server's internal execution path, not the request shape they send.
+**Status**: **SUPERSEDED by Feature 008 `chat-endpoint-v3.md`**. The Feature 007 demo proved this document's "typed assistant turn carrying tool_use" example was never sent by the widget — the widget's `ConversationTurn.content` has always been a `string`. v3 documents the shape the widget actually sends and extends `tool_result` with `tool_name` + `tool_input` so the backend can reconstruct the Anthropic message trio statelessly. This v2 file is retained for historical context; do not implement against it.
 
 ## Motivation
 

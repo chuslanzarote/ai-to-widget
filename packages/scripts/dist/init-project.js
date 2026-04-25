@@ -23,11 +23,24 @@ export async function initProject(opts) {
     }
     const existing = await loadExistingProject(targetPath);
     const createdAt = existing?.createdAt ?? (opts.now ? opts.now() : new Date()).toISOString();
+    // Feature 008 / T006 — when deploymentType is customer-facing-widget the
+    // ProjectArtifact refine requires a non-empty storefrontOrigins. Default
+    // here (T044 will prompt interactively) so callers that don't supply one
+    // still produce a valid artifact.
+    const storefrontOrigins = answers.storefrontOrigins && answers.storefrontOrigins.length > 0
+        ? answers.storefrontOrigins
+        : deployment === "customer-facing-widget"
+            ? ["http://localhost:5173"]
+            : undefined;
     const candidate = ProjectArtifactSchema.parse({
         name: answers.name.trim(),
         languages,
         deploymentType: deployment,
         createdAt,
+        ...(storefrontOrigins ? { storefrontOrigins } : {}),
+        ...(answers.welcomeMessage ? { welcomeMessage: answers.welcomeMessage } : {}),
+        ...(answers.authTokenKey ? { authTokenKey: answers.authTokenKey } : {}),
+        ...(answers.loginUrl !== undefined ? { loginUrl: answers.loginUrl } : {}),
     });
     if (existing && shallowEqualProject(existing, candidate)) {
         return { artifact: candidate, wrote: false, targetPath };

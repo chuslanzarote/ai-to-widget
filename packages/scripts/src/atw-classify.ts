@@ -29,6 +29,7 @@ import {
 } from "./parse-action-manifest.js";
 import { renderActionManifest } from "./render-action-manifest.js";
 import { defaultOpusClient, type OpusClient } from "./enrich-entity.js";
+import { loadArtifactFromFile } from "./load-artifact.js";
 import type { ActionManifest } from "./lib/action-manifest-types.js";
 
 const log = Debug("atw:atw-classify");
@@ -36,6 +37,7 @@ const log = Debug("atw:atw-classify");
 const OPENAPI_ARTIFACT_REL = ".atw/artifacts/openapi.json";
 const OPENAPI_META_REL = ".atw/state/openapi-meta.json";
 const MANIFEST_ARTIFACT_REL = ".atw/artifacts/action-manifest.md";
+const PROJECT_MD_REL = ".atw/config/project.md";
 
 export interface AtwClassifyOptions {
   /** Defaults to `process.cwd()`. All reads/writes under `<projectRoot>/.atw/`. */
@@ -127,6 +129,20 @@ export async function runAtwClassify(
   const opusClient =
     opts.opusClient ?? (await defaultOpusClient(modelSnapshot));
 
+  // 5b. Load project.md#deploymentType (FR-010 gating input).
+  let deploymentType: string | undefined;
+  try {
+    const projectArt = await loadArtifactFromFile(
+      "project",
+      path.join(root, PROJECT_MD_REL),
+    );
+    if (projectArt.kind === "project") {
+      deploymentType = projectArt.content.deploymentType;
+    }
+  } catch {
+    deploymentType = undefined;
+  }
+
   // 6. Classify.
   const out = await classifyActions({
     parsed,
@@ -138,6 +154,7 @@ export async function runAtwClassify(
     hostOrigin: opts.hostOrigin,
     classifiedAt: opts.classifiedAt,
     opusTimeoutMs: opts.opusTimeoutMs,
+    deploymentType,
   });
 
   // 7. Serialise + write (create / unchanged / rewritten).

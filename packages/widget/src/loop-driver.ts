@@ -13,10 +13,11 @@
  *     degradation).
  */
 import type { ActionIntent } from "@atw/scripts/dist/lib/types.js";
+import { isResponseGenerationFailed } from "@atw/scripts/dist/lib/types.js";
 import type { WidgetConfig } from "./config.js";
 import { postChatToolResult } from "./api-client.js";
 import { attachCitationsToLastAssistantTurn } from "./message-list.js";
-import { executeIntentForLoop } from "./chat-action-runner.js";
+import { executeIntentForLoop, isStopOutcome } from "./chat-action-runner.js";
 import type { ToolResultPayload } from "./action-executors.js";
 import {
   appendTurn,
@@ -32,6 +33,14 @@ import {
 
 const FETCHING_PLACEHOLDER = "Obteniendo datos…";
 const INTERPRETING_PLACEHOLDER = "Datos obtenidos, interpretando…";
+/**
+ * Feature 008 / FR-020a — the pinned fallback string the widget
+ * renders when the backend exhausts its post-`tool_result` retry
+ * budget. Kept as a module constant so the diagnostics-text test
+ * (T055) can import it by name.
+ */
+export const RESPONSE_GENERATION_FAILED_FALLBACK =
+  "Action completed successfully. (Response generation failed — please refresh.)";
 
 interface NextStep {
   intent: ActionIntent;
@@ -59,6 +68,12 @@ export async function driveLoopFromIntent(
 
     progressPlaceholder.value = FETCHING_PLACEHOLDER;
     const exec = await executeIntentForLoop(intent, config);
+    if (isStopOutcome(exec)) {
+      // Feature 008 / FR-022 — D-TOOLNOTALLOWED path already rendered
+      // the transcript row and cleared pending state; no tool_result
+      // is posted so the next shopper turn starts from a clean slate.
+      return;
+    }
     const next = await postToolResultAndGetNext(
       exec.payload,
       budget,
@@ -116,6 +131,21 @@ async function postToolResultAndGetNext(
     appendTurn({
       role: "assistant",
       content: result.message,
+      timestamp: new Date().toISOString(),
+    });
+    return null;
+  }
+  // Feature 008 / FR-020a — action succeeded but the second Opus
+  // call exhausted its retry budget. Render the pinned fallback
+  // string, clear pending state, and do NOT surface the generic
+  // error toast.
+  if (isResponseGenerationFailed(result.response)) {
+    progressPlaceholder.value = null;
+    pendingLoopBudget.value = 0;
+    pendingLoopTurnId.value = null;
+    appendTurn({
+      role: "assistant",
+      content: RESPONSE_GENERATION_FAILED_FALLBACK,
       timestamp: new Date().toISOString(),
     });
     return null;

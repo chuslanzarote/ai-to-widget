@@ -48,7 +48,11 @@ describe("atw-init: end-to-end artifact write", () => {
     expect(bakExists).toBe(false);
   });
 
-  it("re-run on the same answers is a no-op but a changed answer rewrites with a .bak", async () => {
+  it("re-run bumps updatedAt; a changed answer also rewrites with a .bak", async () => {
+    // Per Feature 008 contracts/project-md-v2.md §Re-run behaviour: every
+    // `/atw.init` re-run re-emits `updatedAt`, so `wrote: true` even when
+    // the Builder accepts all pre-filled defaults. Unchanged captured
+    // values round-trip byte-for-byte.
     const targetDir = path.join(tmp, "demo");
     await runCli({ argv: [targetDir] });
     const projectPath = path.join(targetDir, ".atw", "config", "project.md");
@@ -61,7 +65,6 @@ describe("atw-init: end-to-end artifact write", () => {
       },
       now: () => new Date("2026-04-21T12:00:00Z"),
     });
-    const firstMtime = (await fs.stat(projectPath)).mtimeMs;
 
     const sameResult = await initProject({
       targetPath: projectPath,
@@ -72,9 +75,9 @@ describe("atw-init: end-to-end artifact write", () => {
       },
       now: () => new Date("2026-04-22T12:00:00Z"),
     });
-    expect(sameResult.wrote).toBe(false);
-    const secondMtime = (await fs.stat(projectPath)).mtimeMs;
-    expect(secondMtime).toBe(firstMtime);
+    expect(sameResult.wrote).toBe(true);
+    expect(sameResult.diff).toEqual([]);
+    expect(sameResult.artifact.updatedAt).toBe("2026-04-22T12:00:00.000Z");
 
     const changedResult = await initProject({
       targetPath: projectPath,
@@ -85,6 +88,7 @@ describe("atw-init: end-to-end artifact write", () => {
       },
     });
     expect(changedResult.wrote).toBe(true);
+    expect(changedResult.diff.map((d) => d.field)).toContain("languages");
     const bakExists = await fs
       .stat(`${projectPath}.bak`)
       .then(() => true)

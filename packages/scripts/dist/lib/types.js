@@ -17,11 +17,31 @@ export const DeploymentTypeSchema = z.enum([
     "internal-copilot",
     "custom",
 ]);
-export const ProjectArtifactSchema = z.object({
+/**
+ * Feature 008 / T006 — v2 additions to the project.md frontmatter shape
+ * (contracts/project-md-v2.md). The new fields are all optional so existing
+ * projects continue to parse; the cross-field rule enforces `storefrontOrigins`
+ * non-emptiness when `deploymentType === "customer-facing-widget"`.
+ */
+export const ProjectArtifactSchema = z
+    .object({
     name: z.string().min(1),
     languages: z.array(z.string().min(1)).min(1),
     deploymentType: DeploymentTypeSchema,
     createdAt: z.string(),
+    updatedAt: z.string().optional(),
+    storefrontOrigins: z.array(z.string().url()).optional(),
+    welcomeMessage: z.string().max(200).optional(),
+    authTokenKey: z
+        .string()
+        .regex(/^[a-zA-Z0-9_-]+$/)
+        .optional(),
+    loginUrl: z.union([z.string().url(), z.literal("")]).optional(),
+})
+    .refine((p) => p.deploymentType !== "customer-facing-widget" ||
+    (Array.isArray(p.storefrontOrigins) && p.storefrontOrigins.length > 0), {
+    message: "storefrontOrigins must be a non-empty array when deploymentType is 'customer-facing-widget'",
+    path: ["storefrontOrigins"],
 });
 /* ============================================================================
  * 1.2 Business brief (.atw/config/brief.md)
@@ -84,6 +104,12 @@ export const ActionManifestArtifactSchema = z.object({
     summary: z.string(),
     tools: z.array(z.object({
         entity: z.string(),
+        // FR-012: `## Tools: <group> (runtime-only)` flag. When true, this
+        // group bypasses the `action-references-excluded-entity` cross-check
+        // (its endpoints only run at widget runtime via tool-use, they are
+        // not indexed). Round-trips through render-executors as
+        // `runtimeOnly: true` on every entry.
+        runtimeOnly: z.boolean().optional(),
         items: z.array(ActionManifestToolSchema),
     })),
     excluded: z.array(z.object({
@@ -568,6 +594,18 @@ export const SessionContextSchema = z.object({
  */
 export const ToolResultPayloadSchema = z.object({
     tool_use_id: z.string().min(1),
+    /**
+     * Feature 008 (v3) — the operationId the widget executed. Lets the
+     * backend synthesize the assistant tool_use turn it never received
+     * (the widget's `ConversationTurn.content` is string-only). FR-019.
+     */
+    tool_name: z.string().min(1),
+    /**
+     * Feature 008 (v3) — the arguments the widget actually fetched
+     * with, reflecting any shopper confirmation-card edits (not the
+     * original Opus proposal).
+     */
+    tool_input: z.record(z.unknown()),
     content: z.string().max(4096),
     is_error: z.boolean(),
     status: z.number().int(),
@@ -621,7 +659,7 @@ export const ActionIntentSchema = z.object({
  * that still read the old shape; it carries the same single intent when
  * present so existing v1 unit tests keep passing.
  */
-export const ChatResponseSchema = z.object({
+const NormalChatResponseSchema = z.object({
     message: z.string(),
     citations: z.array(CitationSchema),
     actions: z.array(ActionIntentSchema),
@@ -631,4 +669,25 @@ export const ChatResponseSchema = z.object({
     suggestions: z.array(z.string()).optional(),
     request_id: z.string().min(1),
 });
+/**
+ * Feature 008 / FR-020a — response-generation-failed-but-action-succeeded.
+ * Emitted when the post-`tool_result` Opus call exhausts its 4-attempt
+ * retry budget but the action itself returned a non-error result. The
+ * widget renders a pinned fallback string on receipt and clears
+ * `pending_turn_id`. Contract: chat-endpoint-v3.md §Response shape.
+ */
+export const ResponseGenerationFailedSchema = z.object({
+    response_generation_failed: z.literal(true),
+    action_succeeded: z.literal(true),
+    pending_turn_id: z.null(),
+});
+export const ChatResponseSchema = z.union([
+    NormalChatResponseSchema,
+    ResponseGenerationFailedSchema,
+]);
+export function isResponseGenerationFailed(r) {
+    return (typeof r
+        .response_generation_failed === "boolean" &&
+        r.response_generation_failed === true);
+}
 //# sourceMappingURL=types.js.map

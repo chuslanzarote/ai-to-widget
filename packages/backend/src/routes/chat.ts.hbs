@@ -19,6 +19,7 @@ import {
 import { SYSTEM_PROMPT } from "../prompts.js";
 import { ValidationError } from "../lib/errors.js";
 import { ACTION_TOOLS } from "../tools.js";
+import { assembleToolResultMessages } from "../lib/tool-result-assembly.js";
 
 /**
  * POST /v1/chat — runtime handler.
@@ -106,21 +107,24 @@ export function registerChat(
       });
     }
 
+    let messagesForOpus: AnthropicMessages;
     if (resumingToolCall && body.tool_result) {
-      // The widget carries the full conversation including the prior
-      // assistant turn that contained the `tool_use` block. The
-      // current `messages` already hold it (v2 request shape). Append
-      // the `tool_result` as a user-role message.
-      messages.push({
-        role: "user",
-        content: [
-          {
-            type: "tool_result",
-            tool_use_id: body.tool_result.tool_use_id,
-            content: body.tool_result.content,
-            is_error: body.tool_result.is_error,
-          },
-        ],
+      // Feature 008 (v3) — the widget's conversation is string-content
+      // only; synthesize the assistant tool_use turn the backend never
+      // received so Anthropic sees a well-formed trio. Reject unknown
+      // tool names structurally before we forward to Opus.
+      if (!ACTION_TOOLS.includes(body.tool_result.tool_name)) {
+        throw new ValidationError(
+          `tool_result.tool_name "${body.tool_result.tool_name}" is not in the deployed manifest`,
+          "tool_name_not_in_manifest",
+        );
+      }
+      messagesForOpus = assembleToolResultMessages({
+        history: trimmedHistory.map((t) => ({
+          role: t.role,
+          content: t.content,
+        })),
+        toolResult: body.tool_result,
       });
     } else {
       messages.push({
@@ -130,18 +134,36 @@ export function registerChat(
           "\n\n[Retrieval context — use only facts from this block; reply that the catalog does not cover the topic if nothing relevant is here.]\n" +
           retrievalContext,
       });
+      messagesForOpus = messages;
     }
 
     const budgetExhausted = budget <= 0;
 
-    const step = await runOpusStep({
-      client: anthropic,
-      model: "claude-opus-4-7",
-      system: SYSTEM_PROMPT,
-      messages,
-      sessionContext: body.context,
-      forceComposition: budgetExhausted,
+    const step = await runOpusStepWithToolResultRetry({
+      resumingToolCall,
+      toolResultIsError: body.tool_result?.is_error ?? false,
+      run: () =>
+        runOpusStep({
+          client: anthropic,
+          model: "claude-opus-4-7",
+          system: SYSTEM_PROMPT,
+          messages: messagesForOpus,
+          sessionContext: body.context,
+          forceComposition: budgetExhausted,
+        }),
     });
+
+    if (step.kind === "response_generation_failed") {
+      // Feature 008 / FR-020a — the action succeeded but the second
+      // Opus call exhausted its retry budget. The widget renders the
+      // pinned fallback string and clears `pending_turn_id`.
+      reply.code(200);
+      return {
+        response_generation_failed: true,
+        action_succeeded: true,
+        pending_turn_id: null,
+      };
+    }
 
     const latency =
       Date.now() -
@@ -210,6 +232,56 @@ export function registerChat(
     reply.code(200);
     return response;
   });
+}
+
+/**
+ * Feature 008 / FR-020a — post-`tool_result` retry policy.
+ *
+ * The second Opus call (the one that composes the natural-language
+ * reply after a tool_result) gets 3 additional attempts after the
+ * initial try, with 500 ms → 1 s → 2 s backoff between attempts. On
+ * exhaustion, the handler returns the `response_generation_failed`
+ * discriminator so the widget can render the pinned fallback string.
+ *
+ * Only the post-tool_result call participates. Initial pre-tool_use
+ * calls and any `tool_result` whose `is_error` is true retain the
+ * pre-existing error handling (the error text is a normal result Opus
+ * can explain). Contract: chat-endpoint-v3.md §Retry policy.
+ */
+const POST_TOOL_RESULT_RETRY_DELAYS_MS = [500, 1000, 2000] as const;
+
+type RunOpusStepFn = () => Promise<
+  Awaited<ReturnType<typeof runOpusStep>>
+>;
+
+type OpusRetryResult =
+  | Awaited<ReturnType<typeof runOpusStep>>
+  | { kind: "response_generation_failed" };
+
+async function runOpusStepWithToolResultRetry(args: {
+  resumingToolCall: boolean;
+  toolResultIsError: boolean;
+  run: RunOpusStepFn;
+}): Promise<OpusRetryResult> {
+  const shouldRetry = args.resumingToolCall && !args.toolResultIsError;
+  if (!shouldRetry) {
+    return args.run();
+  }
+  const maxAttempts = 1 + POST_TOOL_RESULT_RETRY_DELAYS_MS.length;
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await args.run();
+    } catch (err) {
+      lastErr = err;
+      if (attempt === maxAttempts - 1) break;
+      const delay = POST_TOOL_RESULT_RETRY_DELAYS_MS[attempt];
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void lastErr;
+  return { kind: "response_generation_failed" };
 }
 
 function deriveCitations(hits: RetrievalHit[], message: string): Citation[] {

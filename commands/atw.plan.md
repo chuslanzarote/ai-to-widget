@@ -48,6 +48,11 @@ plan that Feature 002 will execute, display a cost estimate
      .atw/artifacts/schema-map.md .atw/artifacts/action-manifest.md
    ```
 
+   Positional paths after `--inputs` are collected until the next
+   `--flag` or end-of-args (Feature 008 / FR-007). The legacy
+   comma-separated single-arg form (`--inputs a.md,b.md`) is still
+   accepted as a fallback.
+
    - **Level 1**: all four hashes unchanged + existing
      `build-plan.md` → refinement mode: show current plan, ask
      *"What would you like to change?"*. **No LLM call.**

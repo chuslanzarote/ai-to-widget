@@ -89,6 +89,12 @@ export interface RenderExecutorsOptions {
   hostOrigin: string;
   widgetOrigin: string;
   backup?: boolean;
+  /**
+   * FR-013 / Feature 008 — the localStorage key the widget will read the
+   * bearer token from. Sourced from `project.md#authTokenKey`. Falls back
+   * to `DEFAULT_BEARER_STORAGE_KEY` when the project metadata is absent.
+   */
+  authTokenKey?: string;
 }
 
 export async function renderExecutors(
@@ -167,6 +173,7 @@ function buildCatalog(
 
 function deriveCredentialSource(
   entry: ActionManifestEntry,
+  authTokenKey?: string,
 ): BearerLocalStorageCredentialSource | undefined {
   const security = entry.source.security ?? [];
   if (security.length === 0) return undefined;
@@ -177,7 +184,7 @@ function deriveCredentialSource(
   }
   return {
     type: "bearer-localstorage",
-    key: DEFAULT_BEARER_STORAGE_KEY,
+    key: authTokenKey && authTokenKey.length > 0 ? authTokenKey : DEFAULT_BEARER_STORAGE_KEY,
     header: "Authorization",
     scheme: "Bearer",
   };
@@ -239,7 +246,7 @@ function manifestEntryToExecutor(
   }
 
   const summaryFields = (entry.summaryFields ?? []).slice();
-  const credentialSource = deriveCredentialSource(entry);
+  const credentialSource = deriveCredentialSource(entry, opts.authTokenKey);
 
   // Validate per-entry via Zod so InvalidSubstitutionError (arg missing)
   // fires before the whole-catalog parse. This also resolves the schema
@@ -261,6 +268,11 @@ function manifestEntryToExecutor(
       errorMessageField: "message",
     },
     ...(credentialSource ? { credentialSource } : {}),
+    ...(entry.runtimeOnly ? { runtimeOnly: true as const } : {}),
+    ...(entry.summaryTemplate ? { summaryTemplate: entry.summaryTemplate } : {}),
+    ...(entry.hostPrerequisite
+      ? { hostPrerequisite: entry.hostPrerequisite }
+      : {}),
   });
   if (!parsed.success) {
     throw new Error(

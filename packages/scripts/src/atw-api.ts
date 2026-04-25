@@ -34,6 +34,12 @@ import {
   writeInputHashes,
   type InputHashes,
 } from "./lib/input-hashes.js";
+import { loadExistingProject } from "./init-project.js";
+import {
+  emitHostRequirements,
+  HOST_REQUIREMENTS_REL,
+  type HostRequirementsEmitResult,
+} from "./host-requirements.js";
 
 const log = Debug("atw:atw-api");
 
@@ -59,6 +65,13 @@ export interface AtwApiResult {
   metaPath: string;
   /** Repository-relative path of the backup, when produced. */
   backupPath?: string;
+  /**
+   * Feature 008 / T046 — `.atw/artifacts/host-requirements.md` emission
+   * outcome. `action: "skipped"` when the deployment-type gate fails
+   * (no customer-facing-widget). Omitted from the legacy CLI text line
+   * so Feature 006 tests keep passing.
+   */
+  hostRequirements?: HostRequirementsEmitResult;
 }
 
 /**
@@ -102,7 +115,7 @@ export async function runAtwApi(opts: AtwApiOptions): Promise<AtwApiResult> {
   // parseOpenAPI already does: load → version-check (→Swagger20DetectedError) →
   // SwaggerParser.bundle (→ParseOpenAPIError on unresolved $ref) →
   // normalize (→DuplicateOperationIdError on dup operationId).
-  const { raw } = await parseOpenAPI({ source: opts.source });
+  const { raw, parsed } = await parseOpenAPI({ source: opts.source });
 
   const canonical = canonicaliseOpenAPI(raw);
   const canonicalBytes = Buffer.from(canonical, "utf8");
@@ -164,6 +177,24 @@ export async function runAtwApi(opts: AtwApiOptions): Promise<AtwApiResult> {
 
   log("%s -> %s (%s)", opts.source, OPENAPI_ARTIFACT_REL, action);
 
+  // Feature 008 / T046 — `.atw/artifacts/host-requirements.md` is a
+  // secondary output of `/atw.api` gated on project deploymentType.
+  // We read the project artefact fresh so an `/atw.init` change
+  // between runs (e.g., an added storefront origin) is picked up
+  // without the caller needing to thread the value through.
+  const projectMdPath = path.join(
+    projectRoot,
+    ".atw",
+    "config",
+    "project.md",
+  );
+  const project = await loadExistingProject(projectMdPath);
+  const hostRequirements = await emitHostRequirements({
+    projectRoot,
+    project,
+    openapi: parsed,
+  });
+
   return {
     action,
     path: OPENAPI_ARTIFACT_REL,
@@ -172,6 +203,7 @@ export async function runAtwApi(opts: AtwApiOptions): Promise<AtwApiResult> {
     backupPath: backupAbs
       ? path.relative(projectRoot, backupAbs).replace(/\\/g, "/")
       : undefined,
+    hostRequirements,
   };
 }
 
@@ -237,10 +269,30 @@ export async function runAtwApiCli(argv: string[]): Promise<number> {
           sha256: result.sha256,
           metaPath: result.metaPath,
           ...(result.backupPath ? { backupPath: result.backupPath } : {}),
+          ...(result.hostRequirements &&
+          result.hostRequirements.action !== "skipped"
+            ? {
+                hostRequirements: {
+                  action: result.hostRequirements.action,
+                  path: result.hostRequirements.path,
+                },
+              }
+            : {}),
         }) + "\n",
       );
     } else {
       process.stdout.write(`${result.action} ${result.path}\n`);
+      if (
+        result.hostRequirements &&
+        result.hostRequirements.action !== "skipped"
+      ) {
+        process.stdout.write(
+          `${result.hostRequirements.action} ${result.hostRequirements.path}\n`,
+        );
+        if (result.hostRequirements.summary.length > 0) {
+          process.stdout.write(result.hostRequirements.summary + "\n");
+        }
+      }
     }
     return 0;
   } catch (err) {
@@ -276,4 +328,4 @@ export async function runAtwApiCli(argv: string[]): Promise<number> {
 }
 
 // Export for orchestrator use — keeps the import surface small.
-export { DEFAULT_INPUT_HASHES_PATH };
+export { DEFAULT_INPUT_HASHES_PATH, HOST_REQUIREMENTS_REL };

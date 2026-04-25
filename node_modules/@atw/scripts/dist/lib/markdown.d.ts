@@ -21,5 +21,16 @@ export declare function extractCodeBlock(section: Section, lang: string): string
 export declare function extractListItems(section: Section): string[];
 export declare function listItemText(li: ListItem): string;
 export declare function parseArtifactFromMarkdown<K extends ArtifactKind>(kind: K, parsed: ParsedMarkdown): ArtifactContent<K>;
+/**
+ * D-ZEROENTITY (FR-009 / T016) — thrown when the schema-map parser extracts
+ * zero entity sections. Variant A fires when the raw markdown contains
+ * `### Entity:` headings (the parser expects H2 `## Entity:`); variant B
+ * fires when neither H2 nor H3 `Entity:` markers are present at all.
+ */
+export declare class SchemaMapZeroEntityError extends Error {
+    readonly variant: "A" | "B";
+    readonly path?: string | undefined;
+    constructor(variant: "A" | "B", path?: string | undefined);
+}
 export declare function serializeArtifact<K extends ArtifactKind>(kind: K, content: ArtifactContent<K>): string;
 //# sourceMappingURL=markdown.d.ts.map

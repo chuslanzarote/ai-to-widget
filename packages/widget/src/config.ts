@@ -16,6 +16,13 @@ export interface WidgetConfig {
   locale: string;
   loginUrl?: string;
   introLine?: string;
+  /**
+   * Feature 008 / FR-025 — Builder-configured greeting. Rendered as the
+   * first assistant-role transcript row when set (US5 / T066). Sourced
+   * from `data-welcome-message` on the loader script, which in turn
+   * comes from `project.md#welcomeMessage`.
+   */
+  welcomeMessage?: string;
   /** Tool names the widget will execute; injected at build time. */
   allowedTools: string[];
   /**
@@ -87,6 +94,7 @@ export function readConfigFromAttributes(
     locale: attrs.locale ?? fallbacks?.locale ?? "en-US",
     loginUrl: attrs.loginUrl || undefined,
     introLine: attrs.intro || undefined,
+    welcomeMessage: attrs.welcomeMessage || undefined,
     allowedTools: fallbacks?.allowedTools ?? [],
     citationUrlTemplate: attrs.citationUrlTemplate || undefined,
     actionExecutorsUrl: attrs.actionExecutorsUrl || undefined,

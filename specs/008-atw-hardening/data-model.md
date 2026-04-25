@@ -180,7 +180,7 @@ Pre-existing response shapes (`text` + `citations` + `pending_turn_id`, or `acti
 - When `response_generation_failed: true`, `pending_turn_id` is always `null` (the turn is terminally over).
 
 **State transitions**:
-- Emitted only after exhausting the R5 retry budget (initial + 2 retries = 3 attempts) on the re-invoked model call.
+- Emitted only after exhausting the R5 retry budget (initial + 3 retries = 4 attempts) on the re-invoked model call.
 - On receipt, the widget renders the fallback string and clears `pending_turn_id`.
 
 ---

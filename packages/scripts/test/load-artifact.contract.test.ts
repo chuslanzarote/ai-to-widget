@@ -29,6 +29,7 @@ describe("load-artifact contract", () => {
       languages: ["en", "es"],
       deploymentType: "customer-facing-widget",
       createdAt: "2026-04-21T12:00:00Z",
+      storefrontOrigins: ["http://localhost:5173"],
     };
     const md = serializeArtifact("project", project);
     const file = path.join(tmp, "project.md");

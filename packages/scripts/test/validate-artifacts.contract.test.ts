@@ -39,6 +39,8 @@ languages:
   - English
 deploymentType: customer-facing-widget
 createdAt: "2026-04-22T00:00:00Z"
+storefrontOrigins:
+  - "http://localhost:5173"
 ---
 
 # Project

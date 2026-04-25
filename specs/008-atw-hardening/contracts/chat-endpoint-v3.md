@@ -114,13 +114,14 @@ Existing shapes from v2 remain valid (`text`+`citations` and `action_intent`). v
 ### Response invariants (v3)
 
 - `response_generation_failed: true` MUST NOT co-occur with `text` or `action_intent`.
-- `response_generation_failed: true` MUST only be emitted after the backend has retried the second Opus call twice (total 3 attempts) on a request that carried a successful `tool_result` (`is_error === false`).
+- `response_generation_failed: true` MUST only be emitted after the backend has retried the second Opus call three times (total 4 attempts) on a request that carried a successful `tool_result` (`is_error === false`).
 - On receipt of this response, the widget renders the pinned fallback string (see [R5](../research.md#r5-response-generation-failed-but-action-succeeded-handshake-fr-020a)): *"Action completed successfully. (Response generation failed — please refresh.)"*. The widget MUST NOT render the generic error toast.
 
 ### Retry policy (backend, FR-020a / R5)
 
-- Initial attempt + 2 retries = 3 attempts maximum.
-- Delays: 500 ms → 1 s → 2 s (exponential, factor 2).
+- Initial attempt + 3 retries = 4 attempts maximum.
+- Delays between attempts: 500 ms → 1 s → 2 s (exponential, factor 2).
+- Worst-case added latency before the fallback emits: ≈ 3.5 s.
 - Only the post-`tool_result` second Opus call participates. Initial (pre-`tool_use`) call retains its Feature 003 error handling.
 - Any non-`tool_result`-triggered failure (including first Opus call failure, retrieval failure, validation failure) is surfaced via the pre-existing error-response shape — not this new shape.
 
@@ -131,8 +132,9 @@ Existing shapes from v2 remain valid (`text`+`citations` and `action_intent`). v
 ## Contract tests
 
 1. **v3 request happy path.** POST with valid `tool_result` carrying `tool_name` + `tool_input` causes the backend to reconstruct the Anthropic trio and complete a second Opus call (stubbed) without a session store.
-2. **v3 request 400s.** POST with `tool_result` missing `tool_name` or `tool_input` returns HTTP 400 with a descriptive body.
-3. **Retry exhaustion.** Stub Anthropic to fail 3 consecutive times after a successful `tool_result`; backend emits `{response_generation_failed:true, action_succeeded:true, pending_turn_id:null}`.
+2. **v3 request 400s — shape.** POST with `tool_result` missing `tool_name` or `tool_input` returns HTTP 400 with a descriptive body.
+2a. **v3 request 400s — unknown tool_name.** POST with `tool_result.tool_name` set to an operationId absent from the deployed manifest returns HTTP 400 with a descriptive body; the backend MUST NOT forward the request to Anthropic.
+3. **Retry exhaustion.** Stub Anthropic to fail 4 consecutive times after a successful `tool_result`; backend emits `{response_generation_failed:true, action_succeeded:true, pending_turn_id:null}`.
 4. **First-Opus-call failure.** Stub Anthropic to fail on initial (pre-`tool_use`) call; backend returns the pre-existing error-response shape, NOT the FR-020a fallback shape.
 5. **Contract-code alignment (FR-018).** A widget-to-backend snapshot test captures the exact bytes of a live widget POST and asserts it parses against `ToolResultPayloadSchema`. Mirrors SC-006's byte-for-byte guarantee.
 6. **Reproducibility.** Same inputs produce identical reconstructed message sequences across runs.

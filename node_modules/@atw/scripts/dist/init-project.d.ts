@@ -3,6 +3,12 @@ export interface InitProjectAnswers {
     name: string;
     languages: string[];
     deploymentType: ProjectArtifact["deploymentType"];
+    /** Feature 008 / T044 — prompts default this to `["http://localhost:5173"]`
+     * when `deploymentType === "customer-facing-widget"`. */
+    storefrontOrigins?: string[];
+    welcomeMessage?: string;
+    authTokenKey?: string;
+    loginUrl?: string;
 }
 export interface InitProjectOptions {
     answers: InitProjectAnswers;

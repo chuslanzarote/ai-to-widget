@@ -76,6 +76,24 @@ per FR-053.
 On completion a `[DONE]` banner shows the actual cost, duration, and variance
 against the estimate. Full detail is in `.atw/state/build-manifest.json`.
 
+The banner ends with a **Next steps** section (Feature 008 / FR-005 /
+contracts/embed-snippet.md §`/atw.build` DONE banner):
+
+```
+✅ Build complete.
+
+Next steps:
+  1. Run /atw.embed to get your integration snippet.
+  2. Copy dist/widget.{js,css} and .atw/artifacts/action-executors.json
+     into your host's public assets.
+  3. Paste the snippet from /atw.embed into your host's HTML <body>.
+  4. Review .atw/artifacts/host-requirements.md before going live.
+```
+
+Step 4 is printed verbatim only when `deploymentType ===
+"customer-facing-widget"` (i.e. `host-requirements.md` was emitted by
+`/atw.api`).
+
 ## Interruption
 
 Ctrl+C during enrichment triggers a graceful shutdown: in-flight Opus calls

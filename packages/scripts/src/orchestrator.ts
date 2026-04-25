@@ -30,6 +30,7 @@ import { loadArtifactFromFile } from "./load-artifact.js";
 import { startPostgres } from "./start-postgres.js";
 import { applyMigrations, defaultMigrationsDir } from "./apply-migrations.js";
 import { importDump, SchemaMapForImport } from "./import-dump.js";
+import { formatSqlDumpHalt, MissingSqlDumpError } from "./lib/diagnostics.js";
 import { assembleEntityInput } from "./assemble-entity-input.js";
 import { embedText } from "./embed-text.js";
 import {
@@ -405,6 +406,24 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
         connectionConfig,
         replace: false,
       });
+    } else if (!dumpPath && !flags.noEnrich) {
+      // Feature 008 / T026 — halt with D-SQLDUMP so the Builder sees an
+      // actionable diagnostic instead of a silent skip followed by
+      // empty enrichment. When `--no-enrich` is set we still permit the
+      // soft-skip (below) because the partial-rebuild paths depend on
+      // running without a dump.
+      const hasIndexable = (schemaMap.entities ?? []).some(
+        (e) => e.classification === "indexable",
+      );
+      if (hasIndexable) {
+        const text = await formatSqlDumpHalt({
+          name: "schema",
+          projectRoot: flags.projectRoot,
+        });
+        process.stderr.write(text);
+        throw new MissingSqlDumpError(text);
+      }
+      progress.banner(banner("IMPORT", "No .atw/inputs/*.sql dump found — skipping import"));
     } else if (!dumpPath) {
       progress.banner(banner("IMPORT", "No .atw/inputs/*.sql dump found — skipping import"));
     }

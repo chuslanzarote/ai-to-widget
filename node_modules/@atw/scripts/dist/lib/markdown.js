@@ -30,13 +30,56 @@ export function parseMarkdown(raw) {
         rawBody: parsed.content,
     };
 }
+/**
+ * ISO-8601 pattern used to detect timestamp values in the YAML frontmatter
+ * block. gray-matter's default js-yaml engine auto-types unquoted ISO
+ * timestamps to `Date` objects; downstream schemas expect `z.string()`,
+ * so we force-quote every timestamp at emit time (FR-008 / research R16).
+ */
+const ISO_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+function quoteIsoTimestampsInFrontmatter(serialized) {
+    const fmMatch = serialized.match(/^---\n([\s\S]*?)\n---\n/);
+    if (!fmMatch)
+        return serialized;
+    const block = fmMatch[1];
+    const quotedBlock = block
+        .split("\n")
+        .map((line) => {
+        const m = line.match(/^(\s*[^:\s][^:]*:\s*)(.+?)\s*$/);
+        if (!m)
+            return line;
+        const prefix = m[1];
+        let value = m[2];
+        if (value.startsWith('"'))
+            return line;
+        // gray-matter's default js-yaml engine single-quotes ISO-like strings
+        // to prevent auto-typing to `Date`. Normalise those to double-quoted
+        // per the FR-008 example in specs/008-atw-hardening/tasks.md.
+        if (value.startsWith("'") && value.endsWith("'")) {
+            const inner = value.slice(1, -1).replace(/''/g, "'");
+            if (ISO_TIMESTAMP_RE.test(inner)) {
+                return `${prefix}"${inner}"`;
+            }
+            return line;
+        }
+        if (ISO_TIMESTAMP_RE.test(value)) {
+            return `${prefix}"${value}"`;
+        }
+        return line;
+    })
+        .join("\n");
+    return `---\n${quotedBlock}\n---\n${serialized.slice(fmMatch[0].length)}`;
+}
 export function serializeMarkdown(frontmatter, body) {
     const fmKeys = Object.keys(frontmatter);
     if (fmKeys.length === 0) {
         return body.endsWith("\n") ? body : body + "\n";
     }
     const serialized = matter.stringify(body, frontmatter);
-    return serialized.endsWith("\n") ? serialized : serialized + "\n";
+    const withQuotedTimestamps = quoteIsoTimestampsInFrontmatter(serialized);
+    return withQuotedTimestamps.endsWith("\n")
+        ? withQuotedTimestamps
+        : withQuotedTimestamps + "\n";
 }
 export function extractSections(tree, level = 2) {
     const sections = [];
@@ -125,12 +168,25 @@ export function parseArtifactFromMarkdown(kind, parsed) {
 }
 function parseProject(parsed) {
     const fm = parsed.frontmatter;
-    return {
+    const base = {
         name: fm.name ?? "",
         languages: Array.isArray(fm.languages) ? fm.languages : [],
         deploymentType: fm.deploymentType ?? "custom",
         createdAt: fm.createdAt ?? new Date().toISOString(),
     };
+    // Feature 008 / T006 — v2 optional fields; only pass-through when present.
+    const extras = {};
+    if (typeof fm.updatedAt === "string")
+        extras.updatedAt = fm.updatedAt;
+    if (Array.isArray(fm.storefrontOrigins))
+        extras.storefrontOrigins = fm.storefrontOrigins;
+    if (typeof fm.welcomeMessage === "string")
+        extras.welcomeMessage = fm.welcomeMessage;
+    if (typeof fm.authTokenKey === "string")
+        extras.authTokenKey = fm.authTokenKey;
+    if (typeof fm.loginUrl === "string")
+        extras.loginUrl = fm.loginUrl;
+    return { ...base, ...extras };
 }
 function parseBrief(parsed) {
     const sections = extractSections(parsed.tree);
@@ -169,6 +225,31 @@ function parseBrief(parsed) {
         antiPatterns: antiPatterns ? extractListItems(antiPatterns) : undefined,
     };
 }
+/**
+ * D-ZEROENTITY (FR-009 / T016) — thrown when the schema-map parser extracts
+ * zero entity sections. Variant A fires when the raw markdown contains
+ * `### Entity:` headings (the parser expects H2 `## Entity:`); variant B
+ * fires when neither H2 nor H3 `Entity:` markers are present at all.
+ */
+export class SchemaMapZeroEntityError extends Error {
+    variant;
+    path;
+    constructor(variant, path) {
+        const where = path ?? "schema-map.md";
+        const base = `ERROR: Zero entities parsed from ${where}.`;
+        const body = variant === "A"
+            ? `Detected H3 "### Entity:" headings — the parser expects H2 "## Entity:".\n\n` +
+                `Fix: convert your H3 headings one level up, or regenerate the file with /atw.schema.\n` +
+                `See examples/sample-schema-map.md for the expected convention.`
+            : `No "Entity:" headings found at H2 or H3.\n\n` +
+                `Fix: add at least one "## Entity: <name>" section, or regenerate the file with /atw.schema.\n` +
+                `See examples/sample-schema-map.md for the expected convention.`;
+        super(`${base}\n${body}`);
+        this.variant = variant;
+        this.path = path;
+        this.name = "SchemaMapZeroEntityError";
+    }
+}
 function parseSchemaMap(parsed) {
     const sections = extractSections(parsed.tree);
     const summary = findSection(sections, "Summary");
@@ -190,6 +271,10 @@ function parseSchemaMap(parsed) {
             columns: parseEntityColumns(s),
             evidence: evidence ?? "",
         });
+    }
+    if (entities.length === 0) {
+        const hasH3Entity = /^###\s+Entity:/m.test(parsed.rawBody);
+        throw new SchemaMapZeroEntityError(hasH3Entity ? "A" : "B");
     }
     return {
         summary: summary ? sectionText(summary) : "",
@@ -242,8 +327,17 @@ function parseActionManifest(parsed) {
         const m = s.heading.match(/^Tools:\s+(.+)$/i);
         if (!m)
             continue;
+        // FR-012: strip optional inline `(runtime-only)` flag from the group name.
+        let entity = m[1].trim();
+        let runtimeOnly = false;
+        const flagMatch = entity.match(/^(.+?)\s*\(runtime-only\)\s*$/i);
+        if (flagMatch) {
+            entity = flagMatch[1].trim();
+            runtimeOnly = true;
+        }
         tools.push({
-            entity: m[1].trim(),
+            entity,
+            ...(runtimeOnly ? { runtimeOnly: true } : {}),
             items: parseToolItems(s),
         });
     }
@@ -476,12 +570,24 @@ This project was initialized with \`/atw.init\`. Captured values:
 
 The remaining \`/atw.*\` commands read these values for context.
 `;
-    return serializeMarkdown({
+    // Feature 008 / T006 — v2 optional fields are serialised only when present.
+    const fm = {
         name: p.name,
         languages: p.languages,
         deploymentType: p.deploymentType,
         createdAt: p.createdAt,
-    }, body);
+    };
+    if (p.updatedAt !== undefined)
+        fm.updatedAt = p.updatedAt;
+    if (p.storefrontOrigins !== undefined)
+        fm.storefrontOrigins = p.storefrontOrigins;
+    if (p.welcomeMessage !== undefined)
+        fm.welcomeMessage = p.welcomeMessage;
+    if (p.authTokenKey !== undefined)
+        fm.authTokenKey = p.authTokenKey;
+    if (p.loginUrl !== undefined)
+        fm.loginUrl = p.loginUrl;
+    return serializeMarkdown(fm, body);
 }
 function serializeBrief(b) {
     const bullets = (xs) => (xs.length ? xs.map((x) => `- ${x}`).join("\n") : "- *(none recorded)*");
@@ -590,7 +696,12 @@ Source: ${item.source.method.toUpperCase()} ${item.source.path}${item.source.sec
 Parameter sources: ${item.parameterSources.join(", ") || "*(none)*"}
 `;
     const toolGroups = a.tools
-        .map((g) => `## Tools: ${g.entity}\n\n${g.items.map(toolBlock).join("\n")}`)
+        .map((g) => {
+        const heading = g.runtimeOnly
+            ? `## Tools: ${g.entity} (runtime-only)`
+            : `## Tools: ${g.entity}`;
+        return `${heading}\n\n${g.items.map(toolBlock).join("\n")}`;
+    })
         .join("\n");
     const excluded = a.excluded.length
         ? a.excluded.map((e) => `- ${e.method.toUpperCase()} ${e.path} — ${e.reason}`).join("\n")

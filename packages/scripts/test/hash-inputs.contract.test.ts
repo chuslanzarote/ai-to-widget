@@ -88,7 +88,7 @@ describe("hash-inputs contract", () => {
     expect(second[0].sha256).not.toBe(first[0].sha256);
   });
 
-  it("writes the state file atomically with a valid zod shape", async () => {
+  it("writes the state file atomically with the v2 shape (FR-006 / R14)", async () => {
     const input = path.join(tmp, "brief.txt");
     const statePath = path.join(tmp, "state", "input-hashes.json");
     await fs.writeFile(input, "my brief notes");
@@ -100,9 +100,9 @@ describe("hash-inputs contract", () => {
     await writeState(statePath, results);
     const raw = await fs.readFile(statePath, "utf8");
     const parsed = JSON.parse(raw);
-    expect(parsed.version).toBe(1);
-    expect(parsed.entries).toHaveLength(1);
-    expect(parsed.entries[0].kind).toBe("brief-input");
-    expect(parsed.entries[0].path).toBe("brief.txt");
+    expect(parsed.schema_version).toBe("1");
+    expect(parsed.files).toBeDefined();
+    expect(parsed.files["brief.txt"]).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(typeof parsed.prompt_template_version).toBe("string");
   });
 });

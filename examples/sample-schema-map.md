@@ -11,9 +11,7 @@
 - Data samples: `demo/medusa-samples.sql` (20 rows per indexed table, `--data-only --inserts`)
 - Inspected tables: 78 total. Indexed entities: 4. Supporting references: 6. Ignored tables: 68.
 
-## Entities
-
-### Entity: Product
+## Entity: Product
 
 **Purpose.** Represents a coffee or piece of brewing equipment for sale.
 
@@ -58,7 +56,7 @@
 
 ---
 
-### Entity: Category
+## Entity: Category
 
 **Purpose.** Taxonomic grouping of products (e.g., "Single Origin Coffee", "Manual Brewers", "Grinders").
 
@@ -88,7 +86,7 @@
 
 ---
 
-### Entity: Collection
+## Entity: Collection
 
 **Purpose.** Curatorial groupings across categories (e.g., "Limited Lots", "Gift Sets", "Brewer Essentials").
 
@@ -111,7 +109,7 @@
 
 ---
 
-### Entity: Region
+## Entity: Region
 
 **Purpose.** Shipping/currency regions used to localize the catalog.
 

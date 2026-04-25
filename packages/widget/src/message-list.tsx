@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import type { JSX } from "preact";
-import { turns } from "./state.js";
+import { turns, thinking } from "./state.js";
 import { renderMarkdown } from "./markdown.js";
 import type { WidgetConfig } from "./config.js";
 import { resolveCitationHref } from "./config.js";
@@ -74,6 +74,20 @@ export function MessageList(props: {
           </div>
         );
       })}
+      {thinking.value ? (
+        <div
+          class="atw-turn atw-turn--assistant atw-thinking"
+          role="status"
+          aria-live="polite"
+        >
+          <div class="atw-bubble atw-thinking__bubble">
+            <span class="atw-thinking__dot" aria-hidden="true">•</span>
+            <span class="atw-thinking__dot" aria-hidden="true">•</span>
+            <span class="atw-thinking__dot" aria-hidden="true">•</span>
+            <span class="atw-visually-hidden">Assistant is thinking…</span>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

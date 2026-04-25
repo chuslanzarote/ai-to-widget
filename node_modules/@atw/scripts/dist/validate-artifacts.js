@@ -3,6 +3,7 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import { exists } from "./lib/atomic.js";
 import { loadArtifactFromFile } from "./load-artifact.js";
+import { normaliseName } from "./lib/singular-plural.js";
 import { ArtifactConsistencyReportSchema, } from "./lib/types.js";
 export function defaultArtifactPaths(root) {
     return {
@@ -62,9 +63,10 @@ export async function validateArtifacts(options) {
     };
     return ArtifactConsistencyReportSchema.parse(report);
 }
-function normalize(name) {
-    return name.toLowerCase().replace(/[^a-z0-9]+/g, "");
-}
+// FR-011 (research.md R9): use the shared `normaliseName` helper so
+// plural classifier tags (`products`) collapse onto singular schema-map
+// entity names (`Product`) without spurious mismatches.
+const normalize = normaliseName;
 function checkActionReferencesExcludedEntity(actionManifest, schemaMap, leftPath, rightPath) {
     const indexableEntities = new Set(schemaMap.entities
         .filter((e) => e.classification === "indexable")
@@ -73,6 +75,11 @@ function checkActionReferencesExcludedEntity(actionManifest, schemaMap, leftPath
     const piiTables = new Set(schemaMap.piiExcluded.map((p) => normalize(p.table)));
     const out = [];
     for (const group of actionManifest.tools) {
+        // FR-012: `(runtime-only)` groups skip the excluded-entity check — these
+        // endpoints exist purely for widget tool-use and intentionally have no
+        // indexed counterpart in schema-map.
+        if (group.runtimeOnly)
+            continue;
         const norm = normalize(group.entity);
         if (!knownEntities.has(norm) && !indexableEntities.has(norm)) {
             out.push({

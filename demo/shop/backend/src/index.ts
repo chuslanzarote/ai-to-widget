@@ -44,7 +44,9 @@ export async function buildApp(): Promise<FastifyInstance> {
     app.addSchema(schema);
   }
 
-  const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:8080")
+  // Feature 008 / FR-021 — storefront dev server default is 5173 (Vite).
+  // ALLOWED_ORIGINS comma-separated list is documented in demo/shop/README.md.
+  const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:5173")
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean);

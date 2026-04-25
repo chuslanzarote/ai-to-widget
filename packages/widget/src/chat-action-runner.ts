@@ -28,6 +28,13 @@ import {
   type ToolResultPayload,
 } from "./action-executors.js";
 import { assertToolAllowed, ToolNotAllowedError } from "./api-client-action.js";
+import {
+  appendTurn,
+  pendingLoopBudget,
+  pendingLoopTurnId,
+  progressPlaceholder,
+} from "./state.js";
+import { renderToolNotAllowedDiagnostic } from "./diagnostics-text.js";
 
 export interface ExecuteIntentResult {
   payload: ToolResultPayload;
@@ -35,27 +42,61 @@ export interface ExecuteIntentResult {
   ok: boolean;
 }
 
+/**
+ * Feature 008 / FR-022 — signals the D-TOOLNOTALLOWED path: the widget
+ * already rendered the transcript row and cleared pending-turn state;
+ * the loop driver must NOT POST a synthetic tool_result. Distinct from
+ * the `ExecuteIntentResult` shape so the type system forces the caller
+ * to branch.
+ */
+export interface ToolNotAllowedOutcome {
+  stop: true;
+}
+
+export type RunIntentOutcome = ExecuteIntentResult | ToolNotAllowedOutcome;
+
+export function isStopOutcome(
+  outcome: RunIntentOutcome,
+): outcome is ToolNotAllowedOutcome {
+  return (outcome as ToolNotAllowedOutcome).stop === true;
+}
+
 export async function executeIntentForLoop(
   intent: ActionIntent,
   config: WidgetConfig,
-): Promise<ExecuteIntentResult> {
+): Promise<RunIntentOutcome> {
+  const toolInput = (intent.arguments ?? {}) as Record<string, unknown>;
+
   try {
     assertToolAllowed(intent.tool, config);
   } catch (err) {
     if (err instanceof ToolNotAllowedError) {
-      return synthetic(intent.id, `tool "${intent.tool}" not allowed by widget`);
+      // Feature 008 / FR-022 — render D-TOOLNOTALLOWED as a visible
+      // transcript row and stop. No synthetic is_error turn is pushed
+      // into Anthropic's message sequence.
+      appendTurn({
+        role: "assistant",
+        content: renderToolNotAllowedDiagnostic(intent.tool),
+        timestamp: new Date().toISOString(),
+      });
+      pendingLoopBudget.value = 0;
+      pendingLoopTurnId.value = null;
+      progressPlaceholder.value = null;
+      return { stop: true };
     }
     throw err;
   }
 
   const catalog = getLoadedCatalog();
   if (!catalog) {
-    return synthetic(intent.id, "widget catalog not loaded");
+    return synthetic(intent.id, intent.tool, toolInput, "widget catalog not loaded");
   }
   const entry = catalog.actions.find((a) => a.tool === intent.tool);
   if (!entry) {
     return synthetic(
       intent.id,
+      intent.tool,
+      toolInput,
       `tool "${intent.tool}" not found in widget catalog`,
     );
   }
@@ -66,7 +107,7 @@ export async function executeIntentForLoop(
       built.validationError === "not authenticated"
         ? "not authenticated"
         : built.validationError;
-    return synthetic(intent.id, msg);
+    return synthetic(intent.id, intent.tool, toolInput, msg);
   }
 
   const abort = new AbortController();
@@ -88,11 +129,19 @@ export async function executeIntentForLoop(
     if ((err as Error).name === "AbortError") {
       return synthetic(
         intent.id,
+        intent.tool,
+        toolInput,
         "shop request timed out after 8 seconds",
         0,
       );
     }
-    return synthetic(intent.id, "could not reach the shop", 0);
+    return synthetic(
+      intent.id,
+      intent.tool,
+      toolInput,
+      "could not reach the shop",
+      0,
+    );
   }
   clearTimer(timeoutHandle as Parameters<typeof clearTimer>[0]);
 
@@ -103,6 +152,8 @@ export async function executeIntentForLoop(
     ok: !isError,
     payload: {
       tool_use_id: intent.id,
+      tool_name: intent.tool,
+      tool_input: toolInput,
       content,
       is_error: isError,
       status: res.status,
@@ -113,6 +164,8 @@ export async function executeIntentForLoop(
 
 function synthetic(
   toolUseId: string,
+  toolName: string,
+  toolInput: Record<string, unknown>,
   content: string,
   status = 0,
 ): ExecuteIntentResult {
@@ -120,6 +173,8 @@ function synthetic(
     ok: false,
     payload: {
       tool_use_id: toolUseId,
+      tool_name: toolName,
+      tool_input: toolInput,
       content,
       is_error: true,
       status,

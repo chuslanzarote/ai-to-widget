@@ -48,6 +48,56 @@ export interface ParseActionManifestOptions {
   manifestPath: string;
   /** Optional path to the ingested `openapi.json` for the FR-004 cross-check. */
   openapiPath?: string;
+  /**
+   * From `project.md#deploymentType`. When `"customer-facing-widget"`,
+   * shopper-scoped entries that would ship without a credential source
+   * cause a D-CREDSRC halt (FR-013).
+   */
+  deploymentType?: string;
+}
+
+/**
+ * Thrown by the FR-013 D-CREDSRC halt. Text matches
+ * contracts/builder-diagnostics.md verbatim.
+ */
+export class MissingCredentialSourceError extends Error {
+  readonly code = "MISSING_CREDENTIAL_SOURCE" as const;
+  readonly entries: Array<{ toolName: string; method: string; path: string }>;
+  constructor(
+    entries: Array<{ toolName: string; method: string; path: string }>,
+  ) {
+    super(formatMissingCredentialSourceMessage(entries));
+    this.name = "MissingCredentialSourceError";
+    this.entries = entries;
+  }
+}
+
+function formatMissingCredentialSourceMessage(
+  entries: Array<{ toolName: string; method: string; path: string }>,
+): string {
+  const bullets = entries
+    .map((e) => `  • ${e.toolName}  (${e.method} ${e.path})`)
+    .join("\n");
+  return (
+    `ERROR: The following tool(s) would ship without a credential source:\n\n` +
+    `${bullets}\n\n` +
+    `These operations need to declare bearer security in your OpenAPI document.\n\n` +
+    `Add EITHER:\n\n` +
+    `  (a) Per-operation security — on each affected operation:\n\n` +
+    `      security:\n` +
+    `        - bearerAuth: []\n\n` +
+    `  (b) Global security — at the document root:\n\n` +
+    `      security:\n` +
+    `        - bearerAuth: []\n\n` +
+    `      components:\n` +
+    `        securitySchemes:\n` +
+    `          bearerAuth:\n` +
+    `            type: http\n` +
+    `            scheme: bearer\n` +
+    `            bearerFormat: JWT\n\n` +
+    `See .atw/artifacts/host-requirements.md for the full host contract.\n\n` +
+    `Build halted.`
+  );
 }
 
 export async function parseActionManifest(
@@ -57,10 +107,33 @@ export async function parseActionManifest(
   const manifest = parseActionManifestText(text);
 
   if (opts.openapiPath) {
-    await crossValidateAgainstOpenAPI(manifest, opts.openapiPath);
+    await crossValidateAgainstOpenAPI(manifest, opts.openapiPath, {
+      deploymentType: opts.deploymentType,
+    });
   }
 
   return manifest;
+}
+
+const SHOPPER_OWNED_TOKENS = new Set([
+  "customer",
+  "customers",
+  "carts",
+  "cart",
+  "wishlist",
+  "wishlists",
+  "reviews",
+  "review",
+  "me",
+  "account",
+  "store",
+]);
+
+function looksShopperOwned(p: string): boolean {
+  return p
+    .toLowerCase()
+    .split("/")
+    .some((seg) => SHOPPER_OWNED_TOKENS.has(seg));
 }
 
 /**
@@ -254,7 +327,10 @@ function parseTools(
     .filter(([h]) => h.startsWith("## Tools:"))
     .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
 
-  for (const [, body] of toolsSections) {
+  for (const [heading, body] of toolsSections) {
+    // FR-012: `## Tools: <group> (runtime-only)` flag propagates to every
+    // entry in the group as `runtimeOnly: true`.
+    const runtimeOnly = /\(runtime-only\)\s*$/i.test(heading);
     const blocks = splitToolBlocks(body);
     for (const block of blocks) {
       const entry = parseSingleToolBlock(block);
@@ -266,6 +342,7 @@ function parseTools(
         );
       }
       toolNameSeen.set(entry.toolName, { line: 0 });
+      if (runtimeOnly) entry.runtimeOnly = true;
       entries.push(entry);
     }
   }
@@ -520,35 +597,89 @@ function parseOrphaned(body: string): OrphanedEntry[] {
  * OpenAPI cross-validation (FR-004)
  * ========================================================================= */
 
+interface CrossValidateOptions {
+  deploymentType?: string;
+}
+
+interface OpenAPIOpShape {
+  operationId?: string;
+  security?: Array<Record<string, string[]>>;
+}
+
 async function crossValidateAgainstOpenAPI(
   manifest: ActionManifest,
   openapiPath: string,
+  opts: CrossValidateOptions = {},
 ): Promise<void> {
   const openapiText = await fs.readFile(openapiPath, "utf8");
   const doc = JSON.parse(openapiText) as {
-    paths?: Record<string, Record<string, { operationId?: string }>>;
+    paths?: Record<string, Record<string, OpenAPIOpShape>>;
+    security?: Array<Record<string, string[]>>;
   };
-  const opIdByPair = new Map<string, string>();
+  const rootSecurity = doc.security ?? [];
+
+  const byPair = new Map<
+    string,
+    { operationId: string; security: string[] }
+  >();
   for (const [p, item] of Object.entries(doc.paths ?? {})) {
     for (const [method, op] of Object.entries(item)) {
       const opId = op?.operationId;
-      if (typeof opId === "string" && opId.length > 0) {
-        opIdByPair.set(pairKey(method.toUpperCase(), p), opId);
-      }
+      if (typeof opId !== "string" || opId.length === 0) continue;
+      // FR-013: backfill security from per-op or root-level declaration.
+      const opSecurity = Array.isArray(op.security) ? op.security : undefined;
+      const effective = opSecurity ?? rootSecurity;
+      const schemes = effective
+        .flatMap((requirement) => Object.keys(requirement ?? {}))
+        .filter((s, i, arr) => arr.indexOf(s) === i);
+      byPair.set(pairKey(method.toUpperCase(), p), {
+        operationId: opId,
+        security: schemes,
+      });
     }
   }
+
   for (const entry of manifest.included) {
-    const known = opIdByPair.get(pairKey(entry.source.method, entry.source.path));
+    const known = byPair.get(pairKey(entry.source.method, entry.source.path));
     if (!known) {
       throw new ManifestValidationError(
         `manifest entry "${entry.toolName}" references (${entry.source.method} ${entry.source.path}) which does not exist in ${path.basename(openapiPath)} — anchored-generation invariant (Principle V, FR-004) violated.`,
       );
     }
-    entry.source.operationId = known;
+    entry.source.operationId = known.operationId;
+    // Only backfill when the manifest itself didn't already carry security.
+    const current = entry.source.security ?? [];
+    if (current.length === 0 && known.security.length > 0) {
+      entry.source.security = known.security;
+    }
   }
   for (const entry of manifest.excluded) {
-    const known = opIdByPair.get(pairKey(entry.method, entry.path));
-    if (known) entry.operationId = known;
+    const known = byPair.get(pairKey(entry.method, entry.path));
+    if (known) entry.operationId = known.operationId;
+  }
+
+  // FR-013 D-CREDSRC halt: for customer-facing widget deployments, every
+  // shopper-scoped included entry must carry at least one security scheme.
+  if (opts.deploymentType === "customer-facing-widget") {
+    const offenders: Array<{
+      toolName: string;
+      method: string;
+      path: string;
+    }> = [];
+    for (const entry of manifest.included) {
+      // Runtime-only groups are exempt — they may target public endpoints.
+      if (entry.runtimeOnly) continue;
+      if ((entry.source.security ?? []).length > 0) continue;
+      if (!looksShopperOwned(entry.source.path)) continue;
+      offenders.push({
+        toolName: entry.toolName,
+        method: entry.source.method,
+        path: entry.source.path,
+      });
+    }
+    if (offenders.length > 0) {
+      throw new MissingCredentialSourceError(offenders);
+    }
   }
 }
 

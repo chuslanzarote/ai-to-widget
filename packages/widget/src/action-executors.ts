@@ -305,6 +305,17 @@ export async function handleResponse(
  */
 export interface ToolResultPayload {
   tool_use_id: string;
+  /**
+   * Feature 008 (v3) — the operationId the widget executed. Required
+   * so the backend can synthesize the assistant tool_use turn it
+   * never received (the widget's conversation is string-content only).
+   */
+  tool_name: string;
+  /**
+   * Feature 008 (v3) — the arguments the widget actually fetched with,
+   * reflecting any shopper confirmation-card edits.
+   */
+  tool_input: Record<string, unknown>;
   content: string;
   is_error: boolean;
   status: number;

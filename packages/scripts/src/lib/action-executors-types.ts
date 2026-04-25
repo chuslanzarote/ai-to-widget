@@ -104,6 +104,27 @@ export const ActionExecutorEntrySchema = z.object({
    * absent for unauthenticated catalogue reads.
    */
   credentialSource: CredentialSourceSchema.optional(),
+  /**
+   * FR-012 — propagated from the `(runtime-only)` flag on the source
+   * `## Tools: <group> (runtime-only)` heading. Widgets use this to
+   * skip any lookup/RAG shortcuts and always route through tool-use.
+   */
+  runtimeOnly: z.boolean().optional(),
+  /**
+   * Feature 008 / FR-026 — Handlebars-style summary template rendered
+   * by the widget's ActionCard in US5 (`{{ name }}` substitutions
+   * against the tool call's `arguments` object). Distinct from
+   * `responseHandling.summaryTemplate`, which describes the *response*
+   * wording; this field describes the *pre-execution* confirmation
+   * wording. Missing placeholder ⇒ ActionCard falls back to raw JSON.
+   */
+  summaryTemplate: z.string().optional(),
+  /**
+   * Feature 008 / FR-003 — per-tool host prerequisite string consumed
+   * by `host-requirements.md#Tool-specific prerequisites`. Declarative
+   * pass-through; never rendered by the widget.
+   */
+  hostPrerequisite: z.string().optional(),
 });
 export type ActionExecutorEntry = z.infer<typeof ActionExecutorEntrySchema>;
 

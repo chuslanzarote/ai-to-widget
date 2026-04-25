@@ -170,7 +170,7 @@ Temporarily misconfigure each of the following, reload, observe the visible in-w
 
 ## Step 10 — Model-failure fallback (optional)
 
-Inject a failure on the post-`tool_result` Opus call (e.g., by temporarily setting an invalid API key after the widget successfully executes a write action). The backend retries twice, then emits `{response_generation_failed:true, action_succeeded:true, pending_turn_id:null}`. The widget renders the pinned fallback string *"Action completed successfully. (Response generation failed — please refresh.)"* — not the generic error toast.
+Inject a failure on the post-`tool_result` Opus call (e.g., by temporarily setting an invalid API key after the widget successfully executes a write action). The backend retries three times (500 ms → 1 s → 2 s), then emits `{response_generation_failed:true, action_succeeded:true, pending_turn_id:null}`. The widget renders the pinned fallback string *"Action completed successfully. (Response generation failed — please refresh.)"* — not the generic error toast.
 
 **Validates**: FR-020a, R5.
 

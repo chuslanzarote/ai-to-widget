@@ -38,7 +38,7 @@ Every other fix is either a local renderer/parser/CLI bug (Theme B), a generator
 - (g) validator accepts `runtime-only` tool groups against excluded entities (FR-012).
 - (h) cross-validator halts with actionable diagnostic when authed op lacks `credentialSource` (FR-013).
 - (i) chat-endpoint accepts `tool_result` POST with `tool_name` + `tool_input` and reconstructs Anthropic message sequence (FR-018/019/020).
-- (j) backend retries model call 1–2× on re-invocation failure and signals response-generation-failed state when retries exhaust (FR-020a).
+- (j) backend retries model call up to 3× (500 ms → 1 s → 2 s, 4 attempts total) on re-invocation failure and signals response-generation-failed state when retries exhaust (FR-020a).
 - (k) `/atw.embed` output includes `data-allowed-tools` + `data-auth-token-key` + files-to-copy checklist (FR-014/015/016/017).
 - (l) `demo/shop` Fastify app starts with CORS middleware wired to `ALLOWED_ORIGINS` (FR-021).
 - (m) widget surfaces visible in-widget error on tool-not-in-allow-list and missing action-executors catalog (FR-022/023).
@@ -205,7 +205,7 @@ ai-to-widget/
 │   │       │   └── chat.ts.hbs                  # AMENDED — accept tool_name + tool_input
 │   │       │                                    # in tool_result payload; reconstruct
 │   │       │                                    # [user, assistant:tool_use, user:tool_result]
-│   │       │                                    # Anthropic sequence; retry model call 1–2×
+│   │       │                                    # Anthropic sequence; retry model call up to 3×
 │   │       │                                    # on failure; emit response-generation-
 │   │       │                                    # failed state on exhaustion (FR-018/019/
 │   │       │                                    # 020/020a)

@@ -126,14 +126,14 @@ describe("chat-only gate on ActionCard (T077 / US6, FR-014)", () => {
   it("panel.tsx refuses to stash an ActionIntent when actionCapable is false", async () => {
     // Structural pin on the send-path branch: the code must
     // explicitly check !actionCapable.value before writing into
-    // pendingAction, and log a warning so the drift is visible.
+    // pendingAction, and render the D-NOEXECUTORS diagnostic row so
+    // the drift is visible in the transcript (Feature 008 / FR-023 —
+    // the former console.warn path has been replaced).
     const src = await fs.readFile(
       path.join(__dirname, "..", "src", "panel.tsx"),
       "utf8",
     );
     expect(src).toContain("if (!actionCapable.value)");
-    expect(src).toMatch(
-      /\[atw\] backend emitted ActionIntent while widget is in chat-only mode/,
-    );
+    expect(src).toContain("renderNoExecutorsDiagnostic");
   });
 });

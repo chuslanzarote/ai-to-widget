@@ -49,6 +49,30 @@ export const ActionManifestEntrySchema = z.object({
     security: z.array(z.string()).optional(),
   }),
   parameterSources: z.string().optional(),
+  /**
+   * FR-012 — when true, this entry is a runtime-only tool (no indexed
+   * counterpart in schema-map). Propagated from the `(runtime-only)`
+   * flag on the `## Tools: <group>` heading in `action-manifest.md`,
+   * and round-trips through `render-executors.ts` as
+   * `runtimeOnly: true` on the rendered executor.
+   */
+  runtimeOnly: z.boolean().optional(),
+  /**
+   * Feature 008 / FR-026 — optional Handlebars-style summary template
+   * (e.g. `"Add {{ quantity }}× {{ product_name }} to your cart"`) used
+   * by the widget's ActionCard renderer in US5. Declarative pass-through
+   * only; the widget substitutes placeholders from the tool call's
+   * arguments at render time. Absent ⇒ ActionCard falls back to the
+   * raw-JSON view.
+   */
+  summaryTemplate: z.string().optional(),
+  /**
+   * Feature 008 / FR-003 — optional per-tool host prerequisite string
+   * (e.g. `"The Customer-Addresses endpoint requires a verified email
+   * on the shopper's account"`). Surfaced in the
+   * `host-requirements.md#Tool-specific prerequisites` section.
+   */
+  hostPrerequisite: z.string().optional(),
 });
 export type ActionManifestEntry = z.infer<typeof ActionManifestEntrySchema>;
 

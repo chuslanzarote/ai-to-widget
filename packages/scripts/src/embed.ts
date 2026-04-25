@@ -5,7 +5,25 @@ import { fileURLToPath } from "node:url";
 import Debug from "debug";
 import Handlebars from "handlebars";
 
+import { loadExistingProject } from "./init-project.js";
+import { HOST_REQUIREMENTS_REL } from "./host-requirements.js";
+
 const log = Debug("atw:embed");
+
+/**
+ * Feature 008 / FR-015 — tool name `,` is forbidden because
+ * `data-allowed-tools` uses a comma-separated list. A tool whose name
+ * contains a comma would corrupt the allow-list at parse time.
+ */
+export class ToolNameCommaError extends Error {
+  readonly code = "TOOL_NAME_CONTAINS_COMMA" as const;
+  constructor(public readonly tool: string) {
+    super(
+      `atw-embed: tool name "${tool}" contains a comma — data-allowed-tools is comma-separated and cannot carry this name.`,
+    );
+    this.name = "ToolNameCommaError";
+  }
+}
 
 // Equality helper used by embed templates (e.g., `{{#if (eq authMode "cookie")}}`).
 Handlebars.registerHelper("eq", (a: unknown, b: unknown) => a === b);
@@ -41,10 +59,142 @@ export interface EmbedOptions {
   frozenTime?: string;
 }
 
+export interface EmbedSnippetBlock {
+  /** FR-016/017 — files-to-copy markdown task-list. */
+  filesToCopy: string;
+  /** FR-003 reminder. `null` when `host-requirements.md` does not exist. */
+  hostRequirementsReminder: string | null;
+  /** FR-014/015/025 — the pasteable HTML snippet. */
+  pasteableSnippet: string;
+  /** Alphabetically-sorted tool names used to build `data-allowed-tools`. */
+  allowedTools: string[];
+  /** Concatenation of the three sections (plus a trailing newline). */
+  full: string;
+}
+
 export interface EmbedResult {
   outputPath: string;
   bytesWritten: number;
   sha256: string;
+  /**
+   * Feature 008 / contracts/embed-snippet.md — the 3-section integration
+   * block printed to stdout and spliced into the top of the rendered
+   * embed-guide.md. Carried on the result so CLI + tests see the same
+   * bytes.
+   */
+  snippet: EmbedSnippetBlock;
+}
+
+/* ----------------------- Feature 008 snippet building -------------------- */
+
+/**
+ * Read `.atw/artifacts/action-executors.json`, extract every `entry.tool`,
+ * sort alphabetically, and return the list. Missing file ⇒ empty list.
+ * Throws `ToolNameCommaError` if any tool name contains a comma (FR-015).
+ */
+export async function readAllowedTools(projectRoot: string): Promise<string[]> {
+  const p = path.join(
+    projectRoot,
+    ".atw",
+    "artifacts",
+    "action-executors.json",
+  );
+  let raw: string;
+  try {
+    raw = await fs.readFile(p, "utf8");
+  } catch {
+    return [];
+  }
+  const parsed = JSON.parse(raw) as {
+    actions?: Array<{ tool: string }>;
+  };
+  const tools = (parsed.actions ?? []).map((a) => a.tool);
+  for (const t of tools) {
+    if (t.includes(",")) throw new ToolNameCommaError(t);
+  }
+  return tools.slice().sort();
+}
+
+/**
+ * Read `project.md#welcomeMessage`. Missing file ⇒ `undefined`.
+ */
+export async function readProjectWelcomeMessage(
+  projectRoot: string,
+): Promise<string | undefined> {
+  const p = path.join(projectRoot, ".atw", "config", "project.md");
+  const project = await loadExistingProject(p);
+  return project?.welcomeMessage;
+}
+
+export function hostRequirementsExists(projectRoot: string): boolean {
+  return existsSync(path.join(projectRoot, HOST_REQUIREMENTS_REL));
+}
+
+interface BuildSnippetInputs {
+  backendUrl: string;
+  authTokenKey: string;
+  allowedTools: string[];
+  welcomeMessage: string;
+  hostRequirementsPresent: boolean;
+  catalogIsEmpty: boolean;
+}
+
+export function buildEmbedSnippet(inputs: BuildSnippetInputs): EmbedSnippetBlock {
+  const filesToCopyLines = [
+    "**Files to copy into your host's public assets:**",
+    "",
+    "- [ ] `dist/widget.js`",
+    "- [ ] `dist/widget.css`",
+  ];
+  if (!inputs.catalogIsEmpty) {
+    filesToCopyLines.push("- [ ] `.atw/artifacts/action-executors.json`");
+  }
+  const filesToCopy = filesToCopyLines.join("\n") + "\n";
+
+  const hostRequirementsReminder = inputs.hostRequirementsPresent
+    ? [
+        "**Before embedding, verify your host meets these requirements:**",
+        "See `.atw/artifacts/host-requirements.md`.",
+      ].join("\n") + "\n"
+    : null;
+
+  const pasteableSnippet =
+    [
+      "<script",
+      '  src="/widget.js"',
+      "  defer",
+      `  data-backend-url="${inputs.backendUrl}"`,
+      `  data-auth-token-key="${inputs.authTokenKey}"`,
+      `  data-allowed-tools="${inputs.allowedTools.join(",")}"`,
+      `  data-welcome-message="${escapeAttr(inputs.welcomeMessage)}"`,
+      "></script>",
+      '<link rel="stylesheet" href="/widget.css">',
+    ].join("\n") + "\n";
+
+  const full = [
+    filesToCopy,
+    hostRequirementsReminder ?? "",
+    pasteableSnippet,
+  ]
+    .filter((s) => s.length > 0)
+    .join("\n");
+
+  return {
+    filesToCopy,
+    hostRequirementsReminder,
+    pasteableSnippet,
+    allowedTools: inputs.allowedTools,
+    full,
+  };
+}
+
+/** HTML attribute-safe escape (quotes + ampersand + angle brackets). */
+function escapeAttr(v: string): string {
+  return v
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 /* -------------------------- precondition checks -------------------------- */
@@ -238,8 +388,32 @@ export async function renderEmbedGuide(opts: EmbedOptions): Promise<EmbedResult>
       }
     }
   }
-  const rendered = compiled({ ...baseVars, generatedAt });
+  const templateRendered = compiled({ ...baseVars, generatedAt });
   const now = generatedAt;
+
+  // Feature 008 / contracts/embed-snippet.md — derive the 3-section
+  // integration block and splice it in at the very top of the guide so
+  // the Builder sees it before the framework walkthrough. The same
+  // block is printed to stdout by the CLI.
+  const allowedTools = await readAllowedTools(opts.projectRoot);
+  const welcomeMessage = await readProjectWelcomeMessage(opts.projectRoot);
+  const snippet = buildEmbedSnippet({
+    backendUrl: opts.answers.backendUrl,
+    authTokenKey:
+      opts.answers.authTokenKey && opts.answers.authTokenKey.length > 0
+        ? opts.answers.authTokenKey
+        : "shop_auth_token",
+    allowedTools,
+    welcomeMessage: welcomeMessage ?? "",
+    hostRequirementsPresent: hostRequirementsExists(opts.projectRoot),
+    catalogIsEmpty: allowedTools.length === 0,
+  });
+
+  const snippetSection =
+    "## Integration snippet\n\n" +
+    snippet.full +
+    "\n---\n\n";
+  const rendered = spliceIntegrationSnippet(templateRendered, snippetSection);
 
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.writeFile(outputPath, rendered, "utf8");
@@ -256,7 +430,23 @@ export async function renderEmbedGuide(opts: EmbedOptions): Promise<EmbedResult>
   const { createHash } = await import("node:crypto");
   const sha256 = createHash("sha256").update(rendered).digest("hex");
   log("wrote %s (%d bytes, sha256=%s)", outputPath, rendered.length, sha256);
-  return { outputPath, bytesWritten: rendered.length, sha256 };
+  return { outputPath, bytesWritten: rendered.length, sha256, snippet };
+}
+
+/**
+ * Insert the `## Integration snippet` block at the first sensible
+ * location in the framework guide: immediately after the first
+ * horizontal-rule divider (`---`) that sits below the title and the
+ * "Answers captured in..." line. Falls back to prepending if no such
+ * divider is found.
+ */
+function spliceIntegrationSnippet(guide: string, snippet: string): string {
+  const marker = "\n---\n\n";
+  const idx = guide.indexOf(marker);
+  if (idx < 0) return snippet + guide;
+  const before = guide.slice(0, idx + marker.length);
+  const after = guide.slice(idx + marker.length);
+  return before + snippet + after;
 }
 
 /* ---------------------------------- CLI ---------------------------------- */
@@ -349,12 +539,18 @@ export async function runEmbedCli(
     process.stdout.write(
       `wrote ${path.relative(opts.projectRoot, res.outputPath)} (${res.bytesWritten} bytes)\n`,
     );
+    // FR-016/017/003/014/015/025 — the 3-section integration block.
+    process.stdout.write("\n" + res.snippet.full);
     return 0;
   } catch (err) {
     const code = (err as { code?: string })?.code;
     if (code === "PRECONDITIONS_MISSING") {
       process.stderr.write(`${(err as Error).message}\n`);
       return 3;
+    }
+    if (code === "TOOL_NAME_CONTAINS_COMMA") {
+      process.stderr.write(`${(err as Error).message}\n`);
+      return 4;
     }
     process.stderr.write(`atw-embed: ${(err as Error).message}\n`);
     return 17;

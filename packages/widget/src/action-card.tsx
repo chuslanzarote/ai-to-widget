@@ -16,6 +16,33 @@ import type { WidgetConfig } from "./config.js";
 import { pendingAction, isSending } from "./state.js";
 import { executeIntentForLoop } from "./chat-action-runner.js";
 import { continueLoopFromToolResult } from "./loop-driver.js";
+import { getLoadedCatalog } from "./action-executors.js";
+
+/**
+ * Feature 008 / FR-026 / T067 — plain-text `{{ name }}` substitution
+ * for the ActionCard's pre-execution summary. Renders the template
+ * against the tool-call arguments; any unresolved placeholder causes
+ * the caller to fall back to the raw-JSON view. No conditionals, no
+ * partials — see research.md R11.
+ *
+ * Exported so the unit test (T063) can pin the exact substitution
+ * semantics without reaching into the ActionCard's render closure.
+ */
+export function renderSummaryTemplate(
+  template: string,
+  args: Record<string, unknown>,
+): string | null {
+  let failed = false;
+  const out = template.replace(/\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g, (_m, name: string) => {
+    const v = args[name];
+    if (v === undefined || v === null) {
+      failed = true;
+      return "";
+    }
+    return String(v);
+  });
+  return failed ? null : out;
+}
 
 export type CardStatus = "idle" | "executing" | "succeeded" | "failed";
 
@@ -66,6 +93,8 @@ export function ActionCard(props: {
       await continueLoopFromToolResult(
         {
           tool_use_id: props.intent.id,
+          tool_name: props.intent.tool,
+          tool_input: (props.intent.arguments ?? {}) as Record<string, unknown>,
           content: "declined by shopper",
           is_error: false,
           status: 0,
@@ -81,10 +110,26 @@ export function ActionCard(props: {
   const summary = props.intent.summary ?? {};
   const summaryKeys = Object.keys(summary);
 
+  // Feature 008 / FR-026 — prefer the catalog entry's `summaryTemplate`
+  // rendered against this intent's arguments. If the template is
+  // absent, or any `{{ name }}` placeholder fails to resolve, fall
+  // through to the raw summary/arguments view.
+  const catalog = getLoadedCatalog();
+  const entry = catalog?.actions.find((a) => a.tool === props.intent.tool);
+  const templated =
+    entry?.summaryTemplate
+      ? renderSummaryTemplate(
+          entry.summaryTemplate,
+          (props.intent.arguments ?? {}) as Record<string, unknown>,
+        )
+      : null;
+
   return (
     <div class="atw-action-card" role="group" aria-label="Action confirmation">
       <div class="atw-action-card__title">{props.intent.description}</div>
-      {summaryKeys.length > 0 ? (
+      {templated !== null ? (
+        <div class="atw-action-card__summary-text">{templated}</div>
+      ) : summaryKeys.length > 0 ? (
         <div class="atw-action-card__summary">
           {summaryKeys.map((k) => (
             <>

@@ -12,14 +12,26 @@ import {
   pendingAction,
   actionCapable,
   progressPlaceholder,
+  thinking,
   trimHistoryForRequest,
 } from "./state.js";
 import { MessageList, attachCitationsToLastAssistantTurn } from "./message-list.js";
 import { ChatInput } from "./input.js";
 import { postChat } from "./api-client.js";
 import { ActionCard } from "./action-card.js";
-import { driveLoopFromIntent } from "./loop-driver.js";
+import {
+  driveLoopFromIntent,
+  RESPONSE_GENERATION_FAILED_FALLBACK,
+} from "./loop-driver.js";
+import { isResponseGenerationFailed } from "@atw/scripts/dist/lib/types.js";
 import type { WidgetConfig } from "./config.js";
+import { renderNoExecutorsDiagnostic } from "./diagnostics-text.js";
+
+/**
+ * Feature 008 / FR-025 — sane default welcome greeting used when the
+ * Builder did not capture a `welcomeMessage` in `/atw.init`.
+ */
+export const DEFAULT_WELCOME_MESSAGE = "Hi! How can I help you today?";
 
 /**
  * The chat panel Preact component. Focus-trap on open; closes on Esc.
@@ -37,6 +49,20 @@ import type { WidgetConfig } from "./config.js";
 export function ChatPanel(props: { config: WidgetConfig }): JSX.Element | null {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const trapRef = useRef<FocusTrap | null>(null);
+
+  // Feature 008 / FR-025 — seed the transcript with the Builder-
+  // configured welcome message (or the sane default) on first render
+  // with an empty transcript. Runs once per empty-transcript entry.
+  useEffect(() => {
+    if (!open.value) return;
+    if (turns.value.length > 0) return;
+    const greeting = props.config.welcomeMessage || DEFAULT_WELCOME_MESSAGE;
+    appendTurn({
+      role: "assistant",
+      content: greeting,
+      timestamp: new Date().toISOString(),
+    });
+  }, [open.value, props.config.welcomeMessage]);
 
   useEffect(() => {
     if (!open.value || !rootRef.current) return;
@@ -69,6 +95,10 @@ export function ChatPanel(props: { config: WidgetConfig }): JSX.Element | null {
       timestamp: new Date().toISOString(),
     });
     isSending.value = true;
+    // Feature 008 / FR-024 — render the thinking indicator in the same
+    // synchronous state update that schedules the POST so the shopper
+    // sees activity instantly (no delay threshold — see research.md R10).
+    thinking.value = true;
     try {
       const history = trimHistoryForRequest(turns.value.slice(0, -1));
       const result = await postChat(
@@ -89,18 +119,27 @@ export function ChatPanel(props: { config: WidgetConfig }): JSX.Element | null {
         });
         return;
       }
+      // FR-020a fallback — only arrives on `tool_result`-bearing posts;
+      // defensive branch in case the discriminator leaks through here.
+      if (isResponseGenerationFailed(result.response)) {
+        appendTurn({
+          role: "assistant",
+          content: RESPONSE_GENERATION_FAILED_FALLBACK,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
       const firstIntent =
         result.response.action_intent ?? result.response.actions[0] ?? null;
       if (firstIntent) {
         if (!actionCapable.value) {
-          // eslint-disable-next-line no-console
-          console.warn(
-            "[atw] backend emitted ActionIntent while widget is in chat-only mode — ignoring",
-            { toolName: firstIntent.tool },
-          );
+          // Feature 008 / FR-023 — D-NOEXECUTORS. The backend asked for
+          // a tool but the widget loaded an empty/missing catalog; the
+          // shopper sees the diagnostic inline instead of a silent
+          // console.warn + generic assistant turn.
           appendTurn({
             role: "assistant",
-            content: result.response.message || "",
+            content: renderNoExecutorsDiagnostic(firstIntent.tool),
             timestamp: new Date().toISOString(),
           });
           return;
@@ -122,6 +161,10 @@ export function ChatPanel(props: { config: WidgetConfig }): JSX.Element | null {
     } finally {
       isSending.value = false;
       progressPlaceholder.value = null;
+      // Clear the thinking indicator on every exit path — whether a
+      // reply arrived, the backend errored, or the tool loop handed off
+      // to driveLoopFromIntent (which owns its own progress placeholder).
+      thinking.value = false;
     }
   }
 

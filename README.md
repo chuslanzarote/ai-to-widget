@@ -72,6 +72,16 @@ Vite/React) that replaces the retired Medusa testbed. End-to-end
 validation steps live in [`TESTING.md`](TESTING.md) and
 [`specs/007-widget-tool-loop/quickstart.md`](specs/007-widget-tool-loop/quickstart.md).
 
+### Canonical end-to-end flow (Feature 008)
+
+The binding quickstart — exercising the hardened `/atw.*` flow, the
+`host-requirements.md` Builder contract, `customer-facing-widget`
+deployments, and the widget UX polish — lives at
+[`specs/008-atw-hardening/quickstart.md`](specs/008-atw-hardening/quickstart.md).
+If you're integrating ATW into a new host today, start there; the older
+per-feature quickstarts above remain authoritative for their respective
+slices of the pipeline.
+
 ---
 
 ## Cross-platform support

@@ -156,7 +156,7 @@ The backend then invokes `anthropic.messages.create({ messages: messagesForAnthr
 
 **Decision**: When the re-invoked `anthropic.messages.create()` call fails (any non-200, network error, timeout, rate-limit) *after* the widget has already successfully completed a write-class fetch against the host, the backend:
 
-1. Retries the call up to **2 additional times** with exponential backoff (initial 500 ms, factor 2, cap 4 s). Clarification Q4 specifies "1–2 times with backoff" — this decision lands on exactly 2 extra retries for a total of 3 attempts.
+1. Retries the call up to **3 additional times** with exponential backoff (500 ms → 1 s → 2 s between attempts; factor 2). Clarification Q4 specifies "up to 3 times with backoff (500 ms → 1 s → 2 s)" — this decision lands on exactly 3 extra retries for a total of 4 attempts.
 2. On continued failure, returns an HTTP 200 response with a dedicated shape:
    ```jsonc
    {
@@ -179,7 +179,7 @@ The retry logic applies only on the post-tool-result second Opus call. The initi
 
 **Alternatives considered**:
 - **Unlimited retry with jitter.** Rejected: unbounded worst case; the shopper is waiting.
-- **Single retry.** Rejected: Clarification Q4 ("1–2 retries") permits 2; the second retry substantially improves recovery from transient provider issues.
+- **Single retry.** Rejected: Clarification Q4 specifies a 500 ms → 1 s → 2 s exponential schedule (3 retries); additional attempts substantially improve recovery from transient provider issues while keeping worst-case latency bounded at ≈ 3.5 s.
 - **Render a generic "something went wrong" and let the shopper retry the whole turn.** Rejected: implies the write failed when it did not (Clarification Q4 rationale).
 - **Log the failure but don't surface it.** Rejected: the shopper needs to know the natural-language reply is missing or they will re-issue the action and potentially double-charge.
 
