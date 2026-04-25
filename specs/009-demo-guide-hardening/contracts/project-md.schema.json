@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-to-widget.dev/contracts/009/project-md.schema.json",
+  "title": "Project Brief frontmatter (project.md YAML)",
+  "description": "YAML frontmatter shape of .atw/config/project.md after Feature 009. Validates origins separation (FR-009), URL syntax (FR-010), and required-field presence (FR-011) before /atw.init writes the file.",
+  "type": "object",
+  "required": [
+    "project_name",
+    "deployment",
+    "atw_backend_origin",
+    "host_api_origin",
+    "host_page_origin",
+    "model_snapshot"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "project_name": { "type": "string", "minLength": 1 },
+    "deployment": {
+      "type": "string",
+      "enum": ["customer-facing-widget", "internal-tool", "headless"]
+    },
+    "brief_summary": { "type": "string" },
+    "atw_backend_origin": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://",
+      "description": "Origin where the ATW backend container listens. Distinct from host_api_origin (FR-009)."
+    },
+    "host_api_origin": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://",
+      "description": "Origin of the Builder's existing API the widget calls for confirmed writes."
+    },
+    "host_page_origin": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://",
+      "description": "Origin of the page where the widget mounts. Used for CORS and ALLOWED_ORIGINS."
+    },
+    "login_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Optional. Where the widget redirects unauthenticated shoppers (FR-009 d)."
+    },
+    "model_snapshot": {
+      "type": "string",
+      "pattern": "^claude-(opus|sonnet|haiku)-[0-9]+-[0-9]+(-[0-9]{8})?$",
+      "default": "claude-opus-4-7",
+      "description": "Pinned LLM model snapshot for all LLM-driven phases (FR-005, FR-006). Cost lever per Q5."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "deployment": { "const": "customer-facing-widget" } } },
+      "then": {
+        "required": ["host_page_origin"],
+        "description": "customer-facing-widget deployments require all three origins; checked at /atw.init time."
+      }
+    }
+  ]
+}

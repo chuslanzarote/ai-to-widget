@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-to-widget.dev/contracts/009/action-manifest.schema.json",
+  "title": "Action Manifest (LLM-emitted, schema-validated)",
+  "description": "Per-operation manifest emitted by /atw.api in a single LLM call per source OpenAPI document. Validated by zod at write time; consumed by /atw.build, the runtime backend, and the runtime widget.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "generated_at",
+    "model_snapshot",
+    "input_hashes",
+    "operation_count_total",
+    "operation_count_in_scope",
+    "source_openapi_path",
+    "operations"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Bumps on breaking changes. Older write-manifest readers reject newer versions explicitly."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "model_snapshot": {
+      "type": "string",
+      "pattern": "^claude-(opus|sonnet|haiku)-[0-9]+-[0-9]+(-[0-9]{8})?$",
+      "description": "Pinned per Constitution VIII. Recorded so reruns over the same inputs are reproducible."
+    },
+    "input_hashes": {
+      "type": "object",
+      "required": ["openapi_sha256", "project_md_sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "openapi_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "project_md_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "operation_count_total": { "type": "integer", "minimum": 0 },
+    "operation_count_in_scope": { "type": "integer", "minimum": 0 },
+    "source_openapi_path": { "type": "string", "minLength": 1 },
+    "operations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Operation" }
+    }
+  },
+  "$defs": {
+    "Operation": {
+      "type": "object",
+      "required": [
+        "tool_name",
+        "description",
+        "summary_template",
+        "requires_confirmation",
+        "http",
+        "input_schema",
+        "citation"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tool_name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Globally unique within this manifest."
+        },
+        "description": { "type": "string", "minLength": 1 },
+        "summary_template": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Mustache-style placeholders, e.g. 'Add {{ quantity }}× {{ product_name }} to your cart'. Every placeholder MUST resolve to a key in input_schema.properties."
+        },
+        "requires_confirmation": {
+          "type": "boolean",
+          "description": "True for non-idempotent operations; the widget gates these behind ActionCard confirm."
+        },
+        "http": {
+          "type": "object",
+          "required": ["method", "path_template"],
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]
+            },
+            "path_template": {
+              "type": "string",
+              "minLength": 1,
+              "description": "OpenAPI path template, e.g. '/cart/items/{id}'."
+            }
+          }
+        },
+        "input_schema": {
+          "type": "object",
+          "description": "Full resolved JSON Schema. For write operations with a declared request body in the source OpenAPI, properties MUST be non-empty."
+        },
+        "citation": {
+          "type": "object",
+          "required": ["operation_id"],
+          "additionalProperties": false,
+          "properties": {
+            "operation_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Source OpenAPI operationId. Cross-checked against the source document at validation time (Constitution V)."
+            },
+            "schema_ref": {
+              "type": "string",
+              "description": "Source schema $ref path, e.g. '#/components/schemas/CartItem'. Required when input_schema.properties is non-empty."
+            }
+          }
+        },
+        "rationale_excerpt": {
+          "type": "string",
+          "description": "Optional: one-sentence 'why included' snippet."
+        }
+      }
+    }
+  }
+}

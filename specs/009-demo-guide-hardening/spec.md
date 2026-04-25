@@ -5,6 +5,16 @@
 **Status**: Draft
 **Input**: User description: "con lo que hemos estado hablando y sí, el item 5a debería ser un principio rector."
 
+## Clarifications
+
+### Session 2026-04-25
+
+- Q: Citations rendering — keep with visual distinction, or remove entirely? → A: Remove entirely (delete `turnCitations`, backend `Citation[]` schema, `firstTitle()`, and the retrieval-threshold / Opus-cited filtering code paths along with it).
+- Q: How should LLM-driven phases handle Anthropic API failures? → A: Exponential-backoff retry on transient HTTP errors (network, 429, 5xx, timeout) up to 3 attempts; schema-validation failure fails the build immediately with the field-level error; rerun is idempotent via input-hash skip when the previous run succeeded.
+- Q: COMPOSE phase — when host compose markers are missing, auto-inject or fail fast? → A: Auto-inject markers idempotently after `[y/N]` confirmation (default "no"); if the integrator declines, print the exact diff plus the manual-fix command and exit non-zero. ATW never modifies the host compose file without explicit confirmation.
+- Q: Stale committed `dist/` — auto-rebuild or refuse to run? → A: Refuse to run with a clear, actionable "run `npm run build` and try again" message. Runtime stays decoupled from the build system; no auto-rebuild magic.
+- Q: Large OpenAPI documents (1000+ operations) — informational gate or confirmation gate? → A: Informational only. Print operation count + model snapshot + estimated cost with a brief countdown (~2 seconds) before the LLM call; integrator can `Ctrl+C` if anything looks wrong. No `[y/N]` confirmation, no cost-threshold gate. CI runs without extra flags. The rector principle ("Builders pay for what they create") is respected — model selection is the cost lever, not a runtime gate.
+
 ## Context
 
 On 2026-04-25 the user ran the complete `/atw.*` flow end-to-end against
@@ -309,9 +319,10 @@ that depend on the failed one MUST refuse to run.
    (not a static string).
 4. **Given** the committed `packages/scripts/dist/` is older than its
    sources, **When** any `/atw.*` command runs, **Then** the runner
-   MUST detect the staleness and either rebuild automatically OR refuse
-   to run with an explicit "run `npm run build`" message — a fresh
-   clone MUST NOT silently use a stale dist.
+   MUST refuse to run with an explicit "Run `npm run build` and try
+   again" message that names the offending source file(s). The runner
+   MUST NOT auto-rebuild. A fresh clone MUST NOT silently use a stale
+   dist.
 5. **Given** there is exactly one canonical compose file for the
    integrator's project, **When** the integrator looks at the repo,
    **Then** the monorepo-internal `docker-compose.yml` (used by ATW
@@ -335,11 +346,11 @@ them present; P1/P2 cannot. P3.
 
 **Independent Test**: Open the widget on a host page with scrollable
 content. (a) The waiting state MUST use a single text-free indicator
-during both backend wait and tool execution. (b) Citations MUST either
-be visually distinct from navigation pills (e.g. small footnote-style
-icons or a "Sources: N" toggle) OR be absent entirely. (c) The shopper
-MUST be able to scroll and click on host-page elements while the chat
-panel is open.
+during both backend wait and tool execution. (b) No citation UI MUST
+render in any reply, AND no `Citation[]` data MUST be sent from the
+backend (verified by inspecting both the rendered DOM and the
+backend response payload). (c) The shopper MUST be able to scroll and
+click on host-page elements while the chat panel is open.
 
 **Acceptance Scenarios**:
 
@@ -349,26 +360,20 @@ panel is open.
    neutral indicator (e.g., the existing 3-dot animation). The
    Spanish strings `"Obteniendo datos…"` and `"Datos obtenidos,
    interpretando…"` MUST be removed.
-2. **Given** the assistant's reply has citations, **When** the widget
-   renders them, **Then** they MUST be visually distinct from the
-   navigation pills excluded by Feature 008 (per FR-027) — a shopper
-   MUST NOT be able to confuse them. If this distinction cannot be
-   achieved, the citations rendering MUST be removed AND the
-   `Citation[]` data path MUST be removed from the backend so no
-   dead code persists.
-3. **Given** the citation `title` is derived from an enriched document,
-   **When** it is rendered, **Then** it MUST be the canonical short
-   label (product name, category name, …) persisted as a structured
-   field during enrichment — NOT the first sentence of the body.
-4. **Given** the retrieval step ranks candidates by cosine similarity,
-   **When** results are returned to Opus, **Then** results below a
-   minimum relevance threshold MUST be excluded, OR only the citations
-   Opus explicitly referenced in its answer MUST be displayed.
-5. **Given** the widget panel is open, **When** the shopper hovers,
+2. **Given** any assistant reply (with or without retrieved context),
+   **When** the widget renders the reply, **Then** NO citation UI MUST
+   appear — neither inline footnote markers, nor a "Sources" panel,
+   nor pills. The `Citation[]` data path MUST be removed from the
+   backend so no dead code persists.
+3. **Given** the retrieval step still feeds context into the assistant
+   prompt, **When** the assistant replies, **Then** grounding remains
+   prompt-side only; no citation metadata MUST be returned to the
+   widget over the wire.
+4. **Given** the widget panel is open, **When** the shopper hovers,
    scrolls, or clicks anywhere on the host page outside the panel,
    **Then** the host page MUST receive those events normally (no
    modal backdrop, no global focus trap).
-6. **Given** the `suggestions` field exists in
+5. **Given** the `suggestions` field exists in
    `NormalChatResponseSchema`, **When** the spec is implemented,
    **Then** that field MUST be removed entirely so a future commit
    cannot reintroduce navigation pills without a schema change.
@@ -379,10 +384,14 @@ panel is open.
 
 - **Very large OpenAPI documents (1000+ operations).** The rector
   principle says no pre-filtering for cost. The build MUST still
-  complete, but it MAY take longer and cost more. The build output
-  MUST surface (a) the operation count, (b) the model snapshot used,
-  and (c) a rough cost estimate before invoking the LLM, so the
-  integrator can choose a smaller model or narrow the brief.
+  complete, but it MAY take longer and cost more. Before invoking
+  the LLM, the build output MUST surface (a) the operation count,
+  (b) the model snapshot used, and (c) a rough cost estimate, then
+  pause for a brief countdown (≈2 seconds) during which the
+  integrator can `Ctrl+C` to abort. The countdown is informational
+  only — there is no `[y/N]` confirmation prompt and no
+  cost-threshold gate. CI runs without extra flags. The cost lever
+  is model selection (FR-006), not a runtime gate.
 - **OpenAPI documents with no write operations.** The widget MUST
   still work for read-only conversations; the ActionCard infrastructure
   is dormant.
@@ -436,6 +445,14 @@ panel is open.
   alternate model snapshot configurable per-project (e.g., for
   cost-sensitive Builders). Switching the snapshot MUST require no
   code change, only a config setting.
+- **FR-006a**: Before each LLM call, the build MUST print the
+  operation count, the pinned model snapshot, and a rough cost
+  estimate, then pause for ≈2 seconds during which the integrator
+  can `Ctrl+C` to abort. The countdown MUST be informational only —
+  ATW MUST NOT prompt `[y/N]` for confirmation and MUST NOT enforce a
+  cost-threshold gate. The pause MUST NOT block CI runs (the standard
+  countdown is short enough to be inconsequential; no `--yes` flag is
+  introduced).
 
 #### Markdown Artifacts
 
@@ -447,7 +464,21 @@ panel is open.
 - **FR-008**: The action-manifest format MUST be defined by a JSON
   schema; the LLM's output MUST be validated against it before being
   written to disk; validation failures MUST fail the build with the
-  exact field that violated the schema.
+  exact field that violated the schema. Schema-validation failures
+  MUST NOT trigger automatic retry — they are treated as deterministic
+  errors and surface to the integrator on the first attempt.
+- **FR-008a**: Transient LLM-API failures (network errors, request
+  timeouts, HTTP 429, HTTP 5xx) MUST be retried with exponential
+  backoff up to 3 attempts before the phase fails. The retry policy
+  MUST be uniform across all LLM-driven phases. Backoff parameters
+  (initial delay, multiplier, jitter) MUST be recorded in the build
+  provenance log so reruns are reproducible.
+- **FR-008b**: When an LLM-driven phase has previously succeeded for
+  a given (input-hash, model_snapshot) pair, a rerun MUST skip the
+  LLM call and reuse the prior output (Constitution Principle III).
+  When the prior run failed (transient retries exhausted, or
+  schema-validation failure), the rerun MUST re-invoke the LLM from
+  scratch — failed runs MUST NOT be cached.
 
 #### `/atw.init`
 
@@ -512,17 +543,21 @@ panel is open.
   When a placeholder cannot be resolved, the card MUST fall back to a
   deterministic sentence built from the tool name + present
   arguments — NOT to a vague Opus description.
-- **FR-023**: Citations MUST either (a) be rendered in a form
-  visually distinct from navigation pills (footnote icons,
-  "Sources: N" toggle, …) OR (b) be removed entirely along with the
-  `turnCitations` WeakMap and the backend `Citation[]` plumbing. No
-  dead data paths.
-- **FR-024**: The citation `title` MUST be the canonical short label
-  persisted as a structured field during enrichment. The
-  `firstTitle()` NLP heuristic MUST be removed.
-- **FR-025**: Retrieval results below a minimum relevance threshold
-  MUST be excluded from the citation set, OR only citations Opus
-  explicitly referenced MUST be displayed.
+- **FR-023**: Citations rendering MUST be removed entirely from the
+  widget. The `turnCitations` WeakMap, any inline citation markers,
+  any "Sources" panel/toggle, and any other citation UI MUST be
+  deleted. No dead UI paths.
+- **FR-024**: The backend `Citation[]` data path MUST be removed —
+  citation fields MUST be deleted from `NormalChatResponseSchema` (and
+  any other response schema), no `Citation` objects MUST be assembled
+  or transmitted to the widget, and the `firstTitle()` NLP heuristic
+  MUST be deleted alongside them. No dead data paths.
+- **FR-025**: The retrieval-result filtering code paths that exist
+  solely to populate citations (cosine-similarity threshold for
+  citation inclusion, "only-Opus-cited" filtering) MUST be removed.
+  Retrieval still feeds context into the assistant prompt for
+  grounding (Constitution V is satisfied by prompt-side anchoring);
+  no citation metadata MUST be returned to the widget.
 - **FR-026**: The `suggestions` field on `NormalChatResponseSchema`
   MUST be removed; the schema change makes future pill reintroduction
   caught at compile time.
@@ -538,10 +573,15 @@ panel is open.
   MUST be surfaced in the summary (`⚠ Build complete with N
   warnings: COMPOSE skipped …`).
 - **FR-029**: The COMPOSE phase MUST detect when the host compose file
-  lacks its expected markers and either (a) inject them (idempotent)
-  with the integrator's confirmation OR (b) fail fast with a concrete
-  fix command. Silent skip MUST NOT happen. The marker syntax MUST be
-  documented in the host compose file itself.
+  lacks its expected markers and prompt the integrator with a `[y/N]`
+  confirmation (default "no") before injecting them. On confirmation,
+  the marker block MUST be appended idempotently — re-running on a
+  file that already has the markers MUST be a no-op. On decline, the
+  phase MUST print the exact diff that would have been applied plus
+  the manual-fix command, and MUST exit non-zero. ATW MUST NOT modify
+  the host compose file without explicit confirmation. Silent skip
+  MUST NOT happen. The marker syntax MUST be documented in the host
+  compose file itself.
 - **FR-030**: The IMPORT phase MUST handle standard pg_dump 17/18
   output (`SET transaction_timeout`, `\restrict` / `\unrestrict`,
   `ALTER TABLE … OWNER TO`) by default. No user-supplied
@@ -550,11 +590,13 @@ panel is open.
   (e.g., `/atw.classify` requires `build-plan.md` from `/atw.plan`)
   AND MUST emit a dynamic "Next:" hint pointing at the actual next
   required command, not a static string.
-- **FR-032**: The build MUST detect a stale committed
-  `packages/scripts/dist/` (older than `src/`) and either rebuild
-  automatically OR refuse to run with an explicit "run `npm run
-  build`" message. Either approach is acceptable; silent stale-dist
-  use is not.
+- **FR-032**: Each `/atw.*` command MUST detect a stale committed
+  `packages/scripts/dist/` (any file under `src/` newer than its
+  corresponding artifact under `dist/`) and MUST refuse to run with
+  an explicit "Run `npm run build` and try again" message naming the
+  source file(s) that triggered the check. ATW MUST NOT auto-rebuild
+  — runtime stays decoupled from the build system. Silent stale-dist
+  use MUST NOT happen.
 - **FR-033**: The repo-internal `docker-compose.yml` (ATW maintainer
   development) MUST be visibly distinguished from any compose the
   integrator should care about — by rename, by relocation under
