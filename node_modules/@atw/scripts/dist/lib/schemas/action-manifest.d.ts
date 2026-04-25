@@ -51,7 +51,6 @@ export declare const ManifestOperationSchema: z.ZodObject<{
     }>;
     rationale_excerpt: z.ZodOptional<z.ZodString>;
 }, "strict", z.ZodTypeAny, {
-    tool_name: string;
     description: string;
     summary_template: string;
     requires_confirmation: boolean;
@@ -59,6 +58,7 @@ export declare const ManifestOperationSchema: z.ZodObject<{
         method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         path_template: string;
     };
+    tool_name: string;
     input_schema: Record<string, unknown>;
     citation: {
         operation_id: string;
@@ -66,7 +66,6 @@ export declare const ManifestOperationSchema: z.ZodObject<{
     };
     rationale_excerpt?: string | undefined;
 }, {
-    tool_name: string;
     description: string;
     summary_template: string;
     requires_confirmation: boolean;
@@ -74,6 +73,7 @@ export declare const ManifestOperationSchema: z.ZodObject<{
         method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         path_template: string;
     };
+    tool_name: string;
     input_schema: Record<string, unknown>;
     citation: {
         operation_id: string;
@@ -127,7 +127,6 @@ export declare const ActionManifestSchema: z.ZodObject<{
         }>;
         rationale_excerpt: z.ZodOptional<z.ZodString>;
     }, "strict", z.ZodTypeAny, {
-        tool_name: string;
         description: string;
         summary_template: string;
         requires_confirmation: boolean;
@@ -135,6 +134,7 @@ export declare const ActionManifestSchema: z.ZodObject<{
             method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
             path_template: string;
         };
+        tool_name: string;
         input_schema: Record<string, unknown>;
         citation: {
             operation_id: string;
@@ -142,7 +142,6 @@ export declare const ActionManifestSchema: z.ZodObject<{
         };
         rationale_excerpt?: string | undefined;
     }, {
-        tool_name: string;
         description: string;
         summary_template: string;
         requires_confirmation: boolean;
@@ -150,6 +149,7 @@ export declare const ActionManifestSchema: z.ZodObject<{
             method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
             path_template: string;
         };
+        tool_name: string;
         input_schema: Record<string, unknown>;
         citation: {
             operation_id: string;
@@ -158,18 +158,7 @@ export declare const ActionManifestSchema: z.ZodObject<{
         rationale_excerpt?: string | undefined;
     }>, "many">;
 }, "strict", z.ZodTypeAny, {
-    schema_version: "1.0";
-    generated_at: string;
-    model_snapshot: string;
-    input_hashes: {
-        openapi_sha256: string;
-        project_md_sha256: string;
-    };
-    operation_count_total: number;
-    operation_count_in_scope: number;
-    source_openapi_path: string;
     operations: {
-        tool_name: string;
         description: string;
         summary_template: string;
         requires_confirmation: boolean;
@@ -177,6 +166,7 @@ export declare const ActionManifestSchema: z.ZodObject<{
             method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
             path_template: string;
         };
+        tool_name: string;
         input_schema: Record<string, unknown>;
         citation: {
             operation_id: string;
@@ -184,19 +174,18 @@ export declare const ActionManifestSchema: z.ZodObject<{
         };
         rationale_excerpt?: string | undefined;
     }[];
+    schema_version: "1.0";
+    input_hashes: {
+        openapi_sha256: string;
+        project_md_sha256: string;
+    };
+    model_snapshot: string;
+    generated_at: string;
+    operation_count_total: number;
+    operation_count_in_scope: number;
+    source_openapi_path: string;
 }, {
-    schema_version: "1.0";
-    generated_at: string;
-    model_snapshot: string;
-    input_hashes: {
-        openapi_sha256: string;
-        project_md_sha256: string;
-    };
-    operation_count_total: number;
-    operation_count_in_scope: number;
-    source_openapi_path: string;
     operations: {
-        tool_name: string;
         description: string;
         summary_template: string;
         requires_confirmation: boolean;
@@ -204,6 +193,7 @@ export declare const ActionManifestSchema: z.ZodObject<{
             method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
             path_template: string;
         };
+        tool_name: string;
         input_schema: Record<string, unknown>;
         citation: {
             operation_id: string;
@@ -211,6 +201,16 @@ export declare const ActionManifestSchema: z.ZodObject<{
         };
         rationale_excerpt?: string | undefined;
     }[];
+    schema_version: "1.0";
+    input_hashes: {
+        openapi_sha256: string;
+        project_md_sha256: string;
+    };
+    model_snapshot: string;
+    generated_at: string;
+    operation_count_total: number;
+    operation_count_in_scope: number;
+    source_openapi_path: string;
 }>;
 export type ActionManifest = z.infer<typeof ActionManifestSchema>;
 /**

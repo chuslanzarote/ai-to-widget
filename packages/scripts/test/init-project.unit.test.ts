@@ -40,10 +40,11 @@ describe("initProject", () => {
     expect(loaded?.createdAt).toBe("2026-04-21T12:00:00.000Z");
   });
 
-  it("preserves createdAt and bumps updatedAt on accept-all re-run (Feature 008 v2 re-run contract)", async () => {
-    // Per contracts/project-md-v2.md §Re-run behaviour: every re-run
-    // re-emits `updatedAt`; other captured values are preserved
-    // byte-for-byte when the Builder accepts each pre-filled default.
+  it("accept-all re-run with identical answers is idempotent and preserves createdAt", async () => {
+    // Feature 009 init-project is idempotent: same answers + existing
+    // file → wrote=false, artifact unchanged. The 008 v2 "always bump
+    // updatedAt" contract was dropped because /atw.init no longer
+    // tracks per-field diffs.
     const target = path.join(tmp, ".atw", "config", "project.md");
     const common = {
       name: "aurelia",
@@ -62,11 +63,8 @@ describe("initProject", () => {
       now: () => new Date("2026-04-22T12:00:00Z"),
     });
     expect(first.wrote).toBe(true);
-    expect(second.wrote).toBe(true);
-    expect(second.diff).toEqual([]);
+    expect(second.wrote).toBe(false);
     expect(second.artifact.createdAt).toBe(first.artifact.createdAt);
-    expect(second.artifact.updatedAt).toBe("2026-04-22T12:00:00.000Z");
-    expect(first.artifact.updatedAt).toBe("2026-04-21T12:00:00.000Z");
   });
 
   it("rewrites when a value changes, keeping createdAt", async () => {

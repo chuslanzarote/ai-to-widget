@@ -5,13 +5,46 @@ import {
   ToolNotAllowedError,
 } from "../src/api-client-action.js";
 import { renderActionTitle } from "../src/action-card.js";
+import { __setLoadedCatalogForTest } from "../src/action-executors.js";
 import type { WidgetConfig } from "../src/config.js";
 import type { ActionIntent } from "@atw/scripts/dist/lib/types.js";
+import type { ActionExecutorsCatalog } from "@atw/scripts/dist/lib/action-executors-types.js";
+
+function seedCatalog(): void {
+  const catalog: ActionExecutorsCatalog = {
+    version: 1,
+    credentialMode: "same-origin-cookies",
+    actions: [
+      {
+        tool: "add_to_cart",
+        method: "POST",
+        pathTemplate: "/store/carts/c1/line-items",
+        substitution: {
+          path: {},
+          body: {
+            product_id: "arguments.product_id",
+            quantity: "arguments.quantity",
+          },
+          query: {},
+        },
+        headers: { "content-type": "application/json" },
+        responseHandling: {
+          successStatuses: [200, 201, 204],
+          summaryTemplate: "Add {quantity} × product-{product_id}",
+          summaryFields: [],
+        },
+      },
+    ],
+  };
+  __setLoadedCatalogForTest(catalog);
+}
 
 function cfg(allowed: string[], authMode: WidgetConfig["authMode"] = "cookie"): WidgetConfig {
   return {
     backendUrl: "http://backend.local",
-    apiBaseUrl: "http://host.local",
+    // Same-origin so the Feature 006 cross-origin guard inside
+    // executeAction does not short-circuit before fetch is issued.
+    apiBaseUrl: "",
     theme: "default",
     launcherPosition: "bottom-right",
     authMode,
@@ -51,29 +84,13 @@ describe("executeAction (T053 / Principle I+IV structural)", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    (globalThis as unknown as { window?: unknown }).window = {
-      localStorage: {
-        _m: new Map<string, string>(),
-        getItem(k: string) {
-          return (this as unknown as { _m: Map<string, string> })._m.get(k) ?? null;
-        },
-        setItem(k: string, v: string) {
-          (this as unknown as { _m: Map<string, string> })._m.set(k, v);
-        },
-        removeItem() {},
-        clear() {},
-        key() {
-          return null;
-        },
-        length: 0,
-      } as unknown as Storage,
-    } as unknown as Window;
+    seedCatalog();
     fetchMock = vi.fn();
     (globalThis as unknown as { fetch: typeof fetch }).fetch =
       fetchMock as unknown as typeof fetch;
   });
   afterEach(() => {
-    delete (globalThis as unknown as { window?: unknown }).window;
+    __setLoadedCatalogForTest(null);
     delete (globalThis as unknown as { fetch?: unknown }).fetch;
   });
 
@@ -87,7 +104,7 @@ describe("executeAction (T053 / Principle I+IV structural)", () => {
     const out = await executeAction(intent("add_to_cart"), cfg(["add_to_cart"]));
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(out.ok).toBe(true);
-    if (out.ok) expect(out.summary).toMatch(/Add 2 × product-1/);
+    if (out.ok) expect(out.summary).toMatch(/Add 2 × product-p1/);
   });
 
   it("refuses unknown tool names and issues zero fetches", async () => {
@@ -111,7 +128,7 @@ describe("executeAction (T053 / Principle I+IV structural)", () => {
     }
   });
 
-  it("cookie-mode attaches credentials=include but no Authorization header", async () => {
+  it("Feature 007: never auto-attaches cookies — credentials='omit', no Authorization header without credentialSource", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
@@ -119,7 +136,7 @@ describe("executeAction (T053 / Principle I+IV structural)", () => {
     } as unknown as Response);
     await executeAction(intent("add_to_cart"), cfg(["add_to_cart"], "cookie"));
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(init.credentials).toBe("include");
+    expect(init.credentials).toBe("omit");
     const hdr = init.headers as Record<string, string>;
     expect(hdr["Authorization"]).toBeUndefined();
     expect(hdr["Cookie"]).toBeUndefined();

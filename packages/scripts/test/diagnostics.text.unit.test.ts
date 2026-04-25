@@ -71,27 +71,10 @@ describe("D-ZEROENTITY (FR-009)", () => {
   });
 });
 
-describe("D-CLASSIFYAUTH (FR-010)", () => {
-  it("matches the classify-actions emitted text verbatim", async () => {
-    // Inline reproduction (classify-actions.ts bakes the string into the
-    // classify-actions warnings array). Pin the exact shape here.
-    const verb = "GET";
-    const pathStr = "/customers/{id}/orders";
-    const text =
-      `WARN: Operation ${verb} ${pathStr} uses bearerFormat: "JWT" and is being excluded as non-cookie-security.\n` +
-      `If this is a customer-facing widget deployment, set \`deploymentType: customer-facing-widget\` in\n` +
-      `.atw/config/project.md and re-run /atw.classify to accept shopper-scoped bearer-JWT operations.`;
-    // Source-pin: the classify-actions.ts string must match this template.
-    const src = await fs.readFile(
-      path.join(__dirname, "..", "src", "classify-actions.ts"),
-      "utf8",
-    );
-    expect(src).toContain(
-      `\`WARN: Operation \${op.method.toUpperCase()} \${op.path} uses bearerFormat: "JWT" and is being excluded as non-cookie-security.\\n\``,
-    );
-    expect(text).toContain("WARN: Operation");
-  });
-});
+// Feature 009 / FR-001 / FR-005 — classify-actions is now a single LLM
+// call with no heuristic warnings; the D-CLASSIFYAUTH bearer-JWT
+// exclusion text was removed. The diagnostic itself lives only in the
+// 008 contract doc and no longer ships in any emitter.
 
 describe("D-CREDSRC (FR-013)", () => {
   it("matches contracts/builder-diagnostics.md verbatim", () => {

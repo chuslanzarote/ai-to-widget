@@ -9,6 +9,7 @@ import {
   appendTurn,
   sessionId,
   pendingAction,
+  actionCapable,
   trimHistoryForRequest,
 } from "./state.js";
 import { MessageList } from "./message-list.js";
@@ -16,6 +17,9 @@ import { ChatInput } from "./input.js";
 import { postChat } from "./api-client.js";
 import { ActionCard } from "./action-card.js";
 import type { WidgetConfig } from "./config.js";
+import { isResponseGenerationFailed } from "@atw/scripts/dist/lib/types.js";
+import { RESPONSE_GENERATION_FAILED_FALLBACK } from "./loop-driver.js";
+import { renderNoExecutorsDiagnostic } from "./diagnostics-text.js";
 
 /**
  * The chat panel Preact component. Closes on Esc.
@@ -68,14 +72,37 @@ export function ChatPanel(props: { config: WidgetConfig }): JSX.Element | null {
         });
         return;
       }
-      appendTurn({
-        role: "assistant",
-        content: result.response.message,
-        timestamp: new Date().toISOString(),
-      });
-      // Surface the first pending action (V1 renders one at a time).
-      if (result.response.actions.length > 0) {
-        pendingAction.value = result.response.actions[0];
+      if (isResponseGenerationFailed(result.response)) {
+        appendTurn({
+          role: "assistant",
+          content: RESPONSE_GENERATION_FAILED_FALLBACK,
+          timestamp: new Date().toISOString(),
+        });
+      } else {
+        if (result.response.message.length > 0) {
+          appendTurn({
+            role: "assistant",
+            content: result.response.message,
+            timestamp: new Date().toISOString(),
+          });
+        }
+        // Surface the first pending action (V1 renders one at a time).
+        const intent =
+          result.response.actions[0] ?? result.response.action_intent;
+        if (intent) {
+          if (!actionCapable.value) {
+            // FR-023 — D-NOEXECUTORS: chat-only widget cannot execute the
+            // intent. Render the diagnostic into the transcript and do
+            // NOT stash the intent into pendingAction.
+            appendTurn({
+              role: "assistant",
+              content: renderNoExecutorsDiagnostic(intent.tool),
+              timestamp: new Date().toISOString(),
+            });
+          } else {
+            pendingAction.value = intent;
+          }
+        }
       }
     } finally {
       isSending.value = false;
@@ -101,7 +128,7 @@ export function ChatPanel(props: { config: WidgetConfig }): JSX.Element | null {
         </button>
       </header>
       <MessageList config={props.config} intro={props.config.introLine} />
-      {pendingAction.value ? (
+      {pendingAction.value && actionCapable.value ? (
         <ActionCard intent={pendingAction.value} config={props.config} />
       ) : null}
       {lastError.value ? (

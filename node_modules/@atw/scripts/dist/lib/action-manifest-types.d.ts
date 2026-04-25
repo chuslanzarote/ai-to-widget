@@ -47,12 +47,12 @@ export declare const ActionManifestEntrySchema: z.ZodObject<{
         security: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
     }, "strip", z.ZodTypeAny, {
         path: string;
-        method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         operationId: string;
         security?: string[] | undefined;
     }, {
         path: string;
-        method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         operationId: string;
         security?: string[] | undefined;
     }>;
@@ -91,14 +91,14 @@ export declare const ActionManifestEntrySchema: z.ZodObject<{
     requiresConfirmation: boolean;
     source: {
         path: string;
-        method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         operationId: string;
         security?: string[] | undefined;
     };
     toolName: string;
     isAction: boolean;
-    runtimeOnly?: boolean | undefined;
     parameterSources?: string | undefined;
+    runtimeOnly?: boolean | undefined;
     descriptionTemplate?: string | undefined;
     summaryFields?: string[] | undefined;
     summaryTemplate?: string | undefined;
@@ -113,14 +113,14 @@ export declare const ActionManifestEntrySchema: z.ZodObject<{
     requiresConfirmation: boolean;
     source: {
         path: string;
-        method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         operationId: string;
         security?: string[] | undefined;
     };
     toolName: string;
     isAction: boolean;
-    runtimeOnly?: boolean | undefined;
     parameterSources?: string | undefined;
+    runtimeOnly?: boolean | undefined;
     descriptionTemplate?: string | undefined;
     summaryFields?: string[] | undefined;
     summaryTemplate?: string | undefined;
@@ -135,12 +135,12 @@ export declare const ExcludedEntrySchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     path: string;
     reason: string;
-    method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+    method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     operationId: string;
 }, {
     path: string;
     reason: string;
-    method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+    method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     operationId: string;
 }>;
 export type ExcludedEntry = z.infer<typeof ExcludedEntrySchema>;
@@ -150,11 +150,11 @@ export declare const OrphanedEntrySchema: z.ZodObject<{
     previousToolName: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     path: string;
-    method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+    method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     previousToolName: string;
 }, {
     path: string;
-    method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+    method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     previousToolName: string;
 }>;
 export type OrphanedEntry = z.infer<typeof OrphanedEntrySchema>;
@@ -206,12 +206,12 @@ export declare const ActionManifestSchema: z.ZodObject<{
             security: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         }, "strip", z.ZodTypeAny, {
             path: string;
-            method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
             operationId: string;
             security?: string[] | undefined;
         }, {
             path: string;
-            method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
             operationId: string;
             security?: string[] | undefined;
         }>;
@@ -250,14 +250,14 @@ export declare const ActionManifestSchema: z.ZodObject<{
         requiresConfirmation: boolean;
         source: {
             path: string;
-            method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
             operationId: string;
             security?: string[] | undefined;
         };
         toolName: string;
         isAction: boolean;
-        runtimeOnly?: boolean | undefined;
         parameterSources?: string | undefined;
+        runtimeOnly?: boolean | undefined;
         descriptionTemplate?: string | undefined;
         summaryFields?: string[] | undefined;
         summaryTemplate?: string | undefined;
@@ -272,14 +272,14 @@ export declare const ActionManifestSchema: z.ZodObject<{
         requiresConfirmation: boolean;
         source: {
             path: string;
-            method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
             operationId: string;
             security?: string[] | undefined;
         };
         toolName: string;
         isAction: boolean;
-        runtimeOnly?: boolean | undefined;
         parameterSources?: string | undefined;
+        runtimeOnly?: boolean | undefined;
         descriptionTemplate?: string | undefined;
         summaryFields?: string[] | undefined;
         summaryTemplate?: string | undefined;
@@ -293,12 +293,12 @@ export declare const ActionManifestSchema: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         path: string;
         reason: string;
-        method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         operationId: string;
     }, {
         path: string;
         reason: string;
-        method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         operationId: string;
     }>, "many">;
     orphaned: z.ZodDefault<z.ZodArray<z.ZodObject<{
@@ -307,11 +307,11 @@ export declare const ActionManifestSchema: z.ZodObject<{
         previousToolName: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         path: string;
-        method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         previousToolName: string;
     }, {
         path: string;
-        method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         previousToolName: string;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
@@ -319,7 +319,7 @@ export declare const ActionManifestSchema: z.ZodObject<{
     excluded: {
         path: string;
         reason: string;
-        method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         operationId: string;
     }[];
     provenance: {
@@ -337,14 +337,14 @@ export declare const ActionManifestSchema: z.ZodObject<{
         requiresConfirmation: boolean;
         source: {
             path: string;
-            method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
             operationId: string;
             security?: string[] | undefined;
         };
         toolName: string;
         isAction: boolean;
-        runtimeOnly?: boolean | undefined;
         parameterSources?: string | undefined;
+        runtimeOnly?: boolean | undefined;
         descriptionTemplate?: string | undefined;
         summaryFields?: string[] | undefined;
         summaryTemplate?: string | undefined;
@@ -352,7 +352,7 @@ export declare const ActionManifestSchema: z.ZodObject<{
     }[];
     orphaned: {
         path: string;
-        method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         previousToolName: string;
     }[];
 }, {
@@ -360,7 +360,7 @@ export declare const ActionManifestSchema: z.ZodObject<{
     excluded: {
         path: string;
         reason: string;
-        method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         operationId: string;
     }[];
     provenance: {
@@ -378,14 +378,14 @@ export declare const ActionManifestSchema: z.ZodObject<{
         requiresConfirmation: boolean;
         source: {
             path: string;
-            method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
             operationId: string;
             security?: string[] | undefined;
         };
         toolName: string;
         isAction: boolean;
-        runtimeOnly?: boolean | undefined;
         parameterSources?: string | undefined;
+        runtimeOnly?: boolean | undefined;
         descriptionTemplate?: string | undefined;
         summaryFields?: string[] | undefined;
         summaryTemplate?: string | undefined;
@@ -393,7 +393,7 @@ export declare const ActionManifestSchema: z.ZodObject<{
     }[];
     orphaned?: {
         path: string;
-        method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         previousToolName: string;
     }[] | undefined;
 }>;

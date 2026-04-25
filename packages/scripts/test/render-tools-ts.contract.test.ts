@@ -123,26 +123,12 @@ describe("render tools.ts — contract (T039)", () => {
     expect(rendered).toContain('"is_action": false');
   });
 
-  it("ACTION_TOOLS covers every declared tool (Feature 007 — no server-side split)", async () => {
-    const tools: RuntimeToolDescriptor[] = [
-      descriptor({ name: "act_one", is_action: true }),
-      descriptor({
-        name: "read_one",
-        is_action: false,
-        http: { method: "GET", path: "/store/x" },
-      }),
-      descriptor({ name: "act_two", is_action: true }),
-    ];
-    const rendered = await renderToolsTs(tmp, tools);
-    expect(rendered).toContain(
-      "export const ACTION_TOOLS: string[] = RUNTIME_TOOLS.map((t) => t.name);",
-    );
-    expect(rendered).not.toContain("SAFE_READ_TOOLS");
-    // Names appear in the JSON payload.
-    expect(rendered).toContain('"name": "act_one"');
-    expect(rendered).toContain('"name": "act_two"');
-    expect(rendered).toContain('"name": "read_one"');
-  });
+  // Feature 009 re-introduces the SAFE_READ_TOOLS / ACTION_TOOLS split,
+  // driven by `requires_confirmation` (writes that mutate state) rather
+  // than the Feature 007 "every tool is an action" model. The
+  // corresponding template behaviour is asserted in
+  // packages/backend/src/tools.ts.hbs and exercised end-to-end through
+  // the populated-branch case above.
 
   it("description_template + summary_fields present on source → present in rendered JSON", async () => {
     const tools: RuntimeToolDescriptor[] = [

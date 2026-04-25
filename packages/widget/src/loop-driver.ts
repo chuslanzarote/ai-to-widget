@@ -16,7 +16,6 @@ import type { ActionIntent } from "@atw/scripts/dist/lib/types.js";
 import { isResponseGenerationFailed } from "@atw/scripts/dist/lib/types.js";
 import type { WidgetConfig } from "./config.js";
 import { postChatToolResult } from "./api-client.js";
-import { attachCitationsToLastAssistantTurn } from "./message-list.js";
 import { executeIntentForLoop, isStopOutcome } from "./chat-action-runner.js";
 import type { ToolResultPayload } from "./action-executors.js";
 import {
@@ -165,6 +164,5 @@ async function postToolResultAndGetNext(
     content: result.response.message,
     timestamp: new Date().toISOString(),
   });
-  attachCitationsToLastAssistantTurn(result.response.citations);
   return null;
 }

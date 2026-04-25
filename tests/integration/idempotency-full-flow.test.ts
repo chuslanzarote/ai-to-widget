@@ -72,14 +72,9 @@ describe("full-flow idempotency (T091 / SC-006, FR-049 L1)", () => {
     expect(allUnchanged).toBe(true);
   });
 
-  it("the four command markdown files document the L1 refinement short-circuit (T096)", async () => {
-    const commandsDir = path.resolve(__dirname, "..", "..", "commands");
-    const names = ["atw.brief.md", "atw.schema.md", "atw.api.md", "atw.plan.md"];
-    for (const name of names) {
-      const body = await fs.readFile(path.join(commandsDir, name), "utf8");
-      expect(body, `${name} must reference atw-hash-inputs`).toMatch(/atw-hash-inputs/);
-      expect(body, `${name} must describe Level 1 refinement`).toMatch(/Level 1/i);
-      expect(body, `${name} must state "No LLM call" in the refinement branch`).toMatch(/No LLM call/);
-    }
-  });
+  // Feature 009 dropped the explicit FR-049 L1 refinement language from
+  // commands/atw.*.md — the four command files no longer mention
+  // atw-hash-inputs, "Level 1", or "No LLM call". The runtime contract
+  // remains, but the documentation surface moved into the per-command
+  // bodies and is exercised by the hash-based behaviour assertion above.
 });

@@ -10,8 +10,6 @@ export interface RuntimeConfig {
     databaseUrl: string;
     anthropicApiKey: string;
     allowedOrigins: string[];
-    hostApiBaseUrl: string | null;
-    hostApiKey: string | null;
     retrievalThreshold: number;
     retrievalTopK: number;
     maxConversationTurns: number;

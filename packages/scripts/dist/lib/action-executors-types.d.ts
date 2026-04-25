@@ -141,7 +141,7 @@ export declare const ActionExecutorEntrySchema: z.ZodObject<{
      */
     hostPrerequisite: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+    method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     tool: string;
     pathTemplate: string;
     substitution: {
@@ -166,7 +166,7 @@ export declare const ActionExecutorEntrySchema: z.ZodObject<{
         key: string;
     } | undefined;
 }, {
-    method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+    method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     tool: string;
     pathTemplate: string;
     substitution: {
@@ -277,7 +277,7 @@ export declare const ActionExecutorsCatalogSchema: z.ZodObject<{
          */
         hostPrerequisite: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         tool: string;
         pathTemplate: string;
         substitution: {
@@ -302,7 +302,7 @@ export declare const ActionExecutorsCatalogSchema: z.ZodObject<{
             key: string;
         } | undefined;
     }, {
-        method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         tool: string;
         pathTemplate: string;
         substitution: {
@@ -329,9 +329,8 @@ export declare const ActionExecutorsCatalogSchema: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     version: 1;
-    credentialMode: "bearer-localstorage" | "same-origin-cookies";
     actions: {
-        method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         tool: string;
         pathTemplate: string;
         substitution: {
@@ -356,10 +355,11 @@ export declare const ActionExecutorsCatalogSchema: z.ZodObject<{
             key: string;
         } | undefined;
     }[];
+    credentialMode: "bearer-localstorage" | "same-origin-cookies";
 }, {
     version: 1;
     actions: {
-        method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         tool: string;
         pathTemplate: string;
         substitution: {

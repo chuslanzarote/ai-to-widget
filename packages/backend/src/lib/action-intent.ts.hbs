@@ -60,7 +60,7 @@ function renderDescription(
   tool: RuntimeToolDescriptor,
   args: Record<string, unknown>,
 ): string {
-  // FR-022: substitute {{ placeholder }} from summary_template using
+  // FR-022: substitute \{{ placeholder \}} from summary_template using
   // tool-call args. When a placeholder is missing, build a deterministic
   // fallback from name + remaining args (no Opus narration fallback).
   const tpl = tool.summary_template;

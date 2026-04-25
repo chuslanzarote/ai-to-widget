@@ -11,11 +11,11 @@ export declare const UpsertDocumentRowSchema: z.ZodObject<{
         claim: z.ZodString;
         source: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        claim: string;
         source: string;
+        claim: string;
     }, {
-        claim: string;
         source: string;
+        claim: string;
     }>, "many">;
     categories: z.ZodRecord<z.ZodString, z.ZodArray<z.ZodString, "many">>;
     embedding: z.ZodArray<z.ZodNumber, "many">;
@@ -35,8 +35,8 @@ export declare const UpsertDocumentRowSchema: z.ZodObject<{
     entity_id: string;
     document: string;
     facts: {
-        claim: string;
         source: string;
+        claim: string;
     }[];
     categories: Record<string, string[]>;
     embedding: number[];
@@ -50,8 +50,8 @@ export declare const UpsertDocumentRowSchema: z.ZodObject<{
     entity_id: string;
     document: string;
     facts: {
-        claim: string;
         source: string;
+        claim: string;
     }[];
     categories: Record<string, string[]>;
     embedding: number[];

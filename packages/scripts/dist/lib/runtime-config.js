@@ -46,8 +46,6 @@ export function loadRuntimeConfig(env = process.env) {
         databaseUrl,
         anthropicApiKey,
         allowedOrigins: parseOrigins(allowedOriginsRaw),
-        hostApiBaseUrl: env.HOST_API_BASE_URL?.trim() || null,
-        hostApiKey: env.HOST_API_KEY?.trim() || null,
         retrievalThreshold: num("RETRIEVAL_SIMILARITY_THRESHOLD", 0.55),
         retrievalTopK: num("RETRIEVAL_TOP_K", 8),
         maxConversationTurns: num("MAX_CONVERSATION_TURNS", 20),

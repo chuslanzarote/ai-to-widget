@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { runAtwClassifyCli } from "../dist/atw-classify.js";
+// Feature 009 / R11 — `/atw.classify` is an alias for `/atw.api`.
+import { runClassifyActions } from "../dist/classify-actions.js";
 
-const exitCode = await runAtwClassifyCli(process.argv.slice(2));
+const exitCode = await runClassifyActions(process.argv.slice(2));
 process.exit(exitCode);

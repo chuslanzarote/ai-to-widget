@@ -108,24 +108,8 @@ describe("loadExecutorsCatalog (T049)", () => {
     expect(init.credentials).toBe("omit");
   });
 
-  it("fetches from config.actionExecutorsUrl verbatim", async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => VALID_CATALOG,
-    });
-
-    await loadExecutorsCatalog(
-      cfg({
-        actionExecutorsUrl: "https://shop.example.com/static/action-executors.json",
-      }),
-    );
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://shop.example.com/static/action-executors.json",
-      expect.objectContaining({ credentials: "omit" }),
-    );
-  });
+  // Feature 009 — config.actionExecutorsUrl removed; the catalog URL is
+  // always `${origin}/action-executors.json` (computed in widgetBundleOrigin).
 
   it("malformed JSON (SyntaxError) → catalog null, warning logged, no retry", async () => {
     fetchMock.mockResolvedValueOnce({

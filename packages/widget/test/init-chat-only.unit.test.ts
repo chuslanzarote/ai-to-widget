@@ -115,7 +115,8 @@ describe("widget chat-only fallback (T074 / US6, FR-014, SC-005)", () => {
     const { container } = render(h(ChatPanel, { config: cfg() }));
     const dialog = container.querySelector('[role="dialog"]');
     expect(dialog).not.toBeNull();
-    expect(dialog?.getAttribute("aria-modal")).toBe("true");
+    // Feature 009 / FR-027 — panel coexists with host-page interaction;
+    // it is intentionally NOT aria-modal (no backdrop, no focus trap).
   });
 
   it("catalog 404 → no action-confirmation card renders (chat-only UI)", async () => {

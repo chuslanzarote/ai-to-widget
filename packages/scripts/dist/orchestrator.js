@@ -598,17 +598,17 @@ export async function runBuild(flags) {
         if (!flags.entitiesOnly && !abortState.aborted) {
             progress.banner(banner("BUNDLE", "Bundling dist/widget.{js,css} ..."));
             const widgetOut = await compileWidget({
-                widgetSrcDir: join(flags.projectRoot, "widget", "src"),
                 outDir: join(flags.projectRoot, "dist"),
                 minify: true,
             });
             widgetBundle = {
                 js: widgetOut.js,
                 css: widgetOut.css,
+                source: widgetOut.source,
             };
         }
         // 7. IMAGE ----------------------------------------------------------
-        if (!flags.entitiesOnly && !abortState.aborted) {
+        if (!flags.entitiesOnly && !flags.skipImage && !abortState.aborted) {
             progress.banner(banner("IMAGE", "Building atw_backend:latest (multi-stage) ..."));
             try {
                 const img = await buildBackendImage({
@@ -1157,9 +1157,12 @@ function printHelp() {
         "Usage:",
         "  atw-orchestrate [--force] [--dry-run] [--concurrency N]",
         "                  [--postgres-port N] [--entities-only] [--no-enrich]",
-        "                  [--backup] [--yes] [--help] [--version]",
+        "                  [--skip-image] [--backup] [--yes] [--help] [--version]",
         "",
         "Runs the full build pipeline documented in /atw.build.",
+        "",
+        "Flags:",
+        "  --skip-image    Suppress the IMAGE step (no Docker build).",
         "",
     ].join("\n"));
 }
@@ -1185,6 +1188,9 @@ export function parseArgs(argv, projectRoot) {
                 break;
             case "--no-enrich":
                 flags.noEnrich = true;
+                break;
+            case "--skip-image":
+                flags.skipImage = true;
                 break;
             case "--backup":
                 flags.backup = true;

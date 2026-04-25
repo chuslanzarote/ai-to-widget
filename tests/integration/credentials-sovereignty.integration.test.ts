@@ -155,13 +155,18 @@ describe("credential sovereignty (T056 / SC-003, Principle I)", () => {
     expect(actionCall).toBeDefined();
   });
 
-  it("host-bound fetch uses credentials: 'include' (cookie mode)", async () => {
+  it("host-bound fetch uses credentials: 'omit' (Feature 007 — widget never auto-attaches cookies)", async () => {
+    // Feature 007 changed the contract: the widget always sends
+    // `credentials: "omit"` and lets the manifest's credentialSource
+    // block declare any explicit auth header. The host-domain cookie
+    // never piggybacks on widget traffic — all credentialed flows go
+    // through an explicit declaration.
     await executeAction(intent(), cfg());
     const actionCall = calls.find((c) =>
       c.url.startsWith(HOST) && c.url.includes("/line-items"),
     );
     expect(actionCall).toBeDefined();
-    expect(actionCall!.init.credentials).toBe("include");
+    expect(actionCall!.init.credentials).toBe("omit");
   });
 
   it("host-bound fetch carries no Authorization / Cookie headers (browser attaches cookie, not widget)", async () => {

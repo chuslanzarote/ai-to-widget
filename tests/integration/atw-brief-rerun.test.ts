@@ -65,7 +65,8 @@ describe("atw.brief re-run: hash-based refinement mode", () => {
       "utf8",
     );
     const state = JSON.parse(stateRaw);
-    expect(state.entries.length).toBeGreaterThan(0);
+    // Feature 009 shape: { schema_version, files: Record<path, hash> }.
+    expect(Object.keys(state.files).length).toBeGreaterThan(0);
   });
 
   it("modified input yields a different hash, triggering Level-2 re-synthesis", async () => {
@@ -99,8 +100,11 @@ describe("atw.brief re-run: hash-based refinement mode", () => {
       await fs.readFile(path.join(tmp, ".atw", "state", "input-hashes.json"), "utf8"),
     );
 
-    expect(state1.entries.length).toBe(1);
-    expect(state2.entries.length).toBe(1);
-    expect(state1.entries[0].sha256).not.toBe(state2.entries[0].sha256);
+    // Feature 009 shape: hash for the single tracked input must change.
+    const file1 = Object.values(state1.files as Record<string, string>)[0];
+    const file2 = Object.values(state2.files as Record<string, string>)[0];
+    expect(file1).toBeDefined();
+    expect(file2).toBeDefined();
+    expect(file1).not.toBe(file2);
   });
 });

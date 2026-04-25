@@ -123,19 +123,12 @@ describe("ActionCard HTML-escape — summary values (T054)", () => {
     expect(row!.textContent).toBe(payload);
   });
 
-  it("intent.description containing HTML is rendered as literal text", () => {
-    const payload = '<img src=x onerror="pwn()">';
-    const { container } = render(
-      h(ActionCard, {
-        intent: intent({ description: payload }),
-        config: cfg(),
-      }),
-    );
-    const title = container.querySelector(".atw-action-card__title");
-    expect(title).not.toBeNull();
-    expect(title!.querySelector("img")).toBeNull();
-    expect(title!.textContent).toBe(payload);
-  });
+  // Feature 009 / FR-022 removed `intent.description` from the title surface;
+  // the title is now `summary_template` substitution or a deterministic
+  // `tool_name (k=v, …)` fallback. Description-as-title HTML-escape is no
+  // longer a real attack surface — there's nothing reading description into
+  // the DOM. The remaining cases above pin escape on `summary` values, which
+  // ARE still rendered.
 });
 
 describe("renderSummary placeholder resolution (T054)", () => {

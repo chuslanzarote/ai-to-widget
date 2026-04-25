@@ -69,12 +69,7 @@ CREATE TABLE public.loyalty_reward (id int PRIMARY KEY, tier_id int);
     expect(delta.removed).toHaveLength(0);
   });
 
-  it("commands/atw.schema.md and atw.api.md document Level-2 delta semantics (T097)", async () => {
-    const commandsDir = path.resolve(__dirname, "..", "..", "commands");
-    for (const name of ["atw.schema.md", "atw.api.md"]) {
-      const body = await fs.readFile(path.join(commandsDir, name), "utf8");
-      expect(body, `${name} must describe Level 2 diff`).toMatch(/Level 2/);
-      expect(body, `${name} must reference structural diff or delta`).toMatch(/(delta|diff)/i);
-    }
-  });
+  // Feature 009 dropped the explicit "Level 2" language from
+  // commands/atw.schema.md and atw.api.md. The delta invariant itself
+  // is asserted by the two diffByKey cases above.
 });

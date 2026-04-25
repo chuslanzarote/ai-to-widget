@@ -17,11 +17,28 @@ export const DeploymentTypeSchema = z.enum([
     "internal-copilot",
     "custom",
 ]);
+/**
+ * Feature 008 / T006 — base project.md frontmatter shape. Feature 009
+ * supersedes the storefrontOrigins/welcomeMessage/authTokenKey trio with
+ * the host_page_origin / host_api_origin / atw_backend_origin trio
+ * validated by ProjectConfigSchema (see schemas/project-md.ts). The legacy
+ * fields stay optional so old projects keep parsing, but the cross-field
+ * "must have storefrontOrigins for customer-facing-widget" rule is gone —
+ * 009's ProjectConfigSchema is the new authority for the origin shape.
+ */
 export const ProjectArtifactSchema = z.object({
     name: z.string().min(1),
     languages: z.array(z.string().min(1)).min(1),
     deploymentType: DeploymentTypeSchema,
     createdAt: z.string(),
+    updatedAt: z.string().optional(),
+    storefrontOrigins: z.array(z.string().url()).optional(),
+    welcomeMessage: z.string().max(200).optional(),
+    authTokenKey: z
+        .string()
+        .regex(/^[a-zA-Z0-9_-]+$/)
+        .optional(),
+    loginUrl: z.union([z.string().url(), z.literal("")]).optional(),
 });
 /* ============================================================================
  * 1.2 Business brief (.atw/config/brief.md)
@@ -84,6 +101,12 @@ export const ActionManifestArtifactSchema = z.object({
     summary: z.string(),
     tools: z.array(z.object({
         entity: z.string(),
+        // FR-012: `## Tools: <group> (runtime-only)` flag. When true, this
+        // group bypasses the `action-references-excluded-entity` cross-check
+        // (its endpoints only run at widget runtime via tool-use, they are
+        // not indexed). Round-trips through render-executors as
+        // `runtimeOnly: true` on every entry.
+        runtimeOnly: z.boolean().optional(),
         items: z.array(ActionManifestToolSchema),
     })),
     excluded: z.array(z.object({
@@ -326,6 +349,80 @@ export const ManifestFailureSchema = z.object({
     reason: ManifestFailureReasonSchema,
     details: z.string(),
 });
+/* Feature 005 — pipeline-step failure taxonomy (distinct from per-entity failures). */
+export const PipelineStepSchema = z.enum([
+    "render",
+    "bundle",
+    "image",
+    "compose",
+    "scan",
+]);
+export const PipelineFailureCodeSchema = z.enum([
+    "TEMPLATE_COMPILE",
+    "VENDOR_IMPORT_UNRESOLVED",
+    "DOCKER_UNREACHABLE",
+    "DOCKER_BUILD",
+    "SECRET_IN_CONTEXT",
+    "COMPOSE_ACTIVATE_FAILED",
+    "SCAN_FAILED",
+]);
+export const PipelineFailureSchema = z.object({
+    step: PipelineStepSchema,
+    code: PipelineFailureCodeSchema,
+    message: z.string(),
+});
+export const RenderStepActionSchema = z.enum(["created", "rewritten", "unchanged"]);
+export const BundleStepActionSchema = z.enum(["created", "rewritten", "unchanged"]);
+export const ImageStepActionSchema = z.enum([
+    "created",
+    "rebuilt",
+    "unchanged",
+    "skipped",
+    "failed",
+]);
+export const ComposeStepActionSchema = z.enum(["activated", "unchanged", "skipped"]);
+export const ScanStepActionSchema = z.enum(["ran", "skipped"]);
+export const ActionExecutorsStepSchema = z.object({
+    action: z.enum(["created", "rewritten", "unchanged"]),
+    path: z.string(),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    bytes: z.number().int().nonnegative(),
+    warnings: z.array(z.string()).default([]),
+});
+export const PipelineStepsSchema = z.object({
+    render: z
+        .object({
+        action: RenderStepActionSchema,
+        files_changed: z.number().int().nonnegative(),
+        /* Feature 006 / T058 — declarative executor catalog emitted
+         * alongside backend render. Present iff
+         * `.atw/artifacts/action-manifest.md` existed this build. */
+        action_executors: ActionExecutorsStepSchema.optional(),
+    })
+        .optional(),
+    bundle: z
+        .object({
+        action: BundleStepActionSchema,
+    })
+        .optional(),
+    image: z
+        .object({
+        action: ImageStepActionSchema,
+        reason: z.string().optional(),
+    })
+        .optional(),
+    compose: z
+        .object({
+        action: ComposeStepActionSchema,
+    })
+        .optional(),
+    scan: z
+        .object({
+        action: ScanStepActionSchema,
+        clean: z.boolean().optional(),
+    })
+        .optional(),
+});
 export const ManifestResultSchema = z.enum([
     "success",
     "partial",
@@ -382,11 +479,17 @@ export const BuildManifestSchema = z.object({
                 path: z.string(),
                 sha256: z.string(),
                 bytes: z.number().int().nonnegative(),
+                gzip_bytes: z.number().int().nonnegative(),
             }),
             css: z.object({
                 path: z.string(),
                 sha256: z.string(),
                 bytes: z.number().int().nonnegative(),
+                gzip_bytes: z.number().int().nonnegative(),
+            }),
+            source: z.object({
+                package_version: z.string().min(1),
+                tree_hash: z.string().regex(/^sha256:[a-f0-9]{64}$/),
             }),
         })
             .nullable()
@@ -420,6 +523,13 @@ export const BuildManifestSchema = z.object({
         }))
             .default([]),
     }),
+    /* Feature 005 — optional, backward-compatible extensions. */
+    steps: PipelineStepsSchema.optional(),
+    pipeline_failures: z.array(PipelineFailureSchema).optional(),
+    /* Feature 006 / T058 — build-level human-facing warnings. Includes
+     * the "no action-manifest → chat-only" notice (T071) and any
+     * cross-origin / >20-actions notices emitted by `renderExecutors()`. */
+    warnings: z.array(z.string()).optional(),
 });
 /* ----- 3.4 PipelineProgress ----- */
 export const PipelineProgressSchema = z.object({
@@ -470,33 +580,102 @@ export const SessionContextSchema = z.object({
         .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null(), ActionFollowUpSchema]))
         .optional(),
 });
+/**
+ * Feature 007 — Tool-result payload posted back by the widget after a
+ * client-side fetch. Contract: specs/007-widget-tool-loop/contracts/
+ * chat-endpoint-v2.md §Request shape.
+ *
+ * `content` is an opaque string (the widget truncates the shop response
+ * to BODY_LIMIT=4096 bytes before posting) that the backend forwards
+ * verbatim into the Anthropic `tool_result` block.
+ */
+export const ToolResultPayloadSchema = z.object({
+    tool_use_id: z.string().min(1),
+    /**
+     * Feature 008 (v3) — the operationId the widget executed. Lets the
+     * backend synthesize the assistant tool_use turn it never received
+     * (the widget's `ConversationTurn.content` is string-only). FR-019.
+     */
+    tool_name: z.string().min(1),
+    /**
+     * Feature 008 (v3) — the arguments the widget actually fetched
+     * with, reflecting any shopper confirmation-card edits (not the
+     * original Opus proposal).
+     */
+    tool_input: z.record(z.unknown()),
+    content: z.string().max(4096),
+    is_error: z.boolean(),
+    status: z.number().int(),
+    truncated: z.boolean(),
+});
 export const ChatRequestSchema = z.object({
     message: z.string().min(1).max(4000),
     history: z.array(ConversationTurnSchema).max(20),
     context: SessionContextSchema,
+    /** Feature 007 — carried across posts of the same turn. */
+    pending_turn_id: z.string().min(1).nullable().optional(),
+    /** Feature 007 — present on resume posts; skips retrieval/embedding. */
+    tool_result: ToolResultPayloadSchema.optional(),
+    /** Feature 007 — decrements by 1 on each action_intent emitted. */
+    tool_call_budget_remaining: z.number().int().optional(),
 });
+/**
+ * Feature 007 — action intent emitted by the backend on `tool_use`.
+ * Feature 009 / FR-022 — `summary_template` (rendered) and
+ * `requires_confirmation` (mirrors the manifest) flow through so the
+ * ActionCard can render a deterministic title row.
+ */
 export const ActionIntentSchema = z.object({
     id: z.string().min(1),
     tool: z.string().min(1),
     arguments: z.record(z.string(), z.unknown()),
     description: z.string().min(1),
-    /** Pre-rendered summary string with placeholders substituted. Empty
-     * string when summary_template was missing or could not be resolved
-     * deterministically; the widget then uses the deterministic fallback. */
+    /** Feature 009 / FR-022 — pre-rendered summary template, placeholders
+     * substituted; empty when missing or unresolved. */
     summary_template: z.string().optional(),
-    /** Mirrors manifest.operations[].requires_confirmation; always true
-     * for action intents (else the backend would have executed). */
+    /** Feature 009 — mirrors manifest.operations[].requires_confirmation. */
     requires_confirmation: z.boolean().optional(),
-    confirmation_required: z.literal(true),
+    confirmation_required: z.boolean(),
     http: z.object({
         method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]),
         path: z.string().min(1),
     }),
     summary: z.record(z.string(), z.string()).optional(),
 });
-export const ChatResponseSchema = z.object({
-    message: z.string().min(1),
+/**
+ * Feature 007 — two response variants from `POST /v1/chat`:
+ *   - final text (stop_reason !== "tool_use"): {message, pending_turn_id: null}
+ *   - action intent (stop_reason === "tool_use"): {action_intent, pending_turn_id, tool_call_budget_remaining}
+ *
+ * Feature 009 / FR-024, FR-026 — citation and suggestions fields removed.
+ */
+const NormalChatResponseSchema = z.object({
+    message: z.string(),
     actions: z.array(ActionIntentSchema),
+    action_intent: ActionIntentSchema.optional(),
+    pending_turn_id: z.string().min(1).nullable().optional(),
+    tool_call_budget_remaining: z.number().int().optional(),
     request_id: z.string().min(1),
 });
+/**
+ * Feature 008 / FR-020a — response-generation-failed-but-action-succeeded.
+ * Emitted when the post-`tool_result` Opus call exhausts its 4-attempt
+ * retry budget but the action itself returned a non-error result. The
+ * widget renders a pinned fallback string on receipt and clears
+ * `pending_turn_id`. Contract: chat-endpoint-v3.md §Response shape.
+ */
+export const ResponseGenerationFailedSchema = z.object({
+    response_generation_failed: z.literal(true),
+    action_succeeded: z.literal(true),
+    pending_turn_id: z.null(),
+});
+export const ChatResponseSchema = z.union([
+    NormalChatResponseSchema,
+    ResponseGenerationFailedSchema,
+]);
+export function isResponseGenerationFailed(r) {
+    return (typeof r
+        .response_generation_failed === "boolean" &&
+        r.response_generation_failed === true);
+}
 //# sourceMappingURL=types.js.map

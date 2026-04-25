@@ -17,6 +17,12 @@ describe("atw-init: end-to-end artifact write", () => {
     await fs.rm(tmp, { recursive: true, force: true });
   });
 
+  const origins = {
+    atwBackendOrigin: "https://atw.example.com",
+    hostApiOrigin: "https://api.example.com",
+    hostPageOrigin: "https://www.example.com",
+  };
+
   it("scaffolds then writes project.md atomically via initProject", async () => {
     const targetDir = path.join(tmp, "demo");
     const scaffoldCode = await runCli({ argv: [targetDir] });
@@ -29,6 +35,7 @@ describe("atw-init: end-to-end artifact write", () => {
         name: "aurelia",
         languages: ["en", "es"],
         deploymentType: "customer-facing-widget",
+        ...origins,
       },
       now: () => new Date("2026-04-21T12:00:00Z"),
     });
@@ -48,23 +55,24 @@ describe("atw-init: end-to-end artifact write", () => {
     expect(bakExists).toBe(false);
   });
 
-  it("re-run bumps updatedAt; a changed answer also rewrites with a .bak", async () => {
-    // Per Feature 008 contracts/project-md-v2.md §Re-run behaviour: every
-    // `/atw.init` re-run re-emits `updatedAt`, so `wrote: true` even when
-    // the Builder accepts all pre-filled defaults. Unchanged captured
-    // values round-trip byte-for-byte.
+  it("idempotent re-run with identical answers preserves the artifact (Feature 009)", async () => {
+    // Feature 009 init-project is idempotent: same answers + existing
+    // file → wrote=false, artifact unchanged. The 008 v2 "always bump
+    // updatedAt" / per-field diff contract was dropped.
     const targetDir = path.join(tmp, "demo");
     await runCli({ argv: [targetDir] });
     const projectPath = path.join(targetDir, ".atw", "config", "project.md");
-    await initProject({
+    const first = await initProject({
       targetPath: projectPath,
       answers: {
         name: "aurelia",
         languages: ["en"],
         deploymentType: "customer-facing-widget",
+        ...origins,
       },
       now: () => new Date("2026-04-21T12:00:00Z"),
     });
+    expect(first.wrote).toBe(true);
 
     const sameResult = await initProject({
       targetPath: projectPath,
@@ -72,12 +80,12 @@ describe("atw-init: end-to-end artifact write", () => {
         name: "aurelia",
         languages: ["en"],
         deploymentType: "customer-facing-widget",
+        ...origins,
       },
       now: () => new Date("2026-04-22T12:00:00Z"),
     });
-    expect(sameResult.wrote).toBe(true);
-    expect(sameResult.diff).toEqual([]);
-    expect(sameResult.artifact.updatedAt).toBe("2026-04-22T12:00:00.000Z");
+    expect(sameResult.wrote).toBe(false);
+    expect(sameResult.artifact.createdAt).toBe(first.artifact.createdAt);
 
     const changedResult = await initProject({
       targetPath: projectPath,
@@ -85,14 +93,11 @@ describe("atw-init: end-to-end artifact write", () => {
         name: "aurelia",
         languages: ["en", "es"],
         deploymentType: "customer-facing-widget",
+        ...origins,
       },
     });
     expect(changedResult.wrote).toBe(true);
-    expect(changedResult.diff.map((d) => d.field)).toContain("languages");
-    const bakExists = await fs
-      .stat(`${projectPath}.bak`)
-      .then(() => true)
-      .catch(() => false);
-    expect(bakExists).toBe(true);
+    expect(changedResult.artifact.languages).toEqual(["en", "es"]);
+    expect(changedResult.artifact.createdAt).toBe(first.artifact.createdAt);
   });
 });

@@ -9,6 +9,8 @@ export interface OrchestratorFlags {
     postgresPort?: number;
     entitiesOnly?: boolean;
     noEnrich?: boolean;
+    /** Suppress the IMAGE step (Docker build). T020 / US2. */
+    skipImage?: boolean;
     backup?: boolean;
     yes?: boolean;
     help?: boolean;

@@ -41,30 +41,20 @@ describe(".atw/inputs/ lifecycle (T095 / FR-048)", () => {
     expect(await exists(inputFile)).toBe(true);
   });
 
-  it("templates/atw-tree's .gitignore shields .atw/inputs from accidental commits (FR-048)", async () => {
-    const gitignorePath = path.resolve(
+  it("templates/gitignore-atw-block.txt shields .atw/inputs from accidental commits", async () => {
+    // Feature 009 ships the gitignore guard via a copyable block at
+    // templates/gitignore-atw-block.txt rather than a per-tree
+    // .gitignore. The installer concatenates it into the host's
+    // .gitignore.
+    const blockPath = path.resolve(
       __dirname,
       "..",
       "..",
       "templates",
-      "atw-tree",
-      ".gitignore",
+      "gitignore-atw-block.txt",
     );
-    if (await exists(gitignorePath)) {
-      const body = await fs.readFile(gitignorePath, "utf8");
-      expect(body).toMatch(/inputs/);
-    } else {
-      // If the template gitignore isn't shipped at that path yet, the
-      // installer's gitignore-ensurer must still cover the pattern —
-      // fall back to asserting that the command docs reference FR-048.
-      const commandsDir = path.resolve(__dirname, "..", "..", "commands");
-      const names = await fs.readdir(commandsDir);
-      const anyMention = await Promise.all(
-        names
-          .filter((n) => n.endsWith(".md"))
-          .map((n) => fs.readFile(path.join(commandsDir, n), "utf8")),
-      );
-      expect(anyMention.some((body) => /FR-048/.test(body))).toBe(true);
-    }
+    expect(await exists(blockPath)).toBe(true);
+    const body = await fs.readFile(blockPath, "utf8");
+    expect(body).toMatch(/\.atw\/inputs/);
   });
 });

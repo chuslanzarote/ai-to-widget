@@ -55,10 +55,9 @@ function widgetBundleOrigin(): string {
 }
 
 export async function loadExecutorsCatalog(
-  config: WidgetConfig,
+  _config: WidgetConfig,
 ): Promise<void> {
-  const url =
-    config.actionExecutorsUrl ?? `${widgetBundleOrigin()}/action-executors.json`;
+  const url = `${widgetBundleOrigin()}/action-executors.json`;
   try {
     const res = await fetch(url, { credentials: "omit" });
     if (!res.ok) {

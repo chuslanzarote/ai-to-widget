@@ -51,17 +51,9 @@ describe("mid-command atomicity and re-run (T094 / FR-050)", () => {
     }
   });
 
-  it("the four command markdown files document FR-050 mid-command discard (T098)", async () => {
-    const commandsDir = path.resolve(__dirname, "..", "..", "commands");
-    const names = ["atw.brief.md", "atw.schema.md", "atw.api.md", "atw.plan.md"];
-    for (const name of names) {
-      const body = await fs.readFile(path.join(commandsDir, name), "utf8");
-      expect(body, `${name} must reference FR-050`).toMatch(/FR-050/);
-      expect(body, `${name} must state drafts are discarded on interruption`).toMatch(
-        /no persisted (mid-command )?draft state|no persisted draft|re-synthesize/i,
-      );
-    }
-  });
+  // Feature 009 dropped the FR-050 / mid-command-discard language from
+  // commands/atw.*.md. The atomicity invariant itself is exercised by
+  // the two cases above.
 });
 
 async function findStrayDraftFiles(root: string): Promise<string[]> {
