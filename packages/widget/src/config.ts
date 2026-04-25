@@ -16,29 +16,8 @@ export interface WidgetConfig {
   locale: string;
   loginUrl?: string;
   introLine?: string;
-  /**
-   * Feature 008 / FR-025 — Builder-configured greeting. Rendered as the
-   * first assistant-role transcript row when set (US5 / T066). Sourced
-   * from `data-welcome-message` on the loader script, which in turn
-   * comes from `project.md#welcomeMessage`.
-   */
-  welcomeMessage?: string;
   /** Tool names the widget will execute; injected at build time. */
   allowedTools: string[];
-  /**
-   * Citation URL template. Supports `{entity_type}` and `{entity_id}` (plus
-   * any other fields from the Citation object). Default
-   * `${apiBaseUrl}/${entity_type}/${entity_id}` is applied if empty — this
-   * resolves analysis finding U1 from /speckit.analyze.
-   */
-  citationUrlTemplate?: string;
-  /**
-   * URL of the declarative action-executors catalog (Feature 006). The
-   * widget loads this with `credentials: "omit"` at boot; a missing /
-   * malformed catalog falls back to chat-only. Must be same-origin with
-   * the widget bundle. Default: `${widgetBundleOrigin}/action-executors.json`.
-   */
-  actionExecutorsUrl?: string;
 }
 
 export interface ConfigIssue {
@@ -94,10 +73,7 @@ export function readConfigFromAttributes(
     locale: attrs.locale ?? fallbacks?.locale ?? "en-US",
     loginUrl: attrs.loginUrl || undefined,
     introLine: attrs.intro || undefined,
-    welcomeMessage: attrs.welcomeMessage || undefined,
     allowedTools: fallbacks?.allowedTools ?? [],
-    citationUrlTemplate: attrs.citationUrlTemplate || undefined,
-    actionExecutorsUrl: attrs.actionExecutorsUrl || undefined,
   };
   return { ok: issues.length === 0, config, issues };
 }
@@ -125,15 +101,3 @@ function normaliseLauncherPosition(
   return "bottom-right";
 }
 
-export function resolveCitationHref(
-  citation: { entity_type: string; entity_id: string; href?: string },
-  config: WidgetConfig,
-): string | null {
-  if (citation.href) return citation.href;
-  const base = config.apiBaseUrl || "";
-  const template =
-    config.citationUrlTemplate ?? `${base.replace(/\/$/, "")}/{entity_type}/{entity_id}`;
-  return template
-    .replace(/\{entity_type\}/g, encodeURIComponent(citation.entity_type))
-    .replace(/\{entity_id\}/g, encodeURIComponent(citation.entity_id));
-}

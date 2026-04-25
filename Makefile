@@ -11,14 +11,14 @@ help:
 	@echo "  make fresh   Wipe volumes + pre-built .atw/ artefacts, then start Medusa only."
 	@echo "               Use to re-run Features 001/002 from zero (filmed setup path)."
 	@echo "  make seed    Re-run the Medusa seed script idempotently."
-	@echo "  make down    docker compose down (keeps volumes)."
+	@echo "  make down    docker compose -f tools/dev/docker-compose.yml down (keeps volumes)."
 	@echo "  make logs    Tail all service logs."
 	@echo "  make test    Run unit + contract tests locally (no Docker)."
 	@echo ""
 
 demo: check-env check-image stage-widget
-	docker compose pull --ignore-pull-failures medusa_postgres medusa_redis atw_postgres
-	docker compose up -d --wait
+	docker compose -f tools/dev/docker-compose.yml pull --ignore-pull-failures medusa_postgres medusa_redis atw_postgres
+	docker compose -f tools/dev/docker-compose.yml up -d --wait
 	@echo ""
 	@echo "Aurelia storefront:  http://localhost:8000"
 	@echo "ATW backend:         http://localhost:3100/health"
@@ -43,7 +43,7 @@ stage-widget:
 	  echo "/* widget bundle not built yet — run /atw.build to replace this stub */" > demo/medusa/storefront/public/widget.js; \
 	  echo "/* widget css stub */" > demo/medusa/storefront/public/widget.css; \
 	  echo "[stage-widget] real bundle not found in dist/ — wrote placeholder stubs."; \
-	  echo "[stage-widget] After /atw.build finishes, re-run 'make stage-widget && docker compose build medusa_storefront && docker compose up -d medusa_storefront' to pick up the real widget."; \
+	  echo "[stage-widget] After /atw.build finishes, re-run 'make stage-widget && docker compose -f tools/dev/docker-compose.yml build medusa_storefront && docker compose -f tools/dev/docker-compose.yml up -d medusa_storefront' to pick up the real widget."; \
 	fi
 	@if [ -f demo/atw-shop-host/.atw/artifacts/action-executors.json ]; then \
 	  cp demo/atw-shop-host/.atw/artifacts/action-executors.json demo/medusa/storefront/public/action-executors.json; \
@@ -77,7 +77,7 @@ check-image:
 	  echo "ERROR: atw_backend:latest is not built yet."; \
 	  echo ""; \
 	  echo "The runtime backend image is produced locally by /atw.build —"; \
-	  echo "it is NOT published on Docker Hub, so 'docker compose up' cannot"; \
+	  echo "it is NOT published on Docker Hub, so 'docker compose -f tools/dev/docker-compose.yml up' cannot"; \
 	  echo "pull it. Choose one of these paths (see TESTING-GUIDE.md §5.1):"; \
 	  echo ""; \
 	  echo "  1) Cheapest ('\$$0'): build it without enrichment (widget works"; \
@@ -96,49 +96,51 @@ check-image:
 	  echo ""; \
 	  echo "  3) Skip ATW entirely and see only the Medusa storefront:"; \
 	  echo ""; \
-	  echo "       docker compose up medusa_postgres medusa_redis medusa_backend medusa_storefront"; \
+	  echo "       docker compose -f tools/dev/docker-compose.yml up medusa_postgres medusa_redis medusa_backend medusa_storefront"; \
 	  echo ""; \
 	  echo "────────────────────────────────────────────────────────────────"; \
 	  exit 1; \
 	fi
 
 fresh: stage-widget
-	docker compose down -v
+	docker compose -f tools/dev/docker-compose.yml down -v
 	@if [ -d demo/atw-shop-host/.atw/state ]; then rm -rf demo/atw-shop-host/.atw/state/*; fi
+	@if [ -d demo/shop/atw-shop-host/.atw/state ]; then rm -rf demo/shop/atw-shop-host/.atw/state/*; fi
+	@if [ -d demo/atw-aurelia/.atw/state ]; then rm -rf demo/atw-aurelia/.atw/state/*; fi
 	@rm -rf demo/medusa/.runtime && mkdir -p demo/medusa/.runtime
 	@echo ""
 	@echo "[fresh] phase 1/2: rebuild + postgres + redis + medusa backend (seed + PK export)..."
-	docker compose build medusa_backend
-	docker compose up medusa_postgres medusa_redis medusa_backend -d --wait
+	docker compose -f tools/dev/docker-compose.yml build medusa_backend
+	docker compose -f tools/dev/docker-compose.yml up medusa_postgres medusa_redis medusa_backend -d --wait
 	@echo "[fresh] waiting for seeded publishable key..."
 	@for i in $$(seq 1 150); do \
 	  if [ -s demo/medusa/.runtime/publishable-key.txt ]; then break; fi; \
 	  sleep 2; \
 	done
 	@if [ ! -s demo/medusa/.runtime/publishable-key.txt ]; then \
-	  echo "ERROR: publishable key not exported — see 'docker compose logs medusa_backend'"; \
+	  echo "ERROR: publishable key not exported — see 'docker compose -f tools/dev/docker-compose.yml logs medusa_backend'"; \
 	  exit 1; \
 	fi
 	$(eval PK := $(shell cat demo/medusa/.runtime/publishable-key.txt))
 	@echo "[fresh] publishable key captured: $(PK)"
 	@echo ""
 	@echo "[fresh] phase 2/2: bringing nginx storefront up (PK injected at container start)..."
-	MEDUSA_PUBLISHABLE_KEY=$(PK) docker compose up medusa_storefront -d --wait
+	MEDUSA_PUBLISHABLE_KEY=$(PK) docker compose -f tools/dev/docker-compose.yml up medusa_storefront -d --wait
 	@echo ""
 	@echo "Medusa backend:     http://localhost:9000"
 	@echo "Aurelia storefront: http://localhost:8000"
 	@echo "ATW runtime is NOT started. Next: run /atw.init ... /atw.build ... /atw.embed,"
-	@echo "then 'make stage-widget && docker compose build medusa_storefront && MEDUSA_PUBLISHABLE_KEY=$(PK) docker compose up -d medusa_storefront'"
-	@echo "to pick up the new widget bundle, and finally 'docker compose up atw_postgres atw_backend -d --wait'."
+	@echo "then 'make stage-widget && docker compose -f tools/dev/docker-compose.yml build medusa_storefront && MEDUSA_PUBLISHABLE_KEY=$(PK) docker compose -f tools/dev/docker-compose.yml up -d medusa_storefront'"
+	@echo "to pick up the new widget bundle, and finally 'docker compose -f tools/dev/docker-compose.yml up atw_postgres atw_backend -d --wait'."
 
 seed:
-	docker compose exec medusa_backend npm run seed
+	docker compose -f tools/dev/docker-compose.yml exec medusa_backend npm run seed
 
 down:
-	docker compose down
+	docker compose -f tools/dev/docker-compose.yml down
 
 logs:
-	docker compose logs -f
+	docker compose -f tools/dev/docker-compose.yml logs -f
 
 test:
 	npx vitest run

@@ -13,7 +13,34 @@ import "./styles.css";
  * are missing — the Builder sees a console error instead of a launcher
  * that silently breaks.
  */
-function init(): void {
+async function fetchToolCatalog(backendUrl: string): Promise<string[]> {
+  // FR-015: the widget fetches its tool allowlist from the backend at
+  // boot. If `/tools` is missing or unreachable the widget warns once
+  // and falls back to the empty allowlist (the spec edge case).
+  try {
+    const res = await fetch(backendUrl.replace(/\/$/, "") + "/tools", {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[atw] /tools returned HTTP ${res.status}; allowlist empty.`);
+      return [];
+    }
+    const body = (await res.json()) as { tools?: Array<{ name?: string }> };
+    return Array.isArray(body.tools)
+      ? body.tools
+          .map((t) => (typeof t?.name === "string" ? t.name : ""))
+          .filter((s) => s.length > 0)
+      : [];
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[atw] /tools fetch failed; allowlist empty:", err);
+    return [];
+  }
+}
+
+async function init(): Promise<void> {
   const script =
     (document.currentScript as HTMLScriptElement | null) ??
     document.querySelector("script[data-backend-url]");
@@ -22,11 +49,8 @@ function init(): void {
     console.error("[atw] widget script tag not found");
     return;
   }
-  const allowedToolsAttr = script.getAttribute("data-allowed-tools") ?? "";
-  const allowedTools = allowedToolsAttr
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const backendUrl = script.getAttribute("data-backend-url") ?? "";
+  const allowedTools = await fetchToolCatalog(backendUrl);
   const result = readConfigFromAttributes(script.dataset, {
     apiBaseUrl: window.location.origin,
     locale: navigator.language,
@@ -77,7 +101,9 @@ function init(): void {
 }
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init);
+  document.addEventListener("DOMContentLoaded", () => {
+    void init();
+  });
 } else {
-  init();
+  void init();
 }

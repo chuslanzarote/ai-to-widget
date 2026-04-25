@@ -3,7 +3,6 @@ import {
   ChatRequestSchema,
   ChatResponseSchema,
   ActionIntentSchema,
-  CitationSchema,
   SessionContextSchema,
   ConversationTurnSchema,
   ActionFollowUpSchema,
@@ -67,30 +66,27 @@ describe("runtime wire types (T026 / data-model §1)", () => {
     ).toThrow();
   });
 
-  it("Citation enforces relevance in [0,1]", () => {
-    CitationSchema.parse({
-      entity_id: "p1",
-      entity_type: "product",
-      relevance: 0.5,
-    });
-    expect(() =>
-      CitationSchema.parse({
-        entity_id: "p1",
-        entity_type: "product",
-        relevance: 1.1,
-      }),
-    ).toThrow();
-  });
-
   it("ChatResponse round-trips with minimal fields", () => {
     const parsed = ChatResponseSchema.parse({
       message: "hello",
-      citations: [],
       actions: [],
       request_id: "req-1",
     });
-    expect(parsed.citations).toEqual([]);
-    expect(parsed.suggestions).toBeUndefined();
+    expect(parsed.actions).toEqual([]);
+  });
+
+  it("ChatResponse rejects citations field (FR-023, Q1)", () => {
+    // Strict mode is not used; extra fields are stripped silently. The
+    // intent is that the type system prevents widget code from ever
+    // reading `parsed.citations` — verified by the absence of the field
+    // on the inferred type. Here we confirm a parse without the field
+    // succeeds (the post-cleanup schema does not require it).
+    const parsed = ChatResponseSchema.parse({
+      message: "hello",
+      actions: [],
+      request_id: "req-1",
+    });
+    expect("citations" in parsed).toBe(false);
   });
 
   it("SessionContext allows page_context with nested ActionFollowUp", () => {

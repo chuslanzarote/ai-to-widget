@@ -78,3 +78,79 @@ export function loadRuntimeConfig(env: NodeJS.ProcessEnv = process.env): Runtime
     nodeEnv: env.NODE_ENV ?? "development",
   };
 }
+
+/* ============================================================================
+ * Feature 009 — Project config loader (FR-006, R6)
+ *
+ * Reads `.atw/config/project.md` YAML frontmatter and validates it via the
+ * Feature 009 zod schema. Used by the LLM-driven phases to resolve the
+ * pinned `model_snapshot` and the four origin fields.
+ * ========================================================================= */
+
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import matter from "gray-matter";
+import {
+  ProjectConfigSchema,
+  checkProjectConfigInvariants,
+  type ProjectConfig,
+} from "./schemas/project-md.js";
+
+export class ProjectConfigError extends Error {
+  constructor(
+    message: string,
+    public readonly issues: ReadonlyArray<{ path: string; message: string }>,
+  ) {
+    super(message);
+    this.name = "ProjectConfigError";
+  }
+}
+
+export interface LoadProjectConfigOptions {
+  projectRoot?: string;
+  /** Allow atw_backend_origin === host_api_origin (rare, single-process demos). */
+  allowSameOrigin?: boolean;
+}
+
+export const DEFAULT_PROJECT_MD_PATH = ".atw/config/project.md";
+
+/**
+ * Reads `.atw/config/project.md` and returns the validated frontmatter.
+ * Defaults `model_snapshot` to `claude-opus-4-7` when the field is absent.
+ * Throws `ProjectConfigError` with a list of `{path, message}` issues when
+ * structural or cross-field validation fails.
+ */
+export function loadProjectConfig(
+  opts: LoadProjectConfigOptions = {},
+): ProjectConfig {
+  const root = opts.projectRoot ?? process.cwd();
+  const abs = join(root, DEFAULT_PROJECT_MD_PATH);
+  if (!existsSync(abs)) {
+    throw new ProjectConfigError(`project.md not found at ${abs}`, [
+      { path: ".", message: "missing project.md — run /atw.init first" },
+    ]);
+  }
+  const raw = readFileSync(abs, "utf8");
+  const parsed = matter(raw);
+  const data = parsed.data ?? {};
+
+  const result = ProjectConfigSchema.safeParse(data);
+  if (!result.success) {
+    const issues = result.error.issues.map((i) => ({
+      path: i.path.join("."),
+      message: i.message,
+    }));
+    throw new ProjectConfigError("project.md frontmatter failed schema validation", issues);
+  }
+  const cfg = result.data;
+  const invariantIssues = checkProjectConfigInvariants(cfg, {
+    allowSameOrigin: opts.allowSameOrigin,
+  });
+  if (invariantIssues.length > 0) {
+    throw new ProjectConfigError(
+      "project.md frontmatter failed cross-field invariants",
+      invariantIssues,
+    );
+  }
+  return cfg;
+}

@@ -4,45 +4,17 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import Debug from "debug";
 import { BuildManifestSchema } from "./lib/types.js";
-import { writeManifestAtomic, defaultManifestPath } from "./lib/manifest-io.js";
-import type { CompileResult, WidgetSourceOrigin } from "./compile-widget.js";
+import {
+  writeManifestAtomic,
+  defaultManifestPath,
+  writeActionManifest,
+} from "./lib/manifest-io.js";
+import {
+  ActionManifestSchema,
+  type ActionManifest,
+} from "./lib/schemas/action-manifest.js";
 
 const log = Debug("atw:write-manifest");
-
-export interface WidgetManifestSection {
-  js: { path: string; sha256: string; bytes: number; gzip_bytes: number };
-  css: { path: string; sha256: string; bytes: number; gzip_bytes: number };
-  source: { package_version: string; tree_hash: string };
-}
-
-/**
- * Pure transformer: shape a `compileWidget` result into the `widget_bundle`
- * section of the build manifest. Paths are kept as returned by the compiler
- * — the orchestrator is responsible for any absolute→relative remapping.
- */
-export function buildWidgetManifestSection(
-  compileResult: CompileResult,
-  sourceOrigin: WidgetSourceOrigin,
-): WidgetManifestSection {
-  return {
-    js: {
-      path: compileResult.js.path,
-      sha256: compileResult.js.sha256,
-      bytes: compileResult.js.bytes,
-      gzip_bytes: compileResult.js.gzip_bytes,
-    },
-    css: {
-      path: compileResult.css.path,
-      sha256: compileResult.css.sha256,
-      bytes: compileResult.css.bytes,
-      gzip_bytes: compileResult.css.gzip_bytes,
-    },
-    source: {
-      package_version: sourceOrigin.package_version,
-      tree_hash: sourceOrigin.tree_hash,
-    },
-  };
-}
 
 export interface WriteManifestResult {
   path: string;
@@ -65,12 +37,31 @@ export function writeManifestCli(opts: WriteManifestOptions): WriteManifestResul
   return { path: opts.targetPath, sha256: hash.digest("hex") };
 }
 
+/**
+ * Write an action manifest (Feature 009 / FR-005, FR-007) via the
+ * gray-matter round-trip helper. The header frontmatter (schema_version,
+ * model_snapshot, input_hashes, counts) is enforced by
+ * `ActionManifestSchema`; passing an invalid object surfaces field-level
+ * issues at the call site.
+ */
+export function writeActionManifestCli(
+  opts: WriteManifestOptions,
+  body = "",
+): WriteManifestResult {
+  const parsed: ActionManifest = ActionManifestSchema.parse(opts.manifest);
+  writeActionManifest(opts.targetPath, parsed, body);
+  const hash = createHash("sha256");
+  hash.update(readFileSync(opts.targetPath));
+  return { path: opts.targetPath, sha256: hash.digest("hex") };
+}
+
 /* ------------------------------------------------------------------ CLI -- */
 
 interface CliOptions {
   manifest: string | "-";
   out: string;
   json: boolean;
+  kind: "build" | "action";
 }
 
 function parseCli(argv: string[]): CliOptions | { help: true } | { version: true } {
@@ -80,6 +71,7 @@ function parseCli(argv: string[]): CliOptions | { help: true } | { version: true
       manifest: { type: "string" },
       out: { type: "string" },
       json: { type: "boolean", default: false },
+      kind: { type: "string", default: "build" },
       help: { type: "boolean", default: false, short: "h" },
       version: { type: "boolean", default: false, short: "v" },
     },
@@ -88,10 +80,19 @@ function parseCli(argv: string[]): CliOptions | { help: true } | { version: true
   if (values.help) return { help: true };
   if (values.version) return { version: true };
   if (!values.manifest) throw new Error("--manifest <path|-> is required");
+  const kind = String(values.kind ?? "build");
+  if (kind !== "build" && kind !== "action") {
+    throw new Error(`--kind must be "build" or "action" (got "${kind}")`);
+  }
+  const defaultOut =
+    kind === "action"
+      ? path.join(process.cwd(), ".atw", "artifacts", "action-manifest.md")
+      : defaultManifestPath(process.cwd());
   return {
     manifest: String(values.manifest),
-    out: String(values.out ?? defaultManifestPath(process.cwd())),
+    out: String(values.out ?? defaultOut),
     json: Boolean(values.json),
+    kind,
   };
 }
 
@@ -126,7 +127,7 @@ export async function runWriteManifest(argv: string[]): Promise<number> {
   }
   if ("help" in opts) {
     process.stdout.write(
-      "atw-write-manifest --manifest <path|-> [--out <path>] [--json]\n",
+      "atw-write-manifest --manifest <path|-> [--out <path>] [--json] [--kind build|action]\n",
     );
     return 0;
   }
@@ -137,7 +138,10 @@ export async function runWriteManifest(argv: string[]): Promise<number> {
 
   try {
     const raw = await readInput(opts.manifest);
-    const result = writeManifestCli({ manifest: raw, targetPath: opts.out });
+    const result =
+      opts.kind === "action"
+        ? writeActionManifestCli({ manifest: raw, targetPath: opts.out })
+        : writeManifestCli({ manifest: raw, targetPath: opts.out });
     if (opts.json) {
       process.stdout.write(JSON.stringify(result) + "\n");
     } else {

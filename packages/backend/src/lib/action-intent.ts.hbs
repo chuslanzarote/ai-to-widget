@@ -21,7 +21,7 @@ export function buildActionIntent(
   input: BuildActionIntentInput,
 ): ActionIntent | { unresolved: string[] } {
   const unresolved: string[] = [];
-  const resolvedPath = input.tool.http.path.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key) => {
+  const resolvedPath = input.tool.http.path_template.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key) => {
     const v = resolveKey(key, input.args, input.sessionContext);
     if (v === null || v === undefined || v === "") {
       unresolved.push(key);
@@ -36,10 +36,9 @@ export function buildActionIntent(
     tool: input.tool.name,
     arguments: input.args,
     description,
-    // Feature 007 — reads (GET / non-action tools) execute inline in the
-    // widget without a confirmation card; writes still prompt. The split
-    // is carried through from the manifest via `tool.is_action`.
-    confirmation_required: input.tool.is_action,
+    summary_template: input.tool.summary_template,
+    requires_confirmation: input.tool.requires_confirmation,
+    confirmation_required: true,
     http: { method: input.tool.http.method, path: resolvedPath },
     summary: renderSummary(input.tool, input.args),
   };
@@ -61,13 +60,22 @@ function renderDescription(
   tool: RuntimeToolDescriptor,
   args: Record<string, unknown>,
 ): string {
-  if (tool.description_template) {
-    return tool.description_template.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key) => {
-      const v = args[key];
-      return v === undefined || v === null ? `{${key}}` : String(v);
-    });
-  }
+  // FR-022: substitute {{ placeholder }} from summary_template using
+  // tool-call args. When a placeholder is missing, build a deterministic
+  // fallback from name + remaining args (no Opus narration fallback).
+  const tpl = tool.summary_template;
+  let unresolved = false;
+  const out = tpl.replace(/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g, (_, key) => {
+    const v = args[key];
+    if (v === undefined || v === null || v === "") {
+      unresolved = true;
+      return `\{{${key}}}`;
+    }
+    return String(v);
+  });
+  if (!unresolved) return out;
   const argsStr = Object.entries(args)
+    .filter(([, v]) => v !== undefined && v !== null && v !== "")
     .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
     .join(", ");
   return argsStr.length > 0 ? `${tool.name} (${argsStr})` : tool.name;
@@ -77,11 +85,18 @@ function renderSummary(
   tool: RuntimeToolDescriptor,
   args: Record<string, unknown>,
 ): Record<string, string> | undefined {
-  if (!tool.summary_fields || tool.summary_fields.length === 0) return undefined;
+  // Surface every placeholder key from summary_template that resolves to a
+  // present argument. This keeps the action-intent payload self-contained.
+  const keys = new Set<string>();
+  const re = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(tool.summary_template)) !== null) {
+    keys.add(m[1]);
+  }
   const out: Record<string, string> = {};
-  for (const field of tool.summary_fields) {
-    const v = args[field];
-    if (v !== undefined && v !== null) out[field] = String(v);
+  for (const k of keys) {
+    const v = args[k];
+    if (v !== undefined && v !== null && v !== "") out[k] = String(v);
   }
   return Object.keys(out).length > 0 ? out : undefined;
 }

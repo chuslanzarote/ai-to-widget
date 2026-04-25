@@ -24,32 +24,17 @@ export class ParseOpenAPIError extends Error {
     }
 }
 /**
- * Feature 006 — FR-002: operationIds must be unique within the document.
- * Detection is performed during `normalize()` so every downstream
- * consumer (classifier, manifest cross-validation, render pipeline)
- * can trust that the operations array has no duplicates.
- * See contracts/atw-api-command.md §3 step 6.
+ * Methods we surface to the LLM. Feature 009 (FR-001, FR-003) drops all
+ * semantic pre-filtering; only structural filters remain. OPTIONS and HEAD
+ * are excluded structurally because they are not actionable tools — the
+ * LLM sees only methods that map to user-visible actions.
  */
-export class DuplicateOperationIdError extends Error {
-    operationId;
-    first;
-    second;
-    code = "DUPLICATE_OPERATION_ID";
-    constructor(operationId, first, second) {
-        super(`duplicate operationId "${operationId}" at (${first.method} ${first.path}) and (${second.method} ${second.path})`);
-        this.operationId = operationId;
-        this.first = first;
-        this.second = second;
-    }
-}
 const HTTP_METHODS = [
     "get",
     "post",
     "put",
     "patch",
     "delete",
-    "head",
-    "options",
 ];
 export async function parseOpenAPI(input) {
     const doc = await loadDocument(input);
@@ -135,24 +120,18 @@ function normalize(raw, input) {
     const doc = raw;
     const version = doc.openapi?.startsWith("3.1") ? "3.1" : "3.0";
     const operations = [];
-    // Feature 006 — FR-002 / contracts/atw-api-command.md §3 step 6:
-    // fail on the first duplicate operationId so the classifier and
-    // every manifest cross-check can trust id uniqueness.
-    const seenOperationIds = new Map();
     for (const [p, item] of Object.entries(doc.paths ?? {})) {
         for (const method of HTTP_METHODS) {
             const rawOp = item[method];
             if (!rawOp || typeof rawOp !== "object")
                 continue;
-            const opId = rawOp.operationId;
-            if (typeof opId === "string" && opId.length > 0) {
-                const prior = seenOperationIds.get(opId);
-                if (prior) {
-                    throw new DuplicateOperationIdError(opId, { method: prior.method.toUpperCase(), path: prior.path }, { method: method.toUpperCase(), path: p });
-                }
-                seenOperationIds.set(opId, { method, path: p });
-            }
-            operations.push(normalizeOperation(p, method, rawOp));
+            const normalized = normalizeOperation(p, method, rawOp);
+            // Stage-1 structural filter (FR-003): operations with no declared
+            // responses are skipped — there is nothing for the LLM to anchor a
+            // tool definition against. No semantic filtering happens here.
+            if (normalized.responses.length === 0)
+                continue;
+            operations.push(normalized);
         }
     }
     return {
@@ -276,10 +255,6 @@ export async function runParseOpenAPI(argv) {
             process.stderr.write(`atw-parse-openapi: ${err.message}\n`);
             process.stderr.write("Tip: download the spec to a local file and pass --source <path> instead.\n");
             return 2;
-        }
-        if (err instanceof DuplicateOperationIdError) {
-            process.stderr.write(`atw-parse-openapi: ${err.message}\n`);
-            return 1;
         }
         if (err instanceof ParseOpenAPIError) {
             process.stderr.write(`atw-parse-openapi: ${err.message}\n`);

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { runImportDump, filterDump } from "../src/import-dump.js";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { runImportDump, filterDump, sanitizePgDump17 } from "../src/import-dump.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe("atw-import-dump contract (T041)", () => {
   let stdoutSpy: ReturnType<typeof vi.spyOn>;
@@ -58,6 +63,43 @@ describe("atw-import-dump contract (T041)", () => {
     // CREATE TABLE for customer is stripped entirely
     expect(out.filteredSql).not.toContain("CREATE TABLE client_ref.customer");
     expect(out.filteredSql).not.toContain("public.customer");
+  });
+
+  it("filterDump strips pg_dump 17/18 constructs and imports the rest (T059)", async () => {
+    const fixture = await fs.readFile(
+      path.join(__dirname, "fixtures", "pg_dump_17.sql"),
+      "utf8",
+    );
+    const out = filterDump(fixture, {
+      includedTables: ["product"],
+      piiTables: [],
+      piiColumns: [],
+    });
+    expect(out.imported).toContain("product");
+    expect(out.filteredSql).not.toMatch(/transaction_timeout/i);
+    expect(out.filteredSql).not.toMatch(/\\restrict/);
+    expect(out.filteredSql).not.toMatch(/\\unrestrict/);
+    expect(out.filteredSql).not.toMatch(/OWNER\s+TO/i);
+    expect(out.filteredSql).toContain("client_ref.product");
+    expect(out.filteredSql).toContain("Widget A");
+  });
+
+  it("sanitizePgDump17 leaves unrelated SETs and DDL untouched", () => {
+    const sql = [
+      "SET statement_timeout = 0;",
+      "SET transaction_timeout = 0;",
+      "\\restrict tok",
+      "ALTER TABLE public.product OWNER TO atw;",
+      "CREATE TABLE public.product (id int);",
+      "\\unrestrict tok",
+    ].join("\n");
+    const out = sanitizePgDump17(sql);
+    expect(out).toContain("SET statement_timeout = 0;");
+    expect(out).toContain("CREATE TABLE public.product (id int);");
+    expect(out).not.toMatch(/transaction_timeout/);
+    expect(out).not.toMatch(/\\restrict/);
+    expect(out).not.toMatch(/\\unrestrict/);
+    expect(out).not.toMatch(/OWNER\s+TO/i);
   });
 
   it("filterDump drops PII-flagged columns from kept CREATE TABLE", () => {

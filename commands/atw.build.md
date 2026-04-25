@@ -73,8 +73,41 @@ estimated cost, estimated time, outputs to be written). Confirm `y` to
 proceed. Progress lines stream at least every 5 entities or every 10 seconds
 per FR-053.
 
-On completion a `[DONE]` banner shows the actual cost, duration, and variance
-against the estimate. Full detail is in `.atw/state/build-manifest.json`.
+Before each LLM phase the command prints an informational pre-call line
+and waits **2 seconds** so you can Ctrl+C if the cost looks wrong:
+
+```
+[CLASSIFY] OpenAPI: 14 operations | model: claude-opus-4-7 | est. cost: ~$0.07 (continuing in 2s, Ctrl+C to abort)
+```
+
+There is no `[y/N]` prompt before LLM calls — only the countdown.
+
+If the host `docker-compose.yml` lacks the `# ----- atw:begin -----` /
+`# ----- atw:end -----` marker block, the COMPOSE phase prompts `[y/N]`
+(default **no**). Pressing **n** (or accepting the default) leaves the
+file untouched and prints the exact diff that would have been applied
+plus the manual-paste instructions. Pass `-y` / `--yes` to auto-confirm
+in scripted runs. ATW will not modify your compose file without explicit
+confirmation.
+
+On completion a status-aware end-of-run summary names every phase that
+did not finish cleanly. The status taxonomy:
+
+| Status            | Meaning                                                          |
+|-------------------|------------------------------------------------------------------|
+| `success`         | Phase ran and produced its artifacts.                            |
+| `success_cached`  | Inputs and `model_snapshot` matched a prior successful run; phase short-circuited. |
+| `warning`         | Phase finished with non-fatal issues (e.g., partial enrichment failures). |
+| `skipped`         | Phase declined to run (missing input, integrator declined `[y/N]`, flag like `--no-enrich`). |
+| `failed`          | Phase aborted; build cannot proceed without remediation.         |
+| `not_run`         | Phase reached but skipped because of an earlier abort.           |
+
+`✅ Build complete.` only prints when **every** phase ended in `success`
+or `success_cached`. Otherwise the summary lists each phase with its
+status, the reason, and a dynamic `next_hint` pointing at the actual
+next required command. Full detail lives in
+`.atw/artifacts/build-provenance.json` (per-phase log, append-only) and
+`.atw/state/build-manifest.json` (legacy single-run audit trail).
 
 The banner ends with a **Next steps** section (Feature 008 / FR-005 /
 contracts/embed-snippet.md §`/atw.build` DONE banner):

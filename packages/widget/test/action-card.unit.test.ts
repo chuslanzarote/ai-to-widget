@@ -4,17 +4,14 @@ import {
   executeAction,
   ToolNotAllowedError,
 } from "../src/api-client-action.js";
-import { __setLoadedCatalogForTest } from "../src/action-executors.js";
+import { renderActionTitle } from "../src/action-card.js";
 import type { WidgetConfig } from "../src/config.js";
 import type { ActionIntent } from "@atw/scripts/dist/lib/types.js";
-import type { ActionExecutorsCatalog } from "@atw/scripts/dist/lib/action-executors-types.js";
 
-// Same-origin on jsdom default so the runtime cross-origin guard does
-// not short-circuit these structural tests.
 function cfg(allowed: string[], authMode: WidgetConfig["authMode"] = "cookie"): WidgetConfig {
   return {
     backendUrl: "http://backend.local",
-    apiBaseUrl: "http://localhost:3000",
+    apiBaseUrl: "http://host.local",
     theme: "default",
     launcherPosition: "bottom-right",
     authMode,
@@ -35,34 +32,6 @@ function intent(tool: string): ActionIntent {
   };
 }
 
-// Minimal catalog entry for add_to_cart — the Feature 006 executor
-// engine replaces the old intent.http path with a declarative recipe.
-const CATALOG: ActionExecutorsCatalog = {
-  version: 1,
-  credentialMode: "same-origin-cookies",
-  actions: [
-    {
-      tool: "add_to_cart",
-      method: "POST",
-      pathTemplate: "/store/carts/c1/line-items",
-      substitution: {
-        path: {},
-        body: {
-          product_id: "arguments.product_id",
-          quantity: "arguments.quantity",
-        },
-        query: {},
-      },
-      headers: { "content-type": "application/json" },
-      responseHandling: {
-        successStatuses: [200, 201, 204],
-        summaryTemplate: "Add {quantity} × product-{product_id}.",
-        summaryFields: [],
-      },
-    },
-  ],
-};
-
 describe("assertToolAllowed (T053 / FR-021)", () => {
   it("allows tools present in the allowlist", () => {
     expect(() => assertToolAllowed("add_to_cart", cfg(["add_to_cart"]))).not.toThrow();
@@ -82,13 +51,29 @@ describe("executeAction (T053 / Principle I+IV structural)", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    __setLoadedCatalogForTest(CATALOG);
+    (globalThis as unknown as { window?: unknown }).window = {
+      localStorage: {
+        _m: new Map<string, string>(),
+        getItem(k: string) {
+          return (this as unknown as { _m: Map<string, string> })._m.get(k) ?? null;
+        },
+        setItem(k: string, v: string) {
+          (this as unknown as { _m: Map<string, string> })._m.set(k, v);
+        },
+        removeItem() {},
+        clear() {},
+        key() {
+          return null;
+        },
+        length: 0,
+      } as unknown as Storage,
+    } as unknown as Window;
     fetchMock = vi.fn();
     (globalThis as unknown as { fetch: typeof fetch }).fetch =
       fetchMock as unknown as typeof fetch;
   });
   afterEach(() => {
-    __setLoadedCatalogForTest(null);
+    delete (globalThis as unknown as { window?: unknown }).window;
     delete (globalThis as unknown as { fetch?: unknown }).fetch;
   });
 
@@ -102,7 +87,7 @@ describe("executeAction (T053 / Principle I+IV structural)", () => {
     const out = await executeAction(intent("add_to_cart"), cfg(["add_to_cart"]));
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(out.ok).toBe(true);
-    if (out.ok) expect(out.summary).toMatch(/Add 2 × product-p1/);
+    if (out.ok) expect(out.summary).toMatch(/Add 2 × product-1/);
   });
 
   it("refuses unknown tool names and issues zero fetches", async () => {
@@ -126,7 +111,7 @@ describe("executeAction (T053 / Principle I+IV structural)", () => {
     }
   });
 
-  it("Feature 007: credentials is 'omit' and no ambient Authorization/Cookie header is attached", async () => {
+  it("cookie-mode attaches credentials=include but no Authorization header", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
@@ -134,9 +119,42 @@ describe("executeAction (T053 / Principle I+IV structural)", () => {
     } as unknown as Response);
     await executeAction(intent("add_to_cart"), cfg(["add_to_cart"], "cookie"));
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(init.credentials).toBe("omit");
+    expect(init.credentials).toBe("include");
     const hdr = init.headers as Record<string, string>;
     expect(hdr["Authorization"]).toBeUndefined();
     expect(hdr["Cookie"]).toBeUndefined();
+  });
+});
+
+describe("renderActionTitle (T022 / FR-022)", () => {
+  it("substitutes every placeholder when all args resolve", () => {
+    const i: ActionIntent = {
+      id: "act-1",
+      tool: "add_to_cart",
+      arguments: { product_name: "Widget Pro", quantity: 3 },
+      description: "fallback",
+      summary_template: "Add {{ quantity }} × {{ product_name }} to your cart",
+      confirmation_required: true,
+      http: { method: "POST", path: "/cart/items" },
+    };
+    expect(renderActionTitle(i)).toBe("Add 3 × Widget Pro to your cart");
+  });
+
+  it("falls back to deterministic name+args when a placeholder is missing", () => {
+    const i: ActionIntent = {
+      id: "act-2",
+      tool: "add_to_cart",
+      arguments: { product_id: "p1" },
+      description: "vague Opus narration that must not be used",
+      summary_template: "Add {{ quantity }} × {{ product_name }} to your cart",
+      confirmation_required: true,
+      http: { method: "POST", path: "/cart/items" },
+    };
+    const out = renderActionTitle(i);
+    expect(out).toContain("add_to_cart");
+    expect(out).toContain("product_id");
+    // Critically: no naked tool-name fallback and no Opus description.
+    expect(out).not.toBe("add_to_cart");
+    expect(out).not.toBe(i.description);
   });
 });

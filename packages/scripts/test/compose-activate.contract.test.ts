@@ -72,9 +72,29 @@ describe("atw-compose-activate contract (T049)", () => {
     });
   });
 
-  it("library: throws COMPOSE_NOT_FOUND when markers missing", async () => {
+  it("library: returns no-markers (FR-029, Q3) when markers missing and integrator declines", async () => {
     const bad = path.join(tmp, "bad.yml");
     await fs.writeFile(bad, "services:\n  foo:\n    image: bar\n", "utf8");
-    await expect(composeActivate(bad)).rejects.toMatchObject({ code: "COMPOSE_NOT_FOUND" });
+    // No `confirmAppend` supplied → declines by default (FR-029).
+    const result = await composeActivate(bad);
+    expect(result.action).toBe("no-markers");
+    expect(result.skipped_reason).toMatch(/markers/);
+    expect(result.proposed_diff).toContain(BEGIN_MARK);
+    expect(result.proposed_diff).toContain(END_MARK);
+    // The host file MUST be left untouched until the integrator says yes.
+    const after = await fs.readFile(bad, "utf8");
+    expect(after).toBe("services:\n  foo:\n    image: bar\n");
+  });
+
+  it("library: appends marker block when integrator confirms [y/N]", async () => {
+    const bad = path.join(tmp, "bad.yml");
+    await fs.writeFile(bad, "services:\n  foo:\n    image: bar\n", "utf8");
+    const result = await composeActivate(bad, {
+      confirmAppend: async () => true,
+    });
+    expect(result.action).toBe("activated");
+    const after = await fs.readFile(bad, "utf8");
+    expect(after).toContain(BEGIN_MARK);
+    expect(after).toContain(END_MARK);
   });
 });

@@ -128,3 +128,80 @@ function orderObjectKeys(value: unknown): unknown {
 export function defaultManifestPath(projectRoot: string): string {
   return join(projectRoot, ".atw", "state", "build-manifest.json");
 }
+
+/* ============================================================================
+ * Feature 009 — Action manifest round-trip (FR-007, FR-008)
+ *
+ * The action manifest at `.atw/artifacts/action-manifest.md` is YAML
+ * frontmatter (machine-readable, validated against the Feature 009 zod
+ * schema) + markdown body (prose, free-form). gray-matter handles the
+ * round-trip; the schema check happens on write.
+ * ========================================================================= */
+
+import grayMatter from "gray-matter";
+import {
+  ActionManifestSchema,
+  type ActionManifest,
+} from "./schemas/action-manifest.js";
+
+export interface ReadActionManifestResult {
+  manifest: ActionManifest;
+  /** The free-form markdown body below the frontmatter. */
+  body: string;
+}
+
+export class ActionManifestValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly issues: ReadonlyArray<{ path: string; message: string }>,
+  ) {
+    super(message);
+    this.name = "ActionManifestValidationError";
+  }
+}
+
+export function readActionManifest(targetPath: string): ReadActionManifestResult {
+  const raw = readFileSync(targetPath, "utf8");
+  const parsed = grayMatter(raw);
+  const result = ActionManifestSchema.safeParse(parsed.data);
+  if (!result.success) {
+    const issues = result.error.issues.map((i) => ({
+      path: i.path.join("."),
+      message: i.message,
+    }));
+    throw new ActionManifestValidationError(
+      `action-manifest.md frontmatter failed schema validation`,
+      issues,
+    );
+  }
+  return { manifest: result.data, body: parsed.content };
+}
+
+export function writeActionManifest(
+  targetPath: string,
+  manifest: ActionManifest,
+  body = "",
+): void {
+  const result = ActionManifestSchema.safeParse(manifest);
+  if (!result.success) {
+    const issues = result.error.issues.map((i) => ({
+      path: i.path.join("."),
+      message: i.message,
+    }));
+    throw new ActionManifestValidationError(
+      "action-manifest payload failed schema validation before write",
+      issues,
+    );
+  }
+  const serialized = grayMatter.stringify(body, result.data as Record<string, unknown>);
+  mkdirSync(dirname(targetPath), { recursive: true });
+  const tmp = targetPath + ".tmp";
+  const fd = openSync(tmp, "w");
+  try {
+    writeSync(fd, serialized);
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+  renameSync(tmp, targetPath);
+}

@@ -9,17 +9,12 @@ import {
   ManifestFailureReason,
   SchemaMapArtifact,
 } from "./lib/types.js";
-import {
-  writeManifestAtomic,
-  defaultManifestPath,
-  readManifest,
-} from "./lib/manifest-io.js";
+import { writeManifestAtomic, defaultManifestPath } from "./lib/manifest-io.js";
 import { ProgressReporter, formatLine } from "./lib/progress.js";
 import { computeSourceHash, stripMetadataForHash } from "./lib/source-hash.js";
 import { computeCostUsd, TokenUsage } from "./lib/pricing.js";
 import { computeCostVariancePct } from "./lib/cost-variance.js";
 import {
-  computeBackendSourceTree,
   computeInputHashes,
   diffInputHashes,
   readInputHashes,
@@ -30,7 +25,6 @@ import { loadArtifactFromFile } from "./load-artifact.js";
 import { startPostgres } from "./start-postgres.js";
 import { applyMigrations, defaultMigrationsDir } from "./apply-migrations.js";
 import { importDump, SchemaMapForImport } from "./import-dump.js";
-import { formatSqlDumpHalt, MissingSqlDumpError } from "./lib/diagnostics.js";
 import { assembleEntityInput } from "./assemble-entity-input.js";
 import { embedText } from "./embed-text.js";
 import {
@@ -44,30 +38,26 @@ import { upsertDocument } from "./upsert-document.js";
 import {
   renderBackend,
   defaultTemplatesDir,
-  serialiseTools,
-  type RuntimeToolDescriptor,
+  loadRuntimeToolsFromManifest,
+  type RuntimeToolEntry,
 } from "./render-backend.js";
-import {
-  parseActionManifest,
-  actionEntryToDescriptor,
-  canonicaliseInputSchema,
-  ManifestValidationError,
-} from "./parse-action-manifest.js";
-import { renderExecutors } from "./render-executors.js";
-import type { ActionManifest } from "./lib/action-manifest-types.js";
-import { seedBackendMeta } from "./seed-backend-meta.js";
-import { vendorSharedLib } from "./vendor-shared-lib.js";
-import { compileWidget, computeWidgetTreeHash, resolveWidgetSource } from "./compile-widget.js";
+import { compileWidget } from "./compile-widget.js";
 import { buildBackendImage } from "./build-backend-image.js";
 import { composeActivate } from "./compose-activate.js";
 import { scanPiiLeaks } from "./scan-pii-leaks.js";
 import { ConcurrencyController } from "./lib/concurrency-control.js";
-import { PipelineSteps, PipelineFailure, PipelineStep } from "./lib/types.js";
+import {
+  startPhase,
+  readProvenance,
+  findCachedSuccess,
+  summarize as summarizeProvenance,
+} from "./lib/build-provenance.js";
+import { loadProjectConfig, ProjectConfigError } from "./lib/runtime-config.js";
 
 const log = Debug("atw:orchestrator");
 
 const DEFAULT_OPUS_MODEL = "claude-opus-4-7";
-const DEFAULT_EMBEDDING_MODEL = "Xenova/bge-small-en-v1.5";
+const DEFAULT_EMBEDDING_MODEL = "Xenova/bge-small-multilingual-v1.5";
 const DEFAULT_POSTGRES_PORT = 5433;
 const DEFAULT_CONCURRENCY = 10;
 
@@ -83,21 +73,8 @@ export interface OrchestratorFlags {
   yes?: boolean;
   help?: boolean;
   version?: boolean;
-  /** Feature 005 / FR-013 — suppresses the IMAGE step. Intended for tests
-   * running without a Docker daemon. On a real Builder run the flag must
-   * not be set or the manifest will not include a backend_image record. */
-  skipImage?: boolean;
   /** Test hook: inject a fake OpusClient so integration tests can avoid real API calls. */
   opusClient?: OpusClient;
-  /** Feature 006 — host API origin used to resolve `pathTemplate` during
-   * cross-origin detection in `render-executors.ts`. Falls back to the
-   * `ATW_HOST_ORIGIN` env var, then to `http://localhost:9000` (the
-   * Medusa demo default). */
-  hostOrigin?: string;
-  /** Feature 006 — widget origin used for cross-origin detection. Falls
-   * back to the `ATW_WIDGET_ORIGIN` env var, then to
-   * `http://localhost:8000` (the storefront demo default). */
-  widgetOrigin?: string;
 }
 
 export interface OrchestratorResult {
@@ -117,12 +94,7 @@ const PRIOR_COMMAND_FOR_ARTIFACT: Record<string, string> = {
   ".atw/config/project.md": "/atw.init",
   ".atw/config/brief.md": "/atw.brief",
   ".atw/artifacts/schema-map.md": "/atw.schema",
-  // Feature 006 — /atw.api produces openapi.json; /atw.classify produces
-  // action-manifest.md (previously authored by hand). The producer
-  // attribution is exposed here so the missing-artifact diagnostic
-  // points the Builder at the right command.
-  ".atw/artifacts/openapi.json": "/atw.api",
-  ".atw/artifacts/action-manifest.md": "/atw.classify",
+  ".atw/artifacts/action-manifest.md": "/atw.api",
   ".atw/artifacts/build-plan.md": "/atw.plan",
 };
 
@@ -192,6 +164,26 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
 
   const startedAt = new Date();
   const buildId = generateBuildId(startedAt.getTime());
+  // FR-028 build-provenance entries use a ULID build_id distinct from the
+  // legacy `atw-build-…-<hex>` ID (the legacy ID stays in build-manifest.json
+  // for backward compatibility). The two co-exist; the ULID is the join key
+  // for the FR-031 cache and the FR-028 status summary.
+  const provenanceBuildId = generateUlid(startedAt.getTime());
+  const provenanceProjectRoot = flags.projectRoot;
+  const projectConfigForProvenance = (() => {
+    try {
+      return loadProjectConfig({ projectRoot: flags.projectRoot });
+    } catch (err) {
+      if (!(err instanceof ProjectConfigError)) throw err;
+      return null;
+    }
+  })();
+  const modelSnapshot =
+    (projectConfigForProvenance?.model_snapshot as
+      | "claude-opus-4-7"
+      | "claude-sonnet-4-6"
+      | "claude-haiku-4-5"
+      | undefined) ?? "claude-opus-4-7";
   const progress = new ProgressReporter();
   const concurrency = flags.concurrency ?? DEFAULT_CONCURRENCY;
   const postgresPort = flags.postgresPort ?? DEFAULT_POSTGRES_PORT;
@@ -349,13 +341,6 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
   const backendFiles: BuildManifest["outputs"]["backend_files"] = [];
   let widgetBundle: BuildManifest["outputs"]["widget_bundle"] = null;
   let backendImage: BuildManifest["outputs"]["backend_image"] = null;
-  // Feature 005 — per-step execution summary + step-level failures.
-  const steps: PipelineSteps = {};
-  const pipelineFailures: PipelineFailure[] = [];
-  // Feature 006 / T058 + T071 — build-level human-facing warnings (no
-  // manifest, cross-origin host, >20 actions, ...). Surfaced in the
-  // manifest's top-level `warnings[]`.
-  const buildWarnings: string[] = [];
   let complianceScan: BuildManifest["compliance_scan"] = {
     ran: false,
     clean: true,
@@ -398,38 +383,45 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
     // 3. IMPORT ---------------------------------------------------------
     const schemaMap = await loadSchemaMap(flags.projectRoot);
     const dumpPath = await findSqlDump(flags.projectRoot);
-    if (dumpPath && !flags.noEnrich) {
-      progress.banner(banner("IMPORT", `Filtering dump → client_ref ...`));
-      await importDump({
-        dumpPath,
-        schemaMap: schemaArtifactToImport(schemaMap),
-        connectionConfig,
-        replace: false,
-      });
-    } else if (!dumpPath && !flags.noEnrich) {
-      // Feature 008 / T026 — halt with D-SQLDUMP so the Builder sees an
-      // actionable diagnostic instead of a silent skip followed by
-      // empty enrichment. When `--no-enrich` is set we still permit the
-      // soft-skip (below) because the partial-rebuild paths depend on
-      // running without a dump.
-      const hasIndexable = (schemaMap.entities ?? []).some(
-        (e) => e.classification === "indexable",
-      );
-      if (hasIndexable) {
-        const text = await formatSqlDumpHalt({
-          name: "schema",
-          projectRoot: flags.projectRoot,
+    {
+      const rec = startPhase("IMPORT", provenanceBuildId);
+      try {
+        if (dumpPath && !flags.noEnrich) {
+          progress.banner(banner("IMPORT", `Filtering dump → client_ref ...`));
+          await importDump({
+            dumpPath,
+            schemaMap: schemaArtifactToImport(schemaMap),
+            connectionConfig,
+            replace: false,
+          });
+          await rec.finish(provenanceProjectRoot, { status: "success" });
+        } else if (!dumpPath) {
+          progress.banner(banner("IMPORT", "No .atw/inputs/*.sql dump found — skipping import"));
+          await rec.finish(provenanceProjectRoot, {
+            status: "skipped",
+            skipped_reason: "no .atw/inputs/*.sql dump present",
+            next_hint: "Drop a pg_dump file at .atw/inputs/<name>.sql and re-run /atw.build",
+          });
+        } else {
+          await rec.finish(provenanceProjectRoot, {
+            status: "skipped",
+            skipped_reason: "--no-enrich set",
+            next_hint: "Drop --no-enrich to import + enrich on the next run",
+          });
+        }
+      } catch (err) {
+        await rec.finish(provenanceProjectRoot, {
+          status: "failed",
+          failed_reason: (err as Error).message,
+          next_hint: "Inspect the SQL dump for parse errors, then re-run /atw.build",
         });
-        process.stderr.write(text);
-        throw new MissingSqlDumpError(text);
+        throw err;
       }
-      progress.banner(banner("IMPORT", "No .atw/inputs/*.sql dump found — skipping import"));
-    } else if (!dumpPath) {
-      progress.banner(banner("IMPORT", "No .atw/inputs/*.sql dump found — skipping import"));
     }
 
     // 4. ENRICH ---------------------------------------------------------
     let entityIds: Array<{ type: string; id: string }> = [];
+    const enrichRec = startPhase("ENRICH", provenanceBuildId);
     if (!flags.noEnrich && !skipEnrichmentForIncremental) {
       entityIds = await listIndexableEntityIds({ schemaMap, connectionConfig });
       totals.total_entities = entityIds.length;
@@ -607,326 +599,217 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
           }),
         ),
       );
+      // FR-028: ENRICH provenance entry. Recorded only after the gather
+      // completes — failures here drop into the outer catch which records a
+      // `failed` entry instead.
+      const enrichStatus =
+        totals.failed > 0
+          ? "warning"
+          : totals.total_entities === 0
+            ? "skipped"
+            : "success";
+      await enrichRec.finish(provenanceProjectRoot, {
+        status: enrichStatus,
+        model_snapshot: modelSnapshot,
+        warnings:
+          enrichStatus === "warning"
+            ? failures.slice(0, 5).map(
+                (f) => `${f.entity_type}#${f.entity_id}: ${f.reason}`,
+              )
+            : undefined,
+        skipped_reason:
+          enrichStatus === "skipped" ? "no indexable entities found" : undefined,
+        next_hint:
+          enrichStatus === "warning"
+            ? "Inspect the failures listed in build-manifest.json, then re-run /atw.build"
+            : enrichStatus === "skipped"
+              ? "Check schema-map.md classification — at least one entity must be `indexable`"
+              : null,
+      });
+    } else {
+      await enrichRec.finish(provenanceProjectRoot, {
+        status: skipEnrichmentForIncremental ? "skipped" : "skipped",
+        model_snapshot: modelSnapshot,
+        skipped_reason: skipEnrichmentForIncremental
+          ? "only action-manifest.md changed — incremental rebuild"
+          : "--no-enrich set",
+        next_hint: skipEnrichmentForIncremental
+          ? null
+          : "Drop --no-enrich to re-enrich on the next run",
+      });
     }
 
     // 5. RENDER ---------------------------------------------------------
     // T066 / US3 — on abort, skip render/bundle/image/compose/scan per §6.
-    // Feature 005: RENDER now covers three sub-steps:
-    //   (a) seed meta files (Dockerfile, package.json, tsconfig.json, .dockerignore)
-    //   (b) render backend/src/**/*.ts templates (recursive)
-    //   (c) vendor the allowlisted shared-lib files into backend/src/_shared/
-    if (!flags.entitiesOnly && !abortState.aborted) {
-      progress.banner(
-        banner("RENDER", "Rendering backend/ (meta + src + _shared) ..."),
-      );
-      const seeded = await seedBackendMeta({
-        projectRoot: flags.projectRoot,
-        backup: Boolean(flags.backup),
-      });
-      // Feature 006 — parse `.atw/artifacts/action-manifest.md` (when
-      // present) into `RuntimeToolDescriptor[]` and thread into the
-      // render context. Missing manifest → empty `tools` (FR-014
-      // graceful degradation). See contracts/render-tools-context.md §6.
-      const manifestPath = join(
-        flags.projectRoot,
-        ".atw",
-        "artifacts",
-        "action-manifest.md",
-      );
-      let tools: RuntimeToolDescriptor[] = [];
-      // Hoisted so the RENDER step can reuse the parsed manifest when
-      // invoking `renderExecutors()` after `renderBackend()`. `null`
-      // means "no `action-manifest.md` on disk" — we intentionally do
-      // NOT synthesise an empty manifest (T071: absent file → no
-      // catalog; present-but-empty manifest still renders an empty
-      // catalog via FR-014).
-      let manifest: ActionManifest | null = null;
-      if (existsSync(manifestPath)) {
-        const openapiPath = join(
-          flags.projectRoot,
-          ".atw",
-          "artifacts",
-          "openapi.json",
-        );
-        if (!existsSync(openapiPath)) {
-          throw new ManifestValidationError(
-            "action-manifest.md present but openapi.json missing",
+    renderPhase: {
+      const rec = startPhase("RENDER", provenanceBuildId);
+      if (!flags.entitiesOnly && !abortState.aborted) {
+        try {
+          const manifestPath = join(flags.projectRoot, ".atw/artifacts/action-manifest.md");
+          // FR-008b / T043: input-hash cache. If a prior successful RENDER
+          // entry matches `(input_hashes, model_snapshot)` we record
+          // `success_cached` and skip.
+          const renderInputHashes = await computeRenderInputHashes({
+            projectRoot: flags.projectRoot,
+            manifestPath,
+            templatesDir: defaultTemplatesDir(),
+          });
+          const cached = findCachedSuccess(
+            provenanceProjectRoot,
+            "RENDER",
+            renderInputHashes,
+            modelSnapshot,
           );
+          if (cached && !flags.force) {
+            await rec.finish(provenanceProjectRoot, {
+              status: "success_cached",
+              model_snapshot: modelSnapshot,
+              input_hashes: renderInputHashes,
+            });
+            break renderPhase;
+          }
+          progress.banner(banner("RENDER", "Rendering backend/src/*.ts ..."));
+          let runtimeTools: RuntimeToolEntry[] = [];
+          try {
+            runtimeTools = loadRuntimeToolsFromManifest(manifestPath);
+          } catch {
+            // No manifest yet (e.g., entities-only path or first build before
+            // /atw.api). Render with an empty tool list — RUNTIME_TOOLS = [].
+            runtimeTools = [];
+          }
+          const rendered = await renderBackend({
+            templatesDir: defaultTemplatesDir(),
+            outputDir: join(flags.projectRoot, "backend", "src"),
+            context: {
+              projectName: readProjectName(flags.projectRoot),
+              embeddingModel: DEFAULT_EMBEDDING_MODEL,
+              anthropicModel: DEFAULT_OPUS_MODEL,
+              generatedAt: new Date().toISOString(),
+              tools: runtimeTools,
+            },
+            backup: Boolean(flags.backup),
+          });
+          for (const r of rendered) {
+            backendFiles.push({
+              path: r.path,
+              sha256: r.sha256,
+              bytes: r.bytes,
+              action: r.action,
+            });
+          }
+          await rec.finish(provenanceProjectRoot, {
+            status: "success",
+            model_snapshot: modelSnapshot,
+            input_hashes: renderInputHashes,
+          });
+        } catch (err) {
+          await rec.finish(provenanceProjectRoot, {
+            status: "failed",
+            failed_reason: (err as Error).message,
+            next_hint: "Inspect the offending template, then re-run /atw.build",
+          });
+          throw err;
         }
-        manifest = await parseActionManifest({
-          manifestPath,
-          openapiPath,
-        });
-        tools = manifest.included.map((entry) => {
-          const d = actionEntryToDescriptor(entry) as RuntimeToolDescriptor;
-          d.input_schema = canonicaliseInputSchema(
-            d.input_schema as Record<string, unknown>,
-          );
-          return d;
-        });
       } else {
-        // T071 — warning goes in the build-manifest `warnings[]`, not
-        // just stderr. Exact text is asserted by the US6 missing-manifest
-        // contract test.
-        buildWarnings.push(
-          "No action-manifest.md — widget will be chat-only.",
-        );
-        process.stderr.write(
-          "Warning: no .atw/artifacts/action-manifest.md — widget will be chat-only.\n",
-        );
-      }
-      const rendered = await renderBackend({
-        templatesDir: defaultTemplatesDir(),
-        outputDir: join(flags.projectRoot, "backend", "src"),
-        context: {
-          projectName: readProjectName(flags.projectRoot),
-          embeddingModel: DEFAULT_EMBEDDING_MODEL,
-          anthropicModel: DEFAULT_OPUS_MODEL,
-          generatedAt: new Date().toISOString(),
-          defaultLocale: readDefaultLocale(flags.projectRoot),
-          briefSummary: readBriefSummary(flags.projectRoot),
-          tools,
-          toolsJson: serialiseTools(tools),
-        },
-        backup: Boolean(flags.backup),
-      });
-      const vendored = await vendorSharedLib({
-        projectRoot: flags.projectRoot,
-        backup: Boolean(flags.backup),
-      });
-      for (const r of [...seeded, ...rendered, ...vendored]) {
-        backendFiles.push({
-          path: r.path,
-          sha256: r.sha256,
-          bytes: r.bytes,
-          action: r.action,
+        await rec.finish(provenanceProjectRoot, {
+          status: flags.entitiesOnly ? "skipped" : "not_run",
+          skipped_reason: flags.entitiesOnly ? "--entities-only set" : undefined,
+          failed_reason: undefined,
+          next_hint: flags.entitiesOnly
+            ? "Drop --entities-only to render the backend on the next run"
+            : "Build was aborted before RENDER",
         });
-      }
-      const anyRewritten = backendFiles.some((f) => f.action === "rewritten");
-      const anyCreated = backendFiles.some((f) => f.action === "created");
-      steps.render = {
-        action: anyRewritten ? "rewritten" : anyCreated ? "created" : "unchanged",
-        files_changed: backendFiles.filter((f) => f.action !== "unchanged").length,
-      };
-
-      // T058 / FR-014 — emit the declarative executor catalog iff a
-      // manifest was present this run. An absent manifest leaves no
-      // `action-executors.json` on disk (T071); a present-but-empty
-      // manifest still writes `{version:1, credentialMode:..., actions:[]}`
-      // so the widget can boot in chat-only mode.
-      if (manifest !== null) {
-        const hostOrigin = resolveHostOrigin(flags);
-        const widgetOrigin = resolveWidgetOrigin(flags);
-        const executorsPath = join(
-          flags.projectRoot,
-          ".atw",
-          "artifacts",
-          "action-executors.json",
-        );
-        const executorResult = await renderExecutors(manifest, {
-          outputPath: executorsPath,
-          hostOrigin,
-          widgetOrigin,
-          backup: Boolean(flags.backup),
-        });
-        // >20 tools warning (surfaced alongside cross-origin from the
-        // renderer itself) — per T058 description. Kept here (not in the
-        // renderer) so the renderer remains a pure transform and the
-        // orchestrator owns build-wide policy.
-        if (manifest.included.length > 20) {
-          executorResult.warnings.push(
-            `large catalog (${manifest.included.length} actions): consider curating action-manifest.md`,
-          );
-        }
-        // FR-014 graceful-degradation signal: manifest present but zero
-        // included → catalog is emitted well-formed with `actions: []`,
-        // widget boots chat-only, Builder gets an explicit post-build
-        // cue distinct from the "no manifest at all" path above.
-        if (manifest.included.length === 0) {
-          executorResult.warnings.push(
-            "action-executors catalog has zero actions — widget will be chat-only",
-          );
-        }
-        for (const w of executorResult.warnings) {
-          buildWarnings.push(w);
-          process.stderr.write(`Warning: ${w}\n`);
-        }
-        steps.render.action_executors = {
-          action: executorResult.action,
-          path: relative(flags.projectRoot, executorResult.path).replace(
-            /\\/g,
-            "/",
-          ),
-          sha256: executorResult.sha256,
-          bytes: executorResult.bytes,
-          warnings: executorResult.warnings,
-        };
       }
     }
 
     // 6. BUNDLE ---------------------------------------------------------
-    // T036 / US3 — cache short-circuit: when the widget source tree hash
-    // matches the prior manifest AND dist/widget.{js,css} exist with the
-    // prior's recorded sha256s, skip esbuild entirely to preserve mtimes
-    // (determinism contract).
     if (!flags.entitiesOnly && !abortState.aborted) {
-      let bundleCacheHit = false;
-      try {
-        const src = resolveWidgetSource();
-        const currentTree = await computeWidgetTreeHash(src.widgetRoot);
-        const prior = readManifest(defaultManifestPath(flags.projectRoot));
-        const priorBundle = prior?.outputs?.widget_bundle;
-        if (
-          prior?.result === "success" &&
-          priorBundle?.source?.tree_hash &&
-          priorBundle.source.tree_hash === currentTree
-        ) {
-          const jsAbs = join(flags.projectRoot, priorBundle.js.path);
-          const cssAbs = join(flags.projectRoot, priorBundle.css.path);
-          const jsBuf = await (await import("node:fs")).promises.readFile(jsAbs);
-          const cssBuf = await (await import("node:fs")).promises.readFile(cssAbs);
-          const { createHash } = await import("node:crypto");
-          const jsSha = "sha256:" + createHash("sha256").update(jsBuf).digest("hex");
-          const cssSha = "sha256:" + createHash("sha256").update(cssBuf).digest("hex");
-          if (jsSha === priorBundle.js.sha256 && cssSha === priorBundle.css.sha256) {
-            widgetBundle = {
-              js: { ...priorBundle.js },
-              css: { ...priorBundle.css },
-              source: { ...priorBundle.source },
-            };
-            steps.bundle = { action: "unchanged" };
-            progress.banner(banner("BUNDLE", "BUNDLE unchanged (cached from prior build)"));
-            bundleCacheHit = true;
-          }
-        }
-      } catch {
-        /* fall through to real bundle */
-      }
-      if (!bundleCacheHit) {
-        progress.banner(banner("BUNDLE", "Bundling dist/widget.{js,css} ..."));
-        const widgetOut = await compileWidget({
-          outDir: join(flags.projectRoot, "dist"),
-          minify: true,
-        });
-        widgetBundle = {
-          js: {
-            path: widgetOut.js.path,
-            sha256: widgetOut.js.sha256,
-            bytes: widgetOut.js.bytes,
-            gzip_bytes: widgetOut.js.gzip_bytes,
-          },
-          css: {
-            path: widgetOut.css.path,
-            sha256: widgetOut.css.sha256,
-            bytes: widgetOut.css.bytes,
-            gzip_bytes: widgetOut.css.gzip_bytes,
-          },
-          source: widgetOut.source,
-        };
-        steps.bundle = { action: "created" };
-      }
+      progress.banner(banner("BUNDLE", "Bundling dist/widget.{js,css} ..."));
+      const widgetOut = await compileWidget({
+        widgetSrcDir: join(flags.projectRoot, "widget", "src"),
+        outDir: join(flags.projectRoot, "dist"),
+        minify: true,
+      });
+      widgetBundle = {
+        js: widgetOut.js,
+        css: widgetOut.css,
+      };
     }
 
     // 7. IMAGE ----------------------------------------------------------
-    // Feature 005 / FR-005 — no more silent try/catch. Failures from
-    // buildBackendImage propagate to the outer catch which maps them onto
-    // result: "failed" + a pipeline_failures entry. `--skip-image` is the
-    // only sanctioned way to suppress the image build (FR-013).
-    //
-    // T034 / US3 — cache short-circuit: when the prior manifest exists
-    // AND the rendered backend tree is byte-identical (same
-    // backend_source_tree rollup) AND the prior image_id still exists in
-    // the local Docker daemon, skip the actual dockerode call and copy
-    // the prior record verbatim. This makes a no-op re-run complete in
-    // <10 s wall-clock (SC-003 / principle VIII).
-    const currentBackendTree = computeBackendSourceTree(backendFiles);
     if (!flags.entitiesOnly && !abortState.aborted) {
-      if (flags.skipImage) {
-        progress.banner(banner("IMAGE", "IMAGE skipped (--skip-image)"));
-        steps.image = {
-          action: "skipped",
-          reason: "suppressed by --skip-image flag",
+      progress.banner(banner("IMAGE", "Building atw_backend:latest (multi-stage) ..."));
+      try {
+        const img = await buildBackendImage({
+          contextDir: join(flags.projectRoot, "backend"),
+          dockerfile: "Dockerfile",
+          tag: "atw_backend:latest",
+        });
+        backendImage = {
+          ref: img.ref,
+          image_id: img.image_id,
+          size_bytes: img.size_bytes,
         };
-      } else {
-        let cacheHit = false;
-        try {
-          const prior = readManifest(defaultManifestPath(flags.projectRoot));
-          const priorTree = prior?.input_hashes?.backend_source_tree;
-          const priorImage = prior?.outputs?.backend_image;
-          if (
-            prior?.result === "success" &&
-            priorTree &&
-            priorTree === currentBackendTree &&
-            priorImage &&
-            priorImage.image_id
-          ) {
-            const { default: Docker } = await import("dockerode");
-            const docker = new Docker();
-            await docker.getImage(priorImage.image_id).inspect();
-            backendImage = {
-              ref: priorImage.ref,
-              image_id: priorImage.image_id,
-              size_bytes: priorImage.size_bytes,
-            };
-            steps.image = { action: "unchanged" };
-            progress.banner(
-              banner("IMAGE", "IMAGE unchanged (cached from prior build)"),
-            );
-            cacheHit = true;
-          }
-        } catch {
-          // Cache probe failed (prior manifest missing, image gone,
-          // daemon unreachable) — fall through to a real build, which
-          // will surface the daemon error loudly if appropriate.
-        }
-        if (!cacheHit) {
-          progress.banner(
-            banner("IMAGE", "Building atw_backend:latest (multi-stage) ..."),
-          );
-          const img = await buildBackendImage({
-            contextDir: join(flags.projectRoot, "backend"),
-            dockerfile: "Dockerfile",
-            tag: "atw_backend:latest",
-          });
-          backendImage = {
-            ref: img.ref,
-            image_id: img.image_id,
-            size_bytes: img.size_bytes,
-          };
-          steps.image = { action: "created" };
-        }
+      } catch (err) {
+        // Feature 002 US1 MVP: if no backend Dockerfile present (e.g. in
+        // tests with stubbed scaffolding), record the failure but do not
+        // abort the whole build. US9 revisits the failure taxonomy.
+        log("image build skipped: %s", (err as Error).message);
       }
     }
 
     // 8. COMPOSE ACTIVATE ----------------------------------------------
-    // Feature 005 / T028 — the previous silent try/catch is gone. If the
-    // compose file simply does not exist we record `skipped` with a reason.
-    // If the activation succeeds we record `activated` / `unchanged`. A
-    // thrown error is treated as a pipeline failure (COMPOSE_ACTIVATE_FAILED)
-    // but it does NOT abort the build — the Builder can re-run the step
-    // manually. This keeps activation distinct from the hard-fail IMAGE path.
-    if (!flags.entitiesOnly && !abortState.aborted) {
-      const composePath = join(flags.projectRoot, "docker-compose.yml");
-      if (!existsSync(composePath)) {
-        steps.compose = { action: "skipped" };
-      } else {
-        try {
-          const res = await composeActivate(composePath);
-          steps.compose = {
-            action: res.action === "activated" ? "activated" : "unchanged",
-          };
-        } catch (err) {
-          const firstLine =
-            (err instanceof Error ? err.message : String(err))
-              .split(/\r?\n/)[0] ?? "compose-activate failed";
-          pipelineFailures.push({
-            step: "compose",
-            code: "COMPOSE_ACTIVATE_FAILED",
-            message: firstLine,
+    {
+      const rec = startPhase("COMPOSE", provenanceBuildId);
+      if (!flags.entitiesOnly && !abortState.aborted) {
+        const composePath = join(flags.projectRoot, "docker-compose.yml");
+        if (existsSync(composePath)) {
+          try {
+            const result = await composeActivate(composePath, {
+              // FR-029 / R7 / Q3: integrator must confirm `[y/N]` before ATW
+              // mutates the host compose file. The orchestrator's flag
+              // `flags.yes` (`--yes`/`-y`) auto-confirms; otherwise we
+              // decline and surface the diff.
+              confirmAppend: async () => Boolean(flags.yes),
+            });
+            if (result.action === "no-markers") {
+              process.stdout.write(
+                `[COMPOSE] markers absent — skipped. Re-run /atw.build with -y to append, or paste:\n${result.proposed_diff ?? ""}\n`,
+              );
+              await rec.finish(provenanceProjectRoot, {
+                status: "skipped",
+                skipped_reason:
+                  result.skipped_reason ?? "host compose lacks atw markers",
+                next_hint:
+                  "Run /atw.build -y to auto-append the marker block, or paste it from the diff above",
+              });
+            } else {
+              await rec.finish(provenanceProjectRoot, { status: "success" });
+            }
+          } catch (err) {
+            log("compose-activate skipped: %s", (err as Error).message);
+            await rec.finish(provenanceProjectRoot, {
+              status: "failed",
+              failed_reason: (err as Error).message,
+              next_hint:
+                "Open docker-compose.yml manually and confirm the atw:begin/atw:end block, then re-run /atw.build",
+            });
+          }
+        } else {
+          await rec.finish(provenanceProjectRoot, {
+            status: "skipped",
+            skipped_reason: "no docker-compose.yml in project root",
+            next_hint:
+              "Place a host docker-compose.yml at the project root, then re-run /atw.build",
           });
-          steps.compose = { action: "skipped" };
-          emitStepFailure("compose", err);
         }
+      } else {
+        await rec.finish(provenanceProjectRoot, {
+          status: "not_run",
+          next_hint: flags.entitiesOnly
+            ? "Drop --entities-only to activate compose on the next run"
+            : "Build was aborted before COMPOSE",
+        });
       }
     }
 
@@ -1001,10 +884,7 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
           ? [...concurrencyControllerRef.reductions]
           : [],
       },
-      input_hashes: {
-        ...hashAllInputs(flags.projectRoot),
-        backend_source_tree: computeBackendSourceTree(backendFiles),
-      },
+      input_hashes: hashAllInputs(flags.projectRoot),
       outputs: {
         backend_files: backendFiles,
         widget_bundle: widgetBundle,
@@ -1012,9 +892,6 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
       },
       environment: captureEnvironment(),
       compliance_scan: complianceScan,
-      steps,
-      ...(pipelineFailures.length > 0 ? { pipeline_failures: pipelineFailures } : {}),
-      ...(buildWarnings.length > 0 ? { warnings: buildWarnings } : {}),
     };
 
     const manifestPath = defaultManifestPath(flags.projectRoot);
@@ -1064,6 +941,15 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
     progress.banner(
       banner(result === "aborted" ? "ABORT" : "DONE", bannerBody),
     );
+
+    // FR-028 status-aware summary. The legacy DONE banner above is the
+    // build-manifest.json view; this summary surfaces the per-phase
+    // status taxonomy from build-provenance.json. Only printed when at
+    // least one phase recorded an entry for this build_id.
+    const provenanceFile = readProvenance(provenanceProjectRoot);
+    const summary = summarizeProvenance(provenanceFile.entries, provenanceBuildId);
+    process.stdout.write(`\n${summary}\n`);
+
     process.removeListener("SIGINT", sigintHandler);
     return { exitCode, manifest };
   } catch (err) {
@@ -1073,16 +959,6 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
     const diag = diagnosticFor(err);
     process.stderr.write(`${diag}\n`);
     log("fatal: %o", err);
-    // Feature 005 — classify the error into a pipeline_failures entry +
-    // set the IMAGE step action to "failed" when appropriate.
-    const stepFailure = classifyPipelineFailure(err);
-    if (stepFailure) {
-      pipelineFailures.push(stepFailure);
-      if (stepFailure.step === "image") {
-        steps.image = { action: "failed", reason: stepFailure.code };
-      }
-      emitStepFailure(stepFailure.step, err);
-    }
     // Attempt to write a failed manifest so downstream tooling has context.
     const completedAt = new Date();
     const manifest: BuildManifest = {
@@ -1105,10 +981,7 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
         effective_max: concurrency,
         reductions: [],
       },
-      input_hashes: {
-        ...hashAllInputs(flags.projectRoot),
-        backend_source_tree: computeBackendSourceTree(backendFiles),
-      },
+      input_hashes: hashAllInputs(flags.projectRoot),
       outputs: {
         backend_files: backendFiles,
         widget_bundle: widgetBundle,
@@ -1116,9 +989,6 @@ export async function runBuild(flags: OrchestratorFlags): Promise<OrchestratorRe
       },
       environment: captureEnvironment(),
       compliance_scan: complianceScan,
-      steps,
-      ...(pipelineFailures.length > 0 ? { pipeline_failures: pipelineFailures } : {}),
-      ...(buildWarnings.length > 0 ? { warnings: buildWarnings } : {}),
     };
     // T100 — if the controller fired any reductions before the fatal
     // error, surface them in the failed-path manifest so the Builder
@@ -1233,66 +1103,7 @@ function exitCodeFor(err: unknown): number {
     /EADDRINUSE|address already in use|port is already allocated/i.test(msg)
   )
     return 4;
-  // Feature 005 — map pipeline-step error codes to the stable exit-code table.
-  if (code === "TEMPLATE_COMPILE" || code === "VENDOR_IMPORT_UNRESOLVED") return 17;
-  if (code === "DOCKER_BUILD") return 19;
-  if (code === "SECRET_IN_CONTEXT") return 20;
-  if (code === "DOCKER_UNREACHABLE") return 3;
   return 3;
-}
-
-/**
- * Feature 005 / T025 — print a one-line stderr diagnostic for a pipeline
- * step failure, keyed by the error `code` set by the throwing call. Keeps
- * the format stable (single line, no embedded `\n`) so contract tests can
- * assert on it. Falls back to `diagnosticFor()` for unknown codes.
- */
-function emitStepFailure(step: PipelineStep, err: unknown): void {
-  const code = (err as { code?: string })?.code;
-  const raw = err instanceof Error ? err.message : String(err);
-  const firstLine = raw.split(/\r?\n/)[0] ?? raw;
-  let line: string;
-  switch (code) {
-    case "TEMPLATE_COMPILE":
-      line = `/atw.build: RENDER failed — template compile error: ${firstLine}`;
-      break;
-    case "VENDOR_IMPORT_UNRESOLVED":
-      line = `/atw.build: RENDER failed — vendor import unresolved: ${firstLine}`;
-      break;
-    case "DOCKER_UNREACHABLE":
-      line = `/atw.build: IMAGE failed — Docker daemon is not reachable. Start Docker Desktop (or your Docker service) and re-run.`;
-      break;
-    case "DOCKER_BUILD":
-      line = `/atw.build: IMAGE failed — docker build error: ${firstLine}`;
-      break;
-    case "SECRET_IN_CONTEXT":
-      line = `/atw.build: IMAGE failed — secret-shaped file in build context: ${firstLine}`;
-      break;
-    case "COMPOSE_ACTIVATE_FAILED":
-      line = `/atw.build: COMPOSE activation failed — ${firstLine}`;
-      break;
-    default:
-      line = `/atw.build: ${step.toUpperCase()} failed — ${firstLine}`;
-  }
-  process.stderr.write(line + "\n");
-}
-
-/** Feature 005 — classify a thrown error into a pipeline_failures entry. */
-function classifyPipelineFailure(err: unknown): PipelineFailure | null {
-  const code = (err as { code?: string })?.code;
-  const msg = err instanceof Error ? err.message : String(err);
-  const firstLine = msg.split(/\r?\n/)[0] ?? msg;
-  if (code === "TEMPLATE_COMPILE")
-    return { step: "render", code: "TEMPLATE_COMPILE", message: firstLine };
-  if (code === "VENDOR_IMPORT_UNRESOLVED")
-    return { step: "render", code: "VENDOR_IMPORT_UNRESOLVED", message: firstLine };
-  if (code === "DOCKER_UNREACHABLE")
-    return { step: "image", code: "DOCKER_UNREACHABLE", message: firstLine };
-  if (code === "DOCKER_BUILD")
-    return { step: "image", code: "DOCKER_BUILD", message: firstLine };
-  if (code === "SECRET_IN_CONTEXT")
-    return { step: "image", code: "SECRET_IN_CONTEXT", message: firstLine };
-  return null;
 }
 
 function schemaArtifactToImport(sm: SchemaMapArtifact): SchemaMapForImport {
@@ -1424,9 +1235,8 @@ async function listIndexableEntityIds(params: {
   try {
     for (const ent of params.schemaMap.entities) {
       if (ent.classification !== "indexable") continue;
-      const primaryRaw = ent.sourceTables[0];
-      if (!primaryRaw) continue;
-      const primary = primaryRaw.toLowerCase().replace(/^[a-z_][a-z0-9_]*\./, "");
+      const primary = ent.sourceTables[0];
+      if (!primary) continue;
       try {
         const res = await client.query<{ id: string }>(
           `SELECT id::text AS id FROM client_ref."${primary}" ORDER BY id`,
@@ -1457,62 +1267,50 @@ function readProjectName(projectRoot: string): string {
   return "atw-project";
 }
 
-function readDefaultLocale(projectRoot: string): string {
-  try {
-    const p = join(projectRoot, ".atw", "config", "project.md");
-    if (existsSync(p)) {
-      const src = readFileSync(p, "utf8");
-      const m = src.match(/languages:\s*\n\s*-\s*([^\s\n]+)/);
-      if (m) return m[1].trim();
-    }
-  } catch {
-    // fall through
-  }
-  return "en";
-}
-
-/**
- * Feature 006 / T058 — resolve the host-API origin used for cross-origin
- * detection in `render-executors.ts`. Order: explicit flag →
- * `ATW_HOST_ORIGIN` env var → Medusa-demo default (`localhost:9000`).
- * The value is used only to resolve relative `pathTemplate` values; the
- * widget's actual host URL at runtime is still governed by
- * `buildHostApiRequest()`.
- */
-function resolveHostOrigin(flags: OrchestratorFlags): string {
-  return flags.hostOrigin ?? process.env.ATW_HOST_ORIGIN ?? "http://localhost:9000";
-}
-
-/**
- * Feature 006 / T058 — resolve the widget origin for cross-origin
- * detection. Order: explicit flag → `ATW_WIDGET_ORIGIN` env var →
- * storefront-demo default (`localhost:8000`).
- */
-function resolveWidgetOrigin(flags: OrchestratorFlags): string {
-  return (
-    flags.widgetOrigin ?? process.env.ATW_WIDGET_ORIGIN ?? "http://localhost:8000"
-  );
-}
-
-function readBriefSummary(projectRoot: string): string {
-  try {
-    const p = join(projectRoot, ".atw", "config", "brief.md");
-    if (existsSync(p)) {
-      const src = readFileSync(p, "utf8");
-      const scope = src.match(/##\s+Business scope\s*\n([\s\S]*?)(?:\n##\s+|$)/i);
-      if (scope) return scope[1].trim();
-    }
-  } catch {
-    // fall through
-  }
-  return "";
-}
-
 export function generateBuildId(nowMs: number = Date.now()): string {
   const iso = new Date(nowMs).toISOString();
   const compact = iso.replace(/[-:]/g, "").replace(/\.\d+Z$/, "").replace("T", "T");
   const hex = randomBytes(2).toString("hex");
   return `atw-build-${compact}-${hex}`;
+}
+
+/**
+ * Crockford-base32 ULID generator (FR-028 / build-provenance schema).
+ * Uses a 48-bit timestamp + 80 bits of randomness; total 26 chars from
+ * alphabet `0-9 A-Z` excluding `I L O U`. Matches the regex enforced by
+ * `BuildProvenanceEntrySchema`.
+ */
+const ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+export function generateUlid(nowMs: number = Date.now()): string {
+  const time = encodeUlidTime(nowMs);
+  const rand = randomBytes(10);
+  let body = "";
+  for (let i = 0; i < 16; i++) {
+    body += ULID_ALPHABET[fiveBitsAt(rand, i)];
+  }
+  return time + body;
+}
+
+function encodeUlidTime(ms: number): string {
+  let v = ms;
+  const out = new Array<string>(10);
+  for (let i = 9; i >= 0; i--) {
+    out[i] = ULID_ALPHABET[v & 31];
+    v = Math.floor(v / 32);
+  }
+  return out.join("");
+}
+
+function fiveBitsAt(buf: Buffer, index: number): number {
+  // Treat the 80 random bits as a contiguous bitstream and read 5 bits at
+  // `index * 5` from the MSB. We have 80 bits = 10 bytes = 16 5-bit groups.
+  const bitStart = index * 5;
+  const byteStart = Math.floor(bitStart / 8);
+  const bitOffset = bitStart % 8;
+  const high = buf[byteStart] ?? 0;
+  const low = buf[byteStart + 1] ?? 0;
+  const combined = (high << 8) | low;
+  return (combined >>> (11 - bitOffset)) & 0b11111;
 }
 
 function missingArtifacts(projectRoot: string): string[] {
@@ -1559,12 +1357,9 @@ function printHelp(): void {
       "Usage:",
       "  atw-orchestrate [--force] [--dry-run] [--concurrency N]",
       "                  [--postgres-port N] [--entities-only] [--no-enrich]",
-      "                  [--backup] [--skip-image] [--yes] [--help] [--version]",
+      "                  [--backup] [--yes] [--help] [--version]",
       "",
       "Runs the full build pipeline documented in /atw.build.",
-      "",
-      "  --skip-image   Suppress the IMAGE step. Intended for CI/tests running",
-      "                 without a Docker daemon. Not for production builds.",
       "",
     ].join("\n"),
   );
@@ -1596,9 +1391,6 @@ export function parseArgs(argv: string[], projectRoot: string): OrchestratorFlag
         break;
       case "--backup":
         flags.backup = true;
-        break;
-      case "--skip-image":
-        flags.skipImage = true;
         break;
       case "--yes":
       case "-y":
@@ -1640,3 +1432,53 @@ export function parseArgs(argv: string[], projectRoot: string): OrchestratorFlag
 // Silence unused-import warnings; these two are exported for test injection
 // elsewhere but not referenced inside this module.
 export { formatLine };
+
+/**
+ * Hashes the inputs that determine RENDER output: project name, the
+ * action manifest, and the contents of the templates directory. Used by
+ * T043 to short-circuit RENDER when nothing has changed since the last
+ * successful build (FR-008b).
+ */
+async function computeRenderInputHashes(args: {
+  projectRoot: string;
+  manifestPath: string;
+  templatesDir: string;
+}): Promise<Record<string, string>> {
+  const fsMod = await import("node:fs/promises");
+  const pathMod = await import("node:path");
+  const emptySha = createHash("sha256").update("").digest("hex");
+  const manifestSha = (await safeFileSha(fsMod, args.manifestPath)) ?? emptySha;
+  const projectName = readProjectName(args.projectRoot);
+  let templatesSha = emptySha;
+  try {
+    const entries = await fsMod.readdir(args.templatesDir, { withFileTypes: true });
+    const hasher = createHash("sha256");
+    for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      if (!e.isFile()) continue;
+      const buf = await fsMod.readFile(pathMod.join(args.templatesDir, e.name));
+      hasher.update(e.name);
+      hasher.update(" ");
+      hasher.update(buf);
+    }
+    templatesSha = hasher.digest("hex");
+  } catch {
+    templatesSha = emptySha;
+  }
+  return {
+    project_name_sha256: createHash("sha256").update(projectName).digest("hex"),
+    action_manifest_sha256: manifestSha,
+    backend_templates_sha256: templatesSha,
+  };
+}
+
+async function safeFileSha(
+  fsMod: typeof import("node:fs/promises"),
+  filePath: string,
+): Promise<string | null> {
+  try {
+    const buf = await fsMod.readFile(filePath);
+    return createHash("sha256").update(buf).digest("hex");
+  } catch {
+    return null;
+  }
+}

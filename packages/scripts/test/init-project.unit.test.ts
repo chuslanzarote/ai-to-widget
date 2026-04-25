@@ -15,6 +15,12 @@ describe("initProject", () => {
     await fs.rm(tmp, { recursive: true, force: true });
   });
 
+  const origins = {
+    atwBackendOrigin: "https://atw.example.com",
+    hostApiOrigin: "https://api.example.com",
+    hostPageOrigin: "https://www.example.com",
+  };
+
   it("writes project.md on first run", async () => {
     const target = path.join(tmp, ".atw", "config", "project.md");
     const result = await initProject({
@@ -23,6 +29,7 @@ describe("initProject", () => {
         name: "aurelia",
         languages: ["en", "es"],
         deploymentType: "customer-facing-widget",
+        ...origins,
       },
       now: () => new Date("2026-04-21T12:00:00Z"),
     });
@@ -42,6 +49,7 @@ describe("initProject", () => {
       name: "aurelia",
       languages: ["en"],
       deploymentType: "customer-facing-widget" as const,
+      ...origins,
     };
     const first = await initProject({
       targetPath: target,
@@ -69,6 +77,7 @@ describe("initProject", () => {
         name: "aurelia",
         languages: ["en"],
         deploymentType: "customer-facing-widget",
+        ...origins,
       },
       now: () => new Date("2026-04-21T12:00:00Z"),
     });
@@ -78,6 +87,7 @@ describe("initProject", () => {
         name: "aurelia",
         languages: ["en", "es"],
         deploymentType: "customer-facing-widget",
+        ...origins,
       },
       now: () => new Date("2026-04-22T12:00:00Z"),
     });
@@ -95,6 +105,7 @@ describe("initProject", () => {
           name: "aurelia",
           languages: [],
           deploymentType: "customer-facing-widget",
+          ...origins,
         },
       }),
     ).rejects.toThrow();

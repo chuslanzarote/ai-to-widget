@@ -1,3 +1,4 @@
+import { type ModelSnapshot, type PricingEntry } from "./pricing.js";
 export interface CostEstimateInput {
     entityCounts: Record<string, number>;
     perEntityMultiplier?: number;
@@ -27,4 +28,46 @@ export declare const COST_CONSTANTS: {
 };
 export declare function estimateCost(input: CostEstimateInput): CostEstimateBreakdown;
 export declare function formatCostBreakdown(e: CostEstimateBreakdown): string;
+export interface LlmCallEstimateInput {
+    bundledOpenapi: string;
+    projectMd: string;
+    operationCount: number;
+    modelSnapshot: ModelSnapshot;
+    systemPrompt?: string;
+    client?: {
+        messages: {
+            countTokens?: (args: {
+                model: string;
+                system?: string;
+                messages: Array<{
+                    role: "user";
+                    content: string;
+                }>;
+            }) => Promise<{
+                input_tokens: number;
+            }>;
+        };
+    };
+}
+export interface LlmCallEstimateResult {
+    estimatedCostUsd: number;
+    inputTokens: number;
+    outputTokens: number;
+    pricing: PricingEntry;
+    /** True when the chars/4 heuristic was used. */
+    approximate: boolean;
+}
+export declare function estimateLlmCallCost(input: LlmCallEstimateInput): Promise<LlmCallEstimateResult>;
+export declare function formatPreCallAnnouncement(opts: {
+    phase: string;
+    operationCount: number;
+    modelSnapshot: ModelSnapshot;
+    estimate: LlmCallEstimateResult;
+}): string;
+/**
+ * 2-second informational countdown (FR-006a, Q5). Resolves after `delayMs`;
+ * never prompts. Ctrl+C interrupts the entire process — no special handling
+ * needed here.
+ */
+export declare function preCallCountdown(delayMs?: number): Promise<void>;
 //# sourceMappingURL=cost-estimator.d.ts.map

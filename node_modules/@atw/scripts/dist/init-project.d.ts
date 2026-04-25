@@ -1,51 +1,67 @@
 import { type ProjectArtifact } from "./lib/types.js";
+/**
+ * Feature 009 (FR-009, FR-010, FR-011, R6) extends `/atw.init` with the
+ * four origins every downstream phase consumes plus a pinned `model_snapshot`.
+ * The slash-command markdown drives the prompts; this module owns:
+ *   - the answer shape,
+ *   - the URL / snapshot validators the slash command calls between turns,
+ *   - the optional HEAD probe,
+ *   - the strong post-write zod gate against the Feature 009 contract,
+ *   - the serialized frontmatter (legacy keys + new keys, both written so
+ *     legacy readers and `loadProjectConfig` see the same file).
+ */
 export interface InitProjectAnswers {
     name: string;
     languages: string[];
     deploymentType: ProjectArtifact["deploymentType"];
-    /** Feature 008 / T044 — prompts default this to `["http://localhost:5173"]`
-     * when `deploymentType === "customer-facing-widget"`. */
-    storefrontOrigins?: string[];
-    welcomeMessage?: string;
-    authTokenKey?: string;
+    /** Required when deploymentType === "customer-facing-widget" (FR-009). */
+    atwBackendOrigin?: string;
+    hostApiOrigin?: string;
+    hostPageOrigin?: string;
+    /** Optional in any deployment. */
     loginUrl?: string;
+    /** Pinned LLM snapshot for downstream phases (FR-006, R6). */
+    modelSnapshot?: string;
 }
 export interface InitProjectOptions {
     answers: InitProjectAnswers;
     targetPath: string;
     now?: () => Date;
 }
-/**
- * Feature 008 / T045 — a single frontmatter field that differs between
- * the prior artifact and the newly-captured answers. Surfaced as the
- * `diff` array on {@link InitProjectResult} so `/atw.init` can show a
- * human-readable before/after before the atomic write.
- */
-export interface ProjectFieldDiff {
-    field: string;
-    before: unknown;
-    after: unknown;
-}
 export interface InitProjectResult {
     artifact: ProjectArtifact;
     wrote: boolean;
     targetPath: string;
-    /** The pre-existing artifact, or `null` on a first run. */
-    previous: ProjectArtifact | null;
-    /**
-     * Per-field diff vs. `previous` (empty on first run AND on no-op re-runs
-     * where every captured value matches). `updatedAt` is excluded — it
-     * always changes, so listing it adds noise.
-     */
-    diff: ProjectFieldDiff[];
 }
 export declare function loadExistingProject(targetPath: string): Promise<ProjectArtifact | null>;
 /**
- * Feature 008 / T045 — compute the per-field diff between two project
- * artifacts, ignoring `updatedAt`. Used by `/atw.init` to render the
- * confirmation-gate diff and by `initProject` to decide whether the
- * captured answers actually changed anything.
+ * Validate a single origin string against the http(s) URL contract enforced
+ * by `ProjectConfigSchema`. The slash command calls this between turns to
+ * surface the FR-010 "that doesn't look like a URL" message before
+ * proceeding to the next question.
  */
-export declare function diffProjects(before: ProjectArtifact, after: ProjectArtifact): ProjectFieldDiff[];
+export interface UrlValidationResult {
+    ok: boolean;
+    /** When ok=false, a short integrator-facing message. */
+    error?: string;
+    /** Parsed URL when ok=true, for the optional HEAD probe step. */
+    url?: URL;
+}
+export declare function validateOriginUrl(value: string): UrlValidationResult;
+/**
+ * Optional HEAD probe (FR-010 SHOULD). Never blocks the init flow — the
+ * slash command just surfaces the warning. Times out at 2 s so an
+ * unresponsive demo server doesn't stall onboarding.
+ */
+export interface OriginProbeResult {
+    reachable: boolean;
+    status?: number;
+    error?: string;
+}
+export declare function probeOrigin(url: string, opts?: {
+    timeoutMs?: number;
+    fetchImpl?: typeof fetch;
+}): Promise<OriginProbeResult>;
+export declare function validateModelSnapshot(value: string): UrlValidationResult;
 export declare function initProject(opts: InitProjectOptions): Promise<InitProjectResult>;
 //# sourceMappingURL=init-project.d.ts.map

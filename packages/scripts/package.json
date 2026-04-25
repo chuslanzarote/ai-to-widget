@@ -34,7 +34,9 @@
     "bin"
   ],
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && node ./dist/lib/validate-templates.js",
+    "validate-templates": "node ./dist/lib/validate-templates.js",
+    "validate-templates:tsc": "node ./dist/lib/validate-templates.js --tsc",
     "clean": "rm -rf dist",
     "test": "vitest run"
   },

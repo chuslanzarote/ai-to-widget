@@ -7,10 +7,12 @@ import { open, sessionId, turns } from "../src/state.js";
 import type { WidgetConfig } from "../src/config.js";
 
 /**
- * T112 — focus-trap integration smoke test.
- * We verify the panel renders a dialog with `aria-modal="true"` and a
- * close button with the right accessible name. Deep focus-trap semantics
- * are exercised by the library itself; we just check it is wired.
+ * Panel accessibility + host-page click-through (FR-027).
+ *
+ * The panel renders a `role="dialog"` with a close button. Per FR-027 the
+ * panel does NOT trap focus globally and does NOT intercept events
+ * outside its bounding rect — clicks on the host page must dispatch to
+ * host-page listeners normally.
  */
 function cfg(): WidgetConfig {
   return {
@@ -24,7 +26,7 @@ function cfg(): WidgetConfig {
   };
 }
 
-describe("ChatPanel accessibility (T112)", () => {
+describe("ChatPanel accessibility", () => {
   beforeEach(() => {
     open.value = true;
     turns.value = [];
@@ -36,12 +38,13 @@ describe("ChatPanel accessibility (T112)", () => {
     turns.value = [];
   });
 
-  it("renders as role=dialog with aria-modal and a close button", async () => {
+  it("renders as role=dialog with aria-label and a close button", async () => {
     const { container, getByLabelText } = render(h(ChatPanel, { config: cfg() }));
     const dialog = container.querySelector('[role="dialog"]');
     expect(dialog).not.toBeNull();
-    expect(dialog?.getAttribute("aria-modal")).toBe("true");
     expect(dialog?.getAttribute("aria-label")).toBe("Chat assistant");
+    // FR-027: panel is not a modal — no aria-modal, no focus trap.
+    expect(dialog?.getAttribute("aria-modal")).toBeNull();
     const close = getByLabelText("Close chat");
     expect(close).toBeTruthy();
   });
@@ -52,5 +55,28 @@ describe("ChatPanel accessibility (T112)", () => {
     const closeBtn = getByLabelText("Close chat") as HTMLButtonElement;
     closeBtn.click();
     expect(open.value).toBe(false);
+  });
+
+  it("clicks on document.body outside the panel reach host-page listeners (FR-027)", async () => {
+    open.value = true;
+    render(h(ChatPanel, { config: cfg() }));
+    let hostClicks = 0;
+    const onBodyClick = () => {
+      hostClicks += 1;
+    };
+    document.body.addEventListener("click", onBodyClick);
+    try {
+      // Synthesise a click on the body at coordinates outside the panel.
+      const evt = new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+        clientX: 0,
+        clientY: 0,
+      });
+      document.body.dispatchEvent(evt);
+      expect(hostClicks).toBe(1);
+    } finally {
+      document.body.removeEventListener("click", onBodyClick);
+    }
   });
 });

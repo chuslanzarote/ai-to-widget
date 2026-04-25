@@ -142,28 +142,6 @@
   color: var(--atw-primary-text-color);
 }
 
-.atw-citations {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding-left: 2px;
-}
-.atw-citation {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--atw-surface-color);
-  color: var(--atw-text-muted-color);
-  text-decoration: none;
-  border: 1px solid var(--atw-border-color);
-}
-.atw-citation:hover,
-.atw-citation:focus-visible {
-  color: var(--atw-text-color);
-  border-color: var(--atw-primary-color);
-  outline: none;
-}
-
 .atw-error {
   padding: 8px 16px;
   color: #8b0000;

@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-import { runBuild, parseArgs } from "../dist/orchestrator.js";
+import { enforceFreshDist } from "./_preflight.js";
+enforceFreshDist();
+const { runBuild, parseArgs } = await import("../dist/orchestrator.js");
 
 const argv = process.argv.slice(2);
 let flags;

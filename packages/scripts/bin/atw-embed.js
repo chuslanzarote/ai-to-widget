@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-import { runEmbedCli } from "../dist/embed.js";
+import { enforceFreshDist } from "./_preflight.js";
+enforceFreshDist();
+const { runEmbedCli } = await import("../dist/embed.js");
 
 runEmbedCli(process.argv.slice(2)).then(
   (code) => process.exit(code),

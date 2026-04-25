@@ -1,63 +1,53 @@
 /** @jsxImportSource preact */
-/**
- * FR-009a invariant: every host-derived string (intent.description,
- * intent.summary values, outcome.summary, outcome.message, error body
- * fields) MUST reach the DOM as a JSX text child so Preact auto-escapes
- * it. No dangerouslySetInnerHTML, no innerHTML assignment, no template
- * strings into element.textContent-then-HTML-parsing.
- *
- * Structural guarantee: packages/widget/test/action-card.interpreter-safety.contract.test.ts
- * static-greps this file for banned constructs on every CI run.
- */
 import type { JSX } from "preact";
 import { useState } from "preact/hooks";
 import type { ActionIntent } from "@atw/scripts/dist/lib/types.js";
 import type { WidgetConfig } from "./config.js";
-import { pendingAction, isSending } from "./state.js";
-import { executeIntentForLoop, isStopOutcome } from "./chat-action-runner.js";
-import { continueLoopFromToolResult } from "./loop-driver.js";
-import { getLoadedCatalog } from "./action-executors.js";
-
-/**
- * Feature 008 / FR-026 / T067 — plain-text `{{ name }}` substitution
- * for the ActionCard's pre-execution summary. Renders the template
- * against the tool-call arguments; any unresolved placeholder causes
- * the caller to fall back to the raw-JSON view. No conditionals, no
- * partials — see research.md R11.
- *
- * Exported so the unit test (T063) can pin the exact substitution
- * semantics without reaching into the ActionCard's render closure.
- */
-export function renderSummaryTemplate(
-  template: string,
-  args: Record<string, unknown>,
-): string | null {
-  let failed = false;
-  const out = template.replace(/\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g, (_m, name: string) => {
-    const v = args[name];
-    if (v === undefined || v === null) {
-      failed = true;
-      return "";
-    }
-    return String(v);
-  });
-  return failed ? null : out;
-}
+import { pendingAction, appendTurn, sessionId } from "./state.js";
+import { executeAction, type ExecuteActionOutcome } from "./api-client-action.js";
+import { postActionFollowUp } from "./api-client.js";
 
 export type CardStatus = "idle" | "executing" | "succeeded" | "failed";
+
+const PLACEHOLDER_RE = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
+
+/**
+ * Render the ActionCard title row from `summary_template` (FR-022). When
+ * every placeholder resolves against the tool-call arguments, return the
+ * substituted sentence verbatim. When at least one placeholder is missing,
+ * build a deterministic fallback from the tool name + present arguments —
+ * never the vague backend-supplied `description` and never the raw tool
+ * name alone.
+ */
+export function renderActionTitle(intent: ActionIntent): string {
+  const tpl = intent.summary_template;
+  const args = intent.arguments ?? {};
+  if (typeof tpl === "string" && tpl.length > 0) {
+    let unresolved = false;
+    PLACEHOLDER_RE.lastIndex = 0;
+    const out = tpl.replace(PLACEHOLDER_RE, (_, key) => {
+      const v = (args as Record<string, unknown>)[key];
+      if (v === undefined || v === null || v === "") {
+        unresolved = true;
+        return `{{${key}}}`;
+      }
+      return String(v);
+    });
+    if (!unresolved) return out;
+  }
+  const argEntries = Object.entries(args).filter(
+    ([, v]) => v !== undefined && v !== null && v !== "",
+  );
+  if (argEntries.length === 0) return intent.tool;
+  const argsStr = argEntries.map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(", ");
+  return `${intent.tool} (${argsStr})`;
+}
 
 /**
  * Confirmation card. Contract:
  * specs/003-runtime/contracts/widget-config.md §4 + FR-040.
  * Executes the action only on primary-button click; nothing about this
  * component may bypass the gate.
- *
- * Feature 007 (US4): on confirm the card executes the write, then
- * posts the resulting `tool_result` back to `/v1/chat` via
- * `continueLoopFromToolResult` so Opus composes a grounded
- * conversational wrap-up. On cancel, the card posts a synthetic
- * tool_result with content `"declined by shopper"` so Opus can
- * acknowledge the cancellation instead of leaving the turn dangling.
  */
 export function ActionCard(props: {
   intent: ActionIntent;
@@ -70,73 +60,73 @@ export function ActionCard(props: {
     if (status !== "idle") return;
     setStatus("executing");
     setError(null);
-    isSending.value = true;
+    let outcome: ExecuteActionOutcome;
     try {
-      const exec = await executeIntentForLoop(props.intent, props.config);
-      if (isStopOutcome(exec)) {
-        // FR-022: D-TOOLNOTALLOWED already rendered + state cleared by
-        // the runner; do not POST a synthetic tool_result.
-        pendingAction.value = null;
-        setStatus("failed");
-        return;
-      }
-      if (exec.ok) {
-        setStatus("succeeded");
-      } else {
-        setStatus("failed");
-        setError(exec.payload.content);
-      }
+      outcome = await executeAction(props.intent, props.config);
+    } catch (err) {
+      const message =
+        (err as Error).message || "Something went wrong running that action.";
+      setStatus("failed");
+      setError(message);
+      void postActionFollowUp(
+        props.intent.id,
+        "failed",
+        props.config,
+        sessionId.value,
+        { error: { message } },
+      );
+      return;
+    }
+    if (outcome.ok) {
+      setStatus("succeeded");
       pendingAction.value = null;
-      await continueLoopFromToolResult(exec.payload, props.config);
-    } finally {
-      isSending.value = false;
+      appendTurn({
+        role: "assistant",
+        content: outcome.summary ?? "Done.",
+        timestamp: new Date().toISOString(),
+      });
+      void postActionFollowUp(
+        props.intent.id,
+        "succeeded",
+        props.config,
+        sessionId.value,
+        { hostResponseSummary: outcome.summary },
+      );
+    } else {
+      setStatus("failed");
+      setError(outcome.message);
+      if (outcome.status === 401 || outcome.status === 403) {
+        // Anonymous-fallback / US7 surface
+        setError(outcome.message);
+      }
+      void postActionFollowUp(
+        props.intent.id,
+        "failed",
+        props.config,
+        sessionId.value,
+        { error: { status: outcome.status, message: outcome.message } },
+      );
     }
   }
 
-  async function onCancel() {
+  function onCancel() {
     pendingAction.value = null;
-    isSending.value = true;
-    try {
-      await continueLoopFromToolResult(
-        {
-          tool_use_id: props.intent.id,
-          tool_name: props.intent.tool,
-          tool_input: (props.intent.arguments ?? {}) as Record<string, unknown>,
-          content: "declined by shopper",
-          is_error: false,
-          status: 0,
-          truncated: false,
-        },
-        props.config,
-      );
-    } finally {
-      isSending.value = false;
-    }
+    void postActionFollowUp(
+      props.intent.id,
+      "cancelled",
+      props.config,
+      sessionId.value,
+    );
   }
 
   const summary = props.intent.summary ?? {};
   const summaryKeys = Object.keys(summary);
-
-  // Feature 008 / FR-026 — prefer the catalog entry's `summaryTemplate`
-  // rendered against this intent's arguments. If the template is
-  // absent, or any `{{ name }}` placeholder fails to resolve, fall
-  // through to the raw summary/arguments view.
-  const catalog = getLoadedCatalog();
-  const entry = catalog?.actions.find((a) => a.tool === props.intent.tool);
-  const templated =
-    entry?.summaryTemplate
-      ? renderSummaryTemplate(
-          entry.summaryTemplate,
-          (props.intent.arguments ?? {}) as Record<string, unknown>,
-        )
-      : null;
+  const title = renderActionTitle(props.intent);
 
   return (
     <div class="atw-action-card" role="group" aria-label="Action confirmation">
-      <div class="atw-action-card__title">{props.intent.description}</div>
-      {templated !== null ? (
-        <div class="atw-action-card__summary-text">{templated}</div>
-      ) : summaryKeys.length > 0 ? (
+      <div class="atw-action-card__title">{title}</div>
+      {summaryKeys.length > 0 ? (
         <div class="atw-action-card__summary">
           {summaryKeys.map((k) => (
             <>

@@ -7,8 +7,7 @@ import DOMPurify from "dompurify";
  * research §9.
  *
  * The allowlist is tight by design — no images, no raw HTML, no inline
- * event handlers. Citations are rendered by our own code and do NOT rely
- * on markdown `<a>` parsing.
+ * event handlers.
  */
 marked.setOptions({ gfm: true, breaks: false });
 

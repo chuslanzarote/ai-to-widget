@@ -52,7 +52,7 @@ export interface SchemaMapForImport {
  */
 
 export interface ParsedStatement {
-  kind: "create_table" | "copy" | "alter_table" | "create_index" | "create_type" | "insert" | "set" | "other";
+  kind: "create_table" | "copy" | "alter_table" | "create_index" | "set" | "other";
   tableRef?: string;
   text: string;
   columns?: string[];
@@ -65,6 +65,36 @@ function extractTableRef(raw: string): string | undefined {
   const m = raw.match(TABLE_REF_RE);
   if (!m || !m.groups) return undefined;
   return (m.groups.name ?? "").toLowerCase();
+}
+
+/**
+ * pg_dump 17/18 emits a handful of constructs that older Postgres servers
+ * and our text-mode importer do not understand. Strip them here so the
+ * filtered output is replayable against a stock `pgvector/pgvector:pg16`
+ * target without manual hand-edits (FR-030, R12):
+ *
+ *   - `SET transaction_timeout = …;` (introduced in pg17)
+ *   - `\restrict <token>` / `\unrestrict <token>` psql meta-commands that
+ *     appear at the top/bottom of dumps and must not be sent to the
+ *     server
+ *   - `ALTER TABLE … OWNER TO <role>;` — the target role often does not
+ *     exist on the ATW reference instance, and ownership is irrelevant
+ *     for a read-only schema replica
+ */
+export function sanitizePgDump17(sql: string): string {
+  const out: string[] = [];
+  for (const line of sql.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (/^SET\s+transaction_timeout\b/i.test(trimmed)) continue;
+    if (/^\\(restrict|unrestrict)\b/.test(trimmed)) continue;
+    out.push(line);
+  }
+  let joined = out.join("\n");
+  joined = joined.replace(
+    /^[ \t]*ALTER\s+TABLE\s+(?:ONLY\s+)?[^\n;]*\bOWNER\s+TO\s+[^;]*;[ \t]*\r?\n?/gim,
+    "",
+  );
+  return joined;
 }
 
 export function splitStatements(sql: string): ParsedStatement[] {
@@ -107,18 +137,17 @@ export function splitStatements(sql: string): ParsedStatement[] {
         i++;
         continue;
       }
-      const stripped = text.replace(/^(?:\s*(?:--[^\n]*)?\s*\n)+/, "");
-      const head = stripped.slice(0, 200).toUpperCase();
+      const head = text.slice(0, 200).toUpperCase();
       if (/^CREATE\s+TABLE/.test(head)) {
-        const after = stripped.replace(/^CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?/i, "");
+        const after = text.replace(/^CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?/i, "");
         const tableRef = extractTableRef(after);
         out.push({ kind: "create_table", tableRef, text });
       } else if (/^ALTER\s+TABLE/.test(head)) {
-        const after = stripped.replace(/^ALTER\s+TABLE\s+(?:ONLY\s+)?/i, "");
+        const after = text.replace(/^ALTER\s+TABLE\s+(?:ONLY\s+)?/i, "");
         const tableRef = extractTableRef(after);
         out.push({ kind: "alter_table", tableRef, text });
       } else if (/^CREATE\s+(?:UNIQUE\s+)?INDEX/.test(head)) {
-        const m = stripped.match(/\bON\s+(?:ONLY\s+)?(?:"?(\w+)"?\.)?"?(\w+)"?/i);
+        const m = text.match(/\bON\s+(?:ONLY\s+)?(?:"?(\w+)"?\.)?"?(\w+)"?/i);
         out.push({
           kind: "create_index",
           tableRef: m ? m[2].toLowerCase() : undefined,
@@ -126,12 +155,6 @@ export function splitStatements(sql: string): ParsedStatement[] {
         });
       } else if (/^SET\b/.test(head)) {
         out.push({ kind: "set", text });
-      } else if (/^CREATE\s+TYPE/.test(head)) {
-        out.push({ kind: "create_type", text });
-      } else if (/^INSERT\s+INTO/.test(head)) {
-        const after = stripped.replace(/^INSERT\s+INTO\s+/i, "");
-        const tableRef = extractTableRef(after);
-        out.push({ kind: "insert", tableRef, text });
       } else {
         out.push({ kind: "other", text });
       }
@@ -157,13 +180,12 @@ export function filterDump(
   map: SchemaMapForImport,
   targetSchema = "client_ref",
 ): FilterResult {
-  const statements = splitStatements(sql);
-  const stripSchema = (t: string) => t.toLowerCase().replace(/^[a-z_][a-z0-9_]*\./, "");
-  const included = new Set(map.includedTables.map(stripSchema));
-  const pii = new Set(map.piiTables.map(stripSchema));
+  const statements = splitStatements(sanitizePgDump17(sql));
+  const included = new Set(map.includedTables.map((t) => t.toLowerCase()));
+  const pii = new Set(map.piiTables.map((t) => t.toLowerCase()));
   const piiCols = new Map<string, Set<string>>();
   for (const { table, column } of map.piiColumns) {
-    const t = stripSchema(table);
+    const t = table.toLowerCase();
     if (!piiCols.has(t)) piiCols.set(t, new Set());
     piiCols.get(t)!.add(column.toLowerCase());
   }
@@ -174,32 +196,12 @@ export function filterDump(
   const warnings: string[] = [];
   const lines: string[] = [];
 
-  lines.push(`DROP SCHEMA IF EXISTS ${targetSchema} CASCADE;`);
-  lines.push(`CREATE SCHEMA ${targetSchema};`);
+  lines.push(`CREATE SCHEMA IF NOT EXISTS ${targetSchema};`);
   lines.push(`SET search_path TO ${targetSchema}, public;`);
 
   for (const st of statements) {
-    if (st.kind === "create_type") {
-      lines.push(st.text.replace(/\bpublic\./g, `${targetSchema}.`));
-      continue;
-    }
-    if (st.kind === "set") {
+    if (st.kind === "set" || st.kind === "other") {
       lines.push(st.text);
-      continue;
-    }
-    if (st.kind === "other") {
-      const rewritten = st.text.replace(/\bpublic\./g, `${targetSchema}.`);
-      const strippedBody = rewritten.replace(/^(?:\s*(?:--[^\n]*)?\s*\n)+/, "");
-      if (
-        /^(?:CREATE|ALTER)\s+SEQUENCE\b/i.test(strippedBody) ||
-        /^SELECT\s+pg_catalog\.setval\b/i.test(strippedBody) ||
-        /^CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\b/i.test(strippedBody) ||
-        /^(?:CREATE|ALTER)\s+VIEW\b/i.test(strippedBody) ||
-        /^CREATE\s+TRIGGER\b/i.test(strippedBody)
-      ) {
-        continue;
-      }
-      lines.push(rewritten);
       continue;
     }
     if (!st.tableRef) {
@@ -211,18 +213,6 @@ export function filterDump(
       continue;
     }
     if (!included.has(st.tableRef)) {
-      continue;
-    }
-    if (st.kind === "insert") {
-      const dropFor = piiCols.get(st.tableRef);
-      if (dropFor && dropFor.size > 0) {
-        warnings.push(
-          `Skipped INSERT ${st.tableRef}: PII column stripping on INSERT not implemented; re-export with COPY.`,
-        );
-        continue;
-      }
-      imported.add(st.tableRef);
-      lines.push(st.text.replace(/\bpublic\./g, `${targetSchema}.`));
       continue;
     }
     // Rewrite target schema to client_ref.
@@ -289,19 +279,8 @@ export function filterDump(
       continue;
     }
     if (st.kind === "alter_table" || st.kind === "create_index") {
+      // Emit the DDL only for kept tables; rewrite public. prefix.
       const rewritten = st.text.replace(/\bpublic\./g, `${targetSchema}.`);
-      if (st.kind === "alter_table") {
-        const refRe = new RegExp(`\\bREFERENCES\\s+${targetSchema}\\."?(\\w+)"?`, "gi");
-        let skip = false;
-        let m: RegExpExecArray | null;
-        while ((m = refRe.exec(rewritten)) !== null) {
-          if (!included.has(m[1].toLowerCase())) {
-            skip = true;
-            break;
-          }
-        }
-        if (skip) continue;
-      }
       lines.push(rewritten);
       continue;
     }

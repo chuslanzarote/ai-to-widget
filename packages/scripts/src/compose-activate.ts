@@ -5,12 +5,22 @@ import Debug from "debug";
 
 const log = Debug("atw:compose-activate");
 
-export type ComposeActivateAction = "activated" | "unchanged";
+export type ComposeActivateAction =
+  | "activated"
+  | "unchanged"
+  | "skipped"
+  | "no-markers";
 
 export interface ComposeActivateResult {
   action: ComposeActivateAction;
   services: string[];
+  /** Populated when `action === "skipped"` or `"no-markers"` (FR-029). */
+  skipped_reason?: string;
+  /** Diff that would have been applied; surfaced on skip so the integrator
+   *  can paste the exact block themselves. */
+  proposed_diff?: string;
 }
+
 
 /**
  * Start and end sentinels emitted by Feature 001 around the commented-out
@@ -19,7 +29,52 @@ export interface ComposeActivateResult {
 export const BEGIN_MARK = "# ----- atw:begin -----";
 export const END_MARK = "# ----- atw:end -----";
 
-export async function composeActivate(composeFile: string): Promise<ComposeActivateResult> {
+export interface ComposeActivateOptions {
+  /**
+   * FR-029, R7, Q3. When the host compose file has no atw:begin/atw:end
+   * markers, the orchestrator MAY append the marker block — but only after
+   * the integrator confirms `[y/N]`. The CLI passes a confirm function
+   * that surfaces the prompt; tests pass an explicit boolean. ATW MUST
+   * NOT modify the host compose without explicit confirmation.
+   */
+  confirmAppend?: (proposedDiff: string) => Promise<boolean>;
+  /**
+   * Optional compose-block snippet to append when markers are missing and
+   * confirmation is granted. Defaults to a minimal pgvector + atw_backend
+   * stanza wrapped in markers.
+   */
+  appendBlock?: string;
+}
+
+const DEFAULT_APPEND_BLOCK = [
+  BEGIN_MARK_LITERAL(),
+  "  atw_postgres:",
+  "    image: pgvector/pgvector:pg16",
+  "    environment:",
+  "      POSTGRES_USER: atw",
+  "      POSTGRES_PASSWORD: atw",
+  "      POSTGRES_DB: atw",
+  "    ports:",
+  "      - \"5433:5432\"",
+  "  atw_backend:",
+  "    image: atw_backend:latest",
+  "    depends_on: [atw_postgres]",
+  "    environment:",
+  "      DATABASE_URL: postgresql://atw:atw@atw_postgres:5432/atw",
+  "      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}",
+  "      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}",
+  "    ports:",
+  "      - \"3100:3100\"",
+  END_MARK_LITERAL(),
+].join("\n");
+
+function BEGIN_MARK_LITERAL(): string { return "# ----- atw:begin -----"; }
+function END_MARK_LITERAL(): string { return "# ----- atw:end -----"; }
+
+export async function composeActivate(
+  composeFile: string,
+  opts: ComposeActivateOptions = {},
+): Promise<ComposeActivateResult> {
   let raw: string;
   try {
     raw = await fs.readFile(composeFile, "utf8");
@@ -34,11 +89,33 @@ export async function composeActivate(composeFile: string): Promise<ComposeActiv
   const begin = lines.findIndex((l) => l.trim() === BEGIN_MARK);
   const end = lines.findIndex((l) => l.trim() === END_MARK);
   if (begin < 0 || end < 0 || end < begin) {
-    const e = new Error(
-      `compose file at ${composeFile} has no atw:begin/atw:end block`,
-    );
-    (e as { code?: string }).code = "COMPOSE_NOT_FOUND";
-    throw e;
+    // FR-029 / R7 / Q3: ATW MUST NOT modify the host compose without a
+    // confirmed `[y/N]`. If no `confirmAppend` was supplied (e.g., legacy
+    // caller, non-interactive context) we surface the diff and skip.
+    const block = opts.appendBlock ?? DEFAULT_APPEND_BLOCK;
+    const proposedDiff = `--- ${path.basename(composeFile)} (no atw markers found)\n+++ append at end of file:\n${block}`;
+    const confirmed = opts.confirmAppend
+      ? await opts.confirmAppend(proposedDiff).catch(() => false)
+      : false;
+    if (!confirmed) {
+      log("compose markers missing; skipping (no confirmation)");
+      return {
+        action: "no-markers",
+        services: [],
+        skipped_reason:
+          "host compose has no atw:begin/atw:end markers and the integrator declined the append prompt",
+        proposed_diff: proposedDiff,
+      };
+    }
+    const appended = `${raw.replace(/\n$/, "")}\n\n${block}\n`;
+    await fs.writeFile(composeFile, appended, "utf8");
+    log("appended marker block to %s", composeFile);
+    const appendedServices = new Set<string>();
+    for (const l of block.split(/\r?\n/)) {
+      const svc = /^\s\s([a-zA-Z0-9_-]+):\s*$/.exec(l);
+      if (svc) appendedServices.add(svc[1]);
+    }
+    return { action: "activated", services: Array.from(appendedServices) };
   }
 
   // Uncomment every line inside the block that starts with "# " (NOT the

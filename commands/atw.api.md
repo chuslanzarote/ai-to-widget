@@ -1,112 +1,118 @@
 ---
-description: "Ingest an OpenAPI 3.0.x document and pin it as the project's canonical input artefact."
+description: "Emit the action manifest in a single LLM-native pass."
 argument-hint: "[openapi-file-or-url]"
 ---
 
-# `/atw.api`
+# `/atw.api` (alias: `/atw.classify`)
 
-**Purpose.** Accept the host's OpenAPI 3.0.x document (file path or
-`http(s)://` URL), validate its shape, canonicalise it, and pin it as
-a first-class input artefact at `.atw/artifacts/openapi.json` with a
-provenance sidecar at `.atw/state/openapi-meta.json`. Deterministic
-and LLM-free; this step does **not** classify — that is the job of
-`/atw.classify`. Feature 006 split the old combined flow into two
-stages so the Builder can iterate on classification without re-fetching
-the OpenAPI each time (Principle VIII, FR-002, FR-003).
+**Purpose.** Hand the Builder's full bundled OpenAPI document and the
+Builder's `project.md` to the model in one call, and let the model emit a
+schema-validated action manifest. Writes
+`.atw/artifacts/action-manifest.md` (YAML frontmatter + markdown body) and
+records the LLM-call provenance into `build-provenance.json`. **One**
+LLM call per source document — no chunking, no pre-filter passes, no
+allowlist heuristics (Feature 009 / FR-001, FR-002, FR-003, FR-005).
+
+`/atw.classify` is the same command — both names invoke the same
+`packages/scripts/src/classify-actions.ts` entry point (R11).
 
 ## Preconditions
 
-- `.atw/config/project.md` and `.atw/config/brief.md` both exist.
-- `.atw/artifacts/schema-map.md` recommended but not required (the
-  classifier consumes both; this ingest step does not).
-- The Builder can provide an OpenAPI 3.0.x document:
-  - a local file path (`.json` or `.yaml`), OR
-  - an `http(s)://` URL the machine running `/atw.api` can reach.
+- `.atw/config/project.md` exists and validates against the
+  `project-md.schema.json` contract (origins, deployment, optional
+  `model_snapshot`).
+- The Builder can provide an OpenAPI 3.0 or 3.1 document (local path
+  or URL). Swagger 2.0 is detected and refused with a conversion hint.
+- `dist/` is fresh (the bin shim refuses on stale `dist/` per FR-032).
 
 ## Steps
 
-1. **Accept input.** Two forms (FR-002):
-   - Path to a local spec file — preferred when the Builder can stage
-     it under `.atw/inputs/`.
-   - Remote URL. On fetch failure (non-2xx, network error), halt with
-     a tip to download locally and pass the path instead. No retries.
+1. **Accept input.** Local file path or `http(s)://` URL. Swagger 2.0
+   → halt with the conversion hint, no LLM call. OpenAPI 3.x → continue.
 
-2. **Version detection (FR-002).**
-   - **Swagger 2.0** → exit 3 with diagnostic
-     `Swagger 2.0 input detected. /atw.api requires OpenAPI 3.x.`
-     Suggestion: convert via `swagger2openapi` before retrying.
-   - **OpenAPI 3.1.x** → exit 1 with a version-out-of-range
-     diagnostic. v1 of this feature pins to 3.0.x; 3.1 is deferred.
-   - **OpenAPI 3.0.x** → proceed.
+2. **Deterministic parse + bundle.** `parse-openapi.ts` calls
+   `@apidevtools/swagger-parser`'s `bundle()` so external `$ref`s are
+   inlined while internal `$ref`s remain (R1). Structural-only filters
+   apply: `OPTIONS`/`HEAD` excluded, no-response operations excluded
+   (FR-003, FR-004). **No semantic pre-filtering.**
 
-3. **Deterministic parse + bundle.** Run `atw-api --source <path|url>`.
-   `$ref` resolution goes through `@apidevtools/swagger-parser.bundle()`.
-   Duplicate `operationId`s are rejected at this step. On any parse
-   error, exit 1 with a diagnostic that names the file offset or the
-   duplicate.
+3. **Cost preview (FR-006a, R5, Q5).** Print exactly:
 
-4. **Canonicalise + hash.** The bundled document is serialised via
-   recursive object-key sort, 2-space indent, and a trailing LF. The
-   sha256 is computed over the resulting bytes — not over the parsed
-   in-memory shape — so cross-platform byte-identity holds.
+   ```
+   [classify] OpenAPI: <N> operations | model: <snapshot> | est. cost: ~$<X.XX>
+   [classify] Continuing in 2s, Ctrl+C to abort...
+   ```
 
-5. **Compare + write.** Against the prior `openapi.json` (if present):
-   - Hash matches → action `"unchanged"`; no write; mtime preserved.
-   - Hash differs AND `--backup` → copy prior to `openapi.json.bak`
-     before overwriting.
-   - Hash differs (no backup) → overwrite.
-   - No prior file → action `"created"`; write.
+   Wait 2 seconds informationally — there is no `[y/N]` prompt and no
+   `--yes` flag. Ctrl+C aborts.
 
-6. **Emit provenance sidecar.** On `created` or `rewritten`, write
-   `.atw/state/openapi-meta.json` with `{sha256, source, fetchedAt}`.
-   On `unchanged`, the prior sidecar is preserved so re-runs do not
-   churn `fetchedAt`.
+4. **Single LLM call (FR-001, FR-002, R2).** One
+   `messages.create()` in `tool_use` mode against the model named in
+   `project.md.model_snapshot` (default `claude-opus-4-7`).
+   - System prompt states the Constitution V citation requirement.
+   - User content blocks: `<project_md>`, `<openapi>` (bundled JSON),
+     `<output_schema>` (the action-manifest JSON schema).
+   - Tool: `emit_manifest` with the schema as `input_schema`.
+   - `temperature: 0`, `tool_choice: { type: "tool", name: "emit_manifest" }`.
+   - SDK built-in retries are disabled (`maxRetries: 0`).
 
-7. **Update the determinism ledger.** Set the `openapi` slot in
-   `.atw/state/input-hashes.json` to `sha256:<hex>`. Every other slot
-   in the ledger is preserved untouched.
+5. **Retry policy (FR-008a, R4, Q2).** The call is wrapped in
+   `lib/llm-retry.ts`: 3 attempts, 500 ms initial backoff, 2× multiplier,
+   ±20% deterministic jitter seeded from
+   `(model_snapshot, openapi_sha256, project_md_sha256)`. Retryable:
+   408 / 429 / 5xx / network errors. Non-retryable: 400 / 401 / 403 /
+   404, schema-validation failures, citation cross-check failures.
 
-8. **Announce next step.** End with exactly:
+6. **Validate (FR-002, FR-008).** Post-call:
+   - Run the LLM's tool-call arguments through `ActionManifestSchema`
+     (zod). Field-level errors abort the write.
+   - Cross-check every `operations[].citation.operation_id` against the
+     bundled source. Missing IDs abort.
+   - Cross-check that every write operation whose source declares a
+     request body has non-empty `input_schema.properties`.
+   - Cross-check that every `summary_template` placeholder resolves to
+     an `input_schema.properties` key.
 
-   *"OpenAPI pinned. Next: run `/atw.classify`."*
+7. **Server-side stamp.** The classifier injects `schema_version: "1.0"`,
+   `generated_at`, `model_snapshot`, `input_hashes.openapi_sha256`,
+   `input_hashes.project_md_sha256`, `operation_count_total`, and
+   `operation_count_in_scope` — the LLM cannot stamp those reliably.
 
-## Re-run semantics (Principle VIII, FR-003)
+8. **Write the artifact (FR-005, FR-007).** YAML frontmatter +
+   markdown body via `gray-matter`, written atomically to
+   `.atw/artifacts/action-manifest.md` (.tmp + rename).
 
-- **Same source bytes** → action is `"unchanged"`; no write; no meta
-  churn. Safe to re-run as often as wanted.
-- **Source changed** → action is `"rewritten"`; `openapi.json`,
-  `openapi-meta.json`, and the ledger's `openapi` slot update
-  atomically. The prior file is preserved at `openapi.json.bak` when
-  `--backup` is passed.
-- **Builder edits to `openapi.json` by hand** → NOT supported. This
-  artefact is a machine-canonicalised copy of the Builder's source.
-  Edit the source and re-run. The classifier's manifest
-  (`action-manifest.md`) is the Builder-edit surface.
+9. **Announce next step.** End with exactly:
 
-## Exit codes
+   *"Action manifest written. Next: run `/atw.embed` (or `/atw.build`)."*
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success (created / unchanged / rewritten). |
-| 1 | Input validation failed (malformed JSON/YAML, ENOENT, unresolved `$ref`, duplicate `operationId`, version outside 3.0.x). |
-| 2 | Source URL fetch failed (HTTP non-2xx or network). |
-| 3 | Usage error (unknown flag, missing `--source`, Swagger 2.0 input). |
+## Re-run semantics (FR-008b)
 
-All non-zero exits include a stderr diagnostic beginning with
-`atw-api:`.
+- **Unchanged `(input_hashes, model_snapshot)`** → orchestrator marks
+  the CLASSIFY phase `success_cached` and skips the LLM call.
+- **Changed inputs or model snapshot** → re-run the call.
+- **Failed runs are never cached** (E2).
+
+## Failure handling
+
+- **Parse error** → exit 1, no LLM call.
+- **Swagger 2.0** → exit 3, no LLM call, conversion hint surfaced.
+- **URL unreachable** → exit 2, offer the local-file fallback.
+- **Retry budget exhausted** → exit 4, last error logged.
+- **Schema or citation validation fails** → exit 23 with field-level
+  paths; the manifest is *not* written.
 
 ## Tooling
 
-All deterministic work is delegated to `@atw/scripts`:
+All deterministic work lives in `@atw/scripts`:
 
-- `atw-api --source <path|url> [--backup] [--json]` — wraps
-  `packages/scripts/src/atw-api.ts` (programmatic entry `runAtwApi`).
-- `packages/scripts/src/parse-openapi.ts` — load → version-check
-  (`Swagger20DetectedError`) → `SwaggerParser.bundle()`
-  (`ParseOpenAPIError` on unresolved `$ref`) → normalize
-  (`DuplicateOperationIdError`).
-- `packages/scripts/src/lib/input-hashes.ts` — two-level re-run
-  detection; this CLI touches only the `openapi` slot.
-
-See the binding contract at
-[`specs/006-openapi-action-catalog/contracts/atw-api-command.md`](../specs/006-openapi-action-catalog/contracts/atw-api-command.md).
+- `atw-parse-openapi --source <path|url> [--out <path>]` —
+  `packages/scripts/src/parse-openapi.ts`. Bundle-only, structural
+  filters only. Exit codes: 0 ok, 1 parse error / missing file,
+  2 URL unreachable, 3 bad CLI args / Swagger 2.0.
+- `atw-classify-actions --source <path|url> [--out <path>] [--no-countdown]` —
+  `packages/scripts/src/classify-actions.ts`. Single LLM call,
+  schema-validated, written via the manifest-io round-trip helper.
+- `atw-write-manifest --kind action --manifest <json>` —
+  CLI helper to write a pre-validated action manifest from JSON
+  (used by tests and replay scripts).

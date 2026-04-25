@@ -11,6 +11,7 @@ import { registerCors } from "./lib/cors.js";
 import { registerRateLimit } from "./lib/rate-limit.js";
 import { registerHealth } from "./routes/health.js";
 import { registerChat } from "./routes/chat.js";
+import { registerTools } from "./routes/tools.js";
 import { loadConfig, ConfigError } from "./config.js";
 
 async function bootstrap(): Promise<void> {
@@ -48,6 +49,7 @@ async function bootstrap(): Promise<void> {
   const pool = new Pool({ connectionString: config.databaseUrl, max: 4, min: 1 });
 
   registerHealth(app, pool);
+  registerTools(app);
   registerChat(app, pool, config);
 
   app.setErrorHandler((err, req, reply) => {

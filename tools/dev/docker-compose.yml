@@ -1,4 +1,8 @@
-# AI to Widget — top-level Docker Compose orchestration.
+# AI to Widget — ATW maintainer compose (NOT for integrators).
+#
+# This file is for ATW developers running the legacy demo/medusa stack
+# locally. Integrators following the embed guide do NOT touch anything
+# under tools/dev/. See tools/dev/README.md for context.
 #
 # Service graph documented in specs/003-runtime/contracts/compose.md §1.
 #
@@ -9,23 +13,90 @@
 
 name: ai-to-widget
 
-# Feature 007 — the Medusa testbed (medusa_postgres, medusa_redis,
-# medusa_backend, medusa_storefront, medusa_pg_data) was retired and
-# replaced by the self-contained reference ecommerce under `demo/shop`,
-# which has its own compose file at `demo/shop/docker-compose.yml`.
-
 services:
+  medusa_postgres:
+    image: postgres:16-alpine  # TODO(compose-digest): pin @sha256:<digest>
+    environment:
+      POSTGRES_DB: medusa
+      POSTGRES_USER: medusa
+      POSTGRES_PASSWORD: medusa_local
+    ports:
+      - "5432:5432"
+    volumes:
+      - medusa_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medusa -d medusa"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  medusa_redis:
+    image: redis:7-alpine  # TODO(compose-digest): pin @sha256:<digest>
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  medusa_backend:
+    build:
+      context: ../../demo/medusa/backend
+    environment:
+      DATABASE_URL: postgres://medusa:medusa_local@medusa_postgres:5432/medusa?sslmode=disable
+      PGSSLMODE: disable
+      REDIS_URL: redis://medusa_redis:6379
+      JWT_SECRET: dev_jwt_secret_change_me
+      COOKIE_SECRET: dev_cookie_secret_change_me
+      STORE_CORS: http://localhost:8000
+      ADMIN_CORS: http://localhost:7001
+      AUTH_CORS: http://localhost:8000,http://localhost:7001
+    depends_on:
+      medusa_postgres:
+        condition: service_healthy
+      medusa_redis:
+        condition: service_healthy
+    ports:
+      - "9000:9000"
+    volumes:
+      # start.sh writes the seeded publishable key here so the host tooling
+      # can pass it into the storefront build as MEDUSA_PUBLISHABLE_KEY.
+      - ../../demo/medusa/.runtime:/runtime
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('net').connect(9000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  medusa_storefront:
+    build:
+      context: ../../demo/medusa/storefront
+    environment:
+      # Storefront entrypoint prefers MEDUSA_PUBLISHABLE_KEY from the env,
+      # otherwise falls back to /runtime/publishable-key.txt (minted by the
+      # backend seed in the shared volume below). Rotating the key requires
+      # only a `docker compose up -d medusa_storefront` — no rebuild.
+      MEDUSA_PUBLISHABLE_KEY: ${MEDUSA_PUBLISHABLE_KEY:-}
+      MEDUSA_BACKEND_URL: http://localhost:9000
+      ATW_BACKEND_URL: http://localhost:3100
+    depends_on:
+      medusa_backend:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../../demo/medusa/.runtime:/runtime:ro
+
   atw_postgres:
     image: pgvector/pgvector:pg16  # TODO(compose-digest): pin @sha256:<digest>
     environment:
       POSTGRES_DB: atw
       POSTGRES_USER: atw
-      POSTGRES_PASSWORD: atw
+      POSTGRES_PASSWORD: atw_local
     ports:
       - "5433:5432"
     volumes:
       - atw_pg_data:/var/lib/postgresql/data
-      - ./demo/atw-shop-host/atw.sql:/docker-entrypoint-initdb.d/atw.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U atw -d atw"]
       interval: 5s
@@ -35,12 +106,10 @@ services:
   atw_backend:
     image: atw_backend:latest
     environment:
-      DATABASE_URL: postgres://atw:atw@atw_postgres:5432/atw
+      DATABASE_URL: postgres://atw:atw_local@atw_postgres:5432/atw
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      ALLOWED_ORIGINS: http://localhost:8000,http://localhost:8080
-      # Feature 007 — atw_backend no longer reaches the shop API.
-      # HOST_API_BASE_URL and HOST_API_KEY are removed (Principle I;
-      # see specs/007-widget-tool-loop/contracts/chat-endpoint-v2.md).
+      ALLOWED_ORIGINS: http://localhost:8000
+      HOST_API_BASE_URL: http://medusa_backend:9000
       LOG_LEVEL: info
       NODE_ENV: production
     depends_on:
@@ -50,10 +119,11 @@ services:
       - "3100:3100"
     healthcheck:
       test:
-        ["CMD", "/nodejs/bin/node", "-e", "fetch('http://localhost:3100/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+        ["CMD-SHELL", "node -e \"fetch('http://localhost:3100/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
       interval: 10s
       timeout: 3s
       retries: 12
 
 volumes:
+  medusa_pg_data:
   atw_pg_data:

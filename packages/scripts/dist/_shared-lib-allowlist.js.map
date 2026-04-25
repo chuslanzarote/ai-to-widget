@@ -1,0 +1,1 @@
+{"version":3,"file":"_shared-lib-allowlist.js","sourceRoot":"","sources":["../src/_shared-lib-allowlist.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AACH,MAAM,CAAC,MAAM,oBAAoB,GAAsB;IACrD,mBAAmB;IACnB,sBAAsB;IACtB,6BAA6B;IAC7B,mBAAmB;IACnB,UAAU;IACV,gBAAgB;CACR,CAAC;AAEX,MAAM,UAAU,aAAa,CAAC,QAAgB;IAC5C,OAAO,oBAAoB,CAAC,QAAQ,CAAC,QAAQ,CAAC,CAAC;AACjD,CAAC"}

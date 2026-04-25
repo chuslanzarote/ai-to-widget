@@ -5,81 +5,23 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import Handlebars from "handlebars";
 import Debug from "debug";
-
-import { SHARED_LIB_ALLOWLIST } from "./_shared-lib-allowlist.js";
+import { readActionManifest } from "./lib/manifest-io.js";
+import type { ManifestOperation } from "./lib/schemas/action-manifest.js";
 
 const log = Debug("atw:render-backend");
 
 /**
- * Feature 005 — @atw/scripts/dist/lib/<name>.js → relative _shared/ path.
- * Exported so callers (vendor-shared-lib, tests) can reuse the regex.
+ * The shape consumed by `tools.ts.hbs` (see Feature 009 manifest schema).
+ * `path_template` carries the unresolved path so action-intent and
+ * safe-read paths can resolve `{slot}` placeholders at runtime.
  */
-export const VENDOR_IMPORT_REGEX =
-  /from\s+["']@atw\/scripts\/dist\/lib\/([a-zA-Z0-9_-]+)\.js["']/g;
-
-function rewriteVendorImports(source: string, relativeFilePath: string): string {
-  // depth = number of directory separators in the file path under backend/src/
-  const depth = relativeFilePath.split("/").length - 1;
-  const prefix = depth === 0 ? "./_shared/" : "../".repeat(depth) + "_shared/";
-  return source.replace(VENDOR_IMPORT_REGEX, (_full, name: string) => {
-    const base = String(name).replace(/^runtime-/, "").replace(/\.js$/, "");
-    const allow = SHARED_LIB_ALLOWLIST.map((n) => n.replace(/\.ts$/, ""));
-    if (!allow.includes(`runtime-${base}`) && !allow.includes(base)) {
-      const e = new Error(
-        `Template imports @atw/scripts/dist/lib/${name}.js but it is not in the shared-lib allowlist`,
-      );
-      (e as { code?: string }).code = "VENDOR_IMPORT_UNRESOLVED";
-      throw e;
-    }
-    return `from "${prefix}${name}.js"`;
-  });
-}
-
-async function collectTemplates(
-  root: string,
-  prefix = "",
-): Promise<string[]> {
-  const entries = await fs.readdir(path.join(root, prefix), {
-    withFileTypes: true,
-  });
-  entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-  const out: string[] = [];
-  const files: string[] = [];
-  const dirs: string[] = [];
-  for (const e of entries) {
-    if (e.isSymbolicLink()) continue;
-    if (e.isDirectory()) {
-      dirs.push(e.name);
-    } else if (e.isFile() && e.name.endsWith(".hbs")) {
-      files.push(e.name);
-    }
-  }
-  // Top-level files first, then subdirs (matches contracts §Ordering).
-  for (const f of files) {
-    out.push(prefix === "" ? f : `${prefix}/${f}`);
-  }
-  for (const d of dirs) {
-    const sub = prefix === "" ? d : `${prefix}/${d}`;
-    out.push(...(await collectTemplates(root, sub)));
-  }
-  return out;
-}
-
-/**
- * Feature 006 — canonical shape of a runtime tool descriptor. The
- * rendered `tools.ts` re-declares this exact interface (the .hbs
- * template carries the declaration literally); this type is the
- * build-time source of truth the render pipeline and its tests import.
- * data-model.md §6.
- */
-export interface RuntimeToolDescriptor {
+export interface RuntimeToolEntry {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;
-  http: { method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; path: string };
-  is_action: boolean;
-  description_template?: string;
-  summary_fields?: string[];
+  http: { method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; path_template: string };
+  requires_confirmation: boolean;
+  summary_template: string;
 }
 
 export interface RenderContext {
@@ -87,20 +29,30 @@ export interface RenderContext {
   embeddingModel: string;
   anthropicModel: string;
   generatedAt: string;
-  defaultLocale: string;
-  briefSummary: string;
-  /** Feature 006 — descriptors rendered into `tools.ts`. Empty array is
-   *  legal; the template guards with `{{#if tools}}...{{/if}}`. */
-  tools: RuntimeToolDescriptor[];
-  /** Pre-serialised JSON of `tools` (2-space indent, no trailing
-   *  newline). Populated by `renderBackend()` from `tools` so the
-   *  template emits byte-identical output across runs. */
-  toolsJson: string;
+  /** Action-manifest operations rendered into RUNTIME_TOOLS. */
+  tools?: RuntimeToolEntry[];
+  /** Pre-stringified JSON of `tools` (set automatically before render). */
+  toolsJson?: string;
 }
 
-/** Deterministic stringify for tools — 2-space indent, stable keys. */
-export function serialiseTools(tools: RuntimeToolDescriptor[]): string {
-  return JSON.stringify(tools, null, 2);
+export function manifestOperationsToRuntimeTools(
+  ops: ReadonlyArray<ManifestOperation>,
+): RuntimeToolEntry[] {
+  return ops.map((op) => ({
+    name: op.tool_name,
+    description: op.description,
+    input_schema: op.input_schema,
+    http: { method: op.http.method, path_template: op.http.path_template },
+    requires_confirmation: op.requires_confirmation,
+    summary_template: op.summary_template,
+  }));
+}
+
+export function loadRuntimeToolsFromManifest(
+  manifestPath: string,
+): RuntimeToolEntry[] {
+  const { manifest } = readActionManifest(manifestPath);
+  return manifestOperationsToRuntimeTools(manifest.operations);
 }
 
 export type RenderAction = "unchanged" | "created" | "rewritten";
@@ -129,44 +81,49 @@ export function defaultTemplatesDir(): string {
   return path.resolve(pkgScripts, "..", "backend", "src");
 }
 
+async function walkHbs(dir: string, base: string, out: string[]): Promise<void> {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  for (const e of entries) {
+    const abs = path.join(dir, e.name);
+    if (e.isDirectory()) {
+      await walkHbs(abs, base, out);
+    } else if (e.isFile() && e.name.endsWith(".hbs")) {
+      out.push(path.relative(base, abs).replace(/\\/g, "/"));
+    }
+  }
+}
+
 export async function renderBackend(opts: RenderOptions): Promise<RenderedFile[]> {
-  // Feature 005 — recursive walk over `templatesDir`. Returns relative paths
-  // using `/` separators, with top-level files first, then subdirs sorted.
-  const templates = await collectTemplates(opts.templatesDir);
+  const templates: string[] = [];
+  await walkHbs(opts.templatesDir, opts.templatesDir, templates);
+  templates.sort();
   const results: RenderedFile[] = [];
   await fs.mkdir(opts.outputDir, { recursive: true });
 
-  for (const relTpl of templates) {
-    const src = await fs.readFile(path.join(opts.templatesDir, relTpl), "utf8");
-    // relTpl is like "index.ts.hbs" or "lib/cors.ts.hbs" or "routes/chat.ts.hbs"
-    const relOutFromSrc = relTpl.replace(/\.hbs$/, "");
+  // Pre-stringify the tool list so the template can splat it raw via {{{toolsJson}}}.
+  const ctx: RenderContext = {
+    ...opts.context,
+    toolsJson:
+      opts.context.toolsJson ??
+      (opts.context.tools ? JSON.stringify(opts.context.tools, null, 2) : "[]"),
+  };
 
-    // Rewrite @atw/scripts/dist/lib/*.js imports BEFORE Handlebars compile
-    // (contracts/render-backend-recursive.md §Behaviour change 2).
-    const rewritten = rewriteVendorImports(src, relOutFromSrc);
-
-    const tpl = Handlebars.compile(rewritten, { noEscape: true, strict: true });
+  for (const name of templates) {
+    const src = await fs.readFile(path.join(opts.templatesDir, name), "utf8");
+    const tpl = Handlebars.compile(src, { noEscape: true, strict: true });
     let rendered: string;
     try {
-      // Feature 006 — ensure toolsJson matches tools before render so
-      // the template's `{{{toolsJson}}}` stays in sync even if a caller
-      // forgot to pre-compute it.
-      const ctx: RenderContext = {
-        ...opts.context,
-        toolsJson:
-          opts.context.toolsJson ?? serialiseTools(opts.context.tools ?? []),
-        tools: opts.context.tools ?? [],
-      };
       rendered = tpl(ctx);
     } catch (err) {
-      const e = new Error(`Template ${relTpl} compile error: ${(err as Error).message}`);
+      const e = new Error(`Template ${name} compile error: ${(err as Error).message}`);
       (e as { code?: string }).code = "TEMPLATE_COMPILE";
       throw e;
     }
     // Ensure stable line endings (LF) for determinism across platforms.
     rendered = rendered.replace(/\r\n/g, "\n");
 
-    const targetAbs = path.join(opts.outputDir, relOutFromSrc);
+    const targetName = name.replace(/\.hbs$/, "");
+    const targetAbs = path.join(opts.outputDir, targetName);
     await fs.mkdir(path.dirname(targetAbs), { recursive: true });
     const rel = path.relative(path.dirname(opts.outputDir), targetAbs).replace(/\\/g, "/");
 
@@ -203,7 +160,7 @@ export async function renderBackend(opts: RenderOptions): Promise<RenderedFile[]
         ? path.relative(path.dirname(opts.outputDir), backup).replace(/\\/g, "/")
         : undefined,
     });
-    log("%s -> %s (%s, %d bytes)", relTpl, targetAbs, action, buf.byteLength);
+    log("%s -> %s (%s, %d bytes)", name, targetAbs, action, buf.byteLength);
   }
 
   return results;
@@ -217,8 +174,6 @@ interface CliOptions {
   projectName: string;
   embeddingModel: string;
   anthropicModel: string;
-  defaultLocale: string;
-  briefSummary: string;
   backup: boolean;
   json: boolean;
 }
@@ -232,8 +187,6 @@ function parseCli(argv: string[]): CliOptions | { help: true } | { version: true
       "project-name": { type: "string" },
       "embedding-model": { type: "string" },
       "anthropic-model": { type: "string" },
-      "default-locale": { type: "string" },
-      "brief-summary": { type: "string" },
       backup: { type: "boolean", default: false },
       json: { type: "boolean", default: false },
       help: { type: "boolean", default: false, short: "h" },
@@ -249,8 +202,6 @@ function parseCli(argv: string[]): CliOptions | { help: true } | { version: true
     projectName: String(values["project-name"] ?? "unknown"),
     embeddingModel: String(values["embedding-model"] ?? "Xenova/bge-small-multilingual-v1.5"),
     anthropicModel: String(values["anthropic-model"] ?? "claude-opus-4-7"),
-    defaultLocale: String(values["default-locale"] ?? "en"),
-    briefSummary: String(values["brief-summary"] ?? ""),
     backup: Boolean(values.backup),
     json: Boolean(values.json),
   };
@@ -285,10 +236,6 @@ export async function runRenderBackend(argv: string[]): Promise<number> {
         embeddingModel: opts.embeddingModel,
         anthropicModel: opts.anthropicModel,
         generatedAt: "2026-04-22T00:00:00Z",
-        defaultLocale: opts.defaultLocale,
-        briefSummary: opts.briefSummary,
-        tools: [],
-        toolsJson: "[]",
       },
     });
     if (opts.json) {
@@ -301,7 +248,7 @@ export async function runRenderBackend(argv: string[]): Promise<number> {
     return 0;
   } catch (err) {
     const code = (err as { code?: string }).code;
-    if (code === "TEMPLATE_COMPILE" || code === "VENDOR_IMPORT_UNRESOLVED") {
+    if (code === "TEMPLATE_COMPILE") {
       process.stderr.write(`atw-render-backend: ${(err as Error).message}\n`);
       return 17;
     }

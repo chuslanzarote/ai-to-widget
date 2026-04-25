@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-import { runAssembleEntityInput } from "../dist/assemble-entity-input.js";
+import { enforceFreshDist } from "./_preflight.js";
+enforceFreshDist();
+const { runAssembleEntityInput } = await import("../dist/assemble-entity-input.js");
 
 const exitCode = await runAssembleEntityInput(process.argv.slice(2));
 process.exit(exitCode);
