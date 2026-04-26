@@ -1,0 +1,48 @@
+/**
+ * Tool descriptors rendered at build time from
+ * `.atw/artifacts/action-manifest.md` (Feature 009 schema). Keep the split
+ * between safe-read and action tools strict — the runtime uses it to
+ * decide whether to execute server-side or to emit an action intent for
+ * the widget. The split is now driven by `requires_confirmation` (writes
+ * that mutate state) rather than a hand-maintained `is_action` flag.
+ *
+ * Source: specs/009-demo-guide-hardening/contracts/action-manifest.schema.json.
+ */
+import type Anthropic from "@anthropic-ai/sdk";
+
+export interface RuntimeToolDescriptor {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+  http: { method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; path_template: string };
+  /** Mirrors manifest.operations[].requires_confirmation. */
+  requires_confirmation: boolean;
+  /** Substitution template for the ActionCard title (FR-022). */
+  summary_template: string;
+}
+
+{{#if tools}}
+export const RUNTIME_TOOLS: RuntimeToolDescriptor[] = {{{toolsJson}}};
+{{else}}
+export const RUNTIME_TOOLS: RuntimeToolDescriptor[] = [];
+{{/if}}
+
+export const SAFE_READ_TOOLS: string[] = RUNTIME_TOOLS.filter(
+  (t) => !t.requires_confirmation,
+).map((t) => t.name);
+
+export const ACTION_TOOLS: string[] = RUNTIME_TOOLS.filter(
+  (t) => t.requires_confirmation,
+).map((t) => t.name);
+
+export function toolsForAnthropic(): Anthropic.Messages.Tool[] {
+  return RUNTIME_TOOLS.map((t) => ({
+    name: t.name,
+    description: t.description,
+    input_schema: t.input_schema as Anthropic.Messages.Tool["input_schema"],
+  }));
+}
+
+export function findTool(name: string): RuntimeToolDescriptor | undefined {
+  return RUNTIME_TOOLS.find((t) => t.name === name);
+}

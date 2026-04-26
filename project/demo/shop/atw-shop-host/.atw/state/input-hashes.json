@@ -1,0 +1,11 @@
+{
+  "schema_version": "1",
+  "files": {
+    ".atw/config/project.md": "sha256:ce9ada710e8df2356eb4c1d86c0279985b7632059a3fcdac02d0576be3bc9bff",
+    ".atw/config/brief.md": "sha256:1699c5787beaadc85f6d419f8adc3c556e2c4efa1d5c492278e4d1dd97954f66",
+    ".atw/artifacts/schema-map.md": "sha256:e6f73eff4b30d35a103583a409aebde535d12b0e73dc37628b8e0df5b5cb3ee9",
+    ".atw/artifacts/action-manifest.md": "sha256:8c7256c7a7067542cb82c0fb86a8bf149819dc56ad11ddbc49ef6e0f84ee1163",
+    ".atw/artifacts/build-plan.md": "sha256:0d20c427be04cf36822a810702c44602fd772a18f542728b5c4a580c19baa692"
+  },
+  "prompt_template_version": "enrich-v1"
+}

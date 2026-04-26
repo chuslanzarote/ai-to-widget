@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-to-widget.dev/contracts/009/build-provenance.schema.json",
+  "title": "Build Provenance Log entry",
+  "description": "Append-only log entry written by orchestrator.ts per phase per /atw.build invocation. Used for honest status reporting (FR-028..FR-032), reproducibility verification (Constitution VIII), and CI assertions (FR-035).",
+  "type": "object",
+  "required": [
+    "build_id",
+    "phase",
+    "started_at",
+    "finished_at",
+    "status"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "build_id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "ULID. One per /atw.build invocation; all phase entries from a single build share it."
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "INIT_CHECK",
+        "CLASSIFY",
+        "IMPORT",
+        "ENRICH",
+        "EMBED",
+        "RENDER",
+        "COMPOSE",
+        "EMBED_GUIDE"
+      ]
+    },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": "string", "format": "date-time" },
+    "status": {
+      "type": "string",
+      "enum": ["success", "success_cached", "warning", "skipped", "failed", "not_run"]
+    },
+    "input_hashes": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    },
+    "model_snapshot": {
+      "type": "string",
+      "pattern": "^claude-(opus|sonnet|haiku)-[0-9]+-[0-9]+(-[0-9]{8})?$",
+      "description": "Present only for LLM-driven phases (CLASSIFY, ENRICH)."
+    },
+    "llm_call": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attempts": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "retry_delays_ms": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 },
+          "description": "Delay applied before each retry. Empty when attempts=1."
+        },
+        "input_tokens": { "type": "integer", "minimum": 0 },
+        "output_tokens": { "type": "integer", "minimum": 0 },
+        "estimated_cost_usd": { "type": "number", "minimum": 0 },
+        "actual_cost_usd": { "type": "number", "minimum": 0 },
+        "cost_variance_pct": { "type": "number" }
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Phase-specific output summary, e.g. manifest_path, row_count."
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "skipped_reason": {
+      "type": ["string", "null"],
+      "description": "Required when status=skipped, null otherwise."
+    },
+    "failed_reason": {
+      "type": ["string", "null"],
+      "description": "Required when status=failed, null otherwise. Includes the field-level error path for schema-validation failures."
+    },
+    "next_hint": {
+      "type": ["string", "null"],
+      "description": "Dynamic 'Next:' command pointer per FR-031. Null on success."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "skipped" } } },
+      "then": { "required": ["skipped_reason"] }
+    },
+    {
+      "if": { "properties": { "status": { "const": "failed" } } },
+      "then": { "required": ["failed_reason"] }
+    },
+    {
+      "if": { "properties": { "phase": { "enum": ["CLASSIFY", "ENRICH"] } } },
+      "then": { "required": ["model_snapshot"] }
+    }
+  ]
+}

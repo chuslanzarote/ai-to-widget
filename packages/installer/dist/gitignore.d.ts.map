@@ -1,1 +1,0 @@
-{"version":3,"file":"gitignore.d.ts","sourceRoot":"","sources":["../src/gitignore.ts"],"names":[],"mappings":"AAIA,eAAO,MAAM,oBAAoB,2BAA2B,CAAC;AAC7D,eAAO,MAAM,kBAAkB,iBAAiB,CAAC;AAEjD,MAAM,MAAM,gBAAgB,GAAG,SAAS,GAAG,UAAU,GAAG,WAAW,CAAC;AAEpE,wBAAsB,oBAAoB,CACxC,SAAS,EAAE,MAAM,EACjB,YAAY,EAAE,MAAM,GACnB,OAAO,CAAC,gBAAgB,CAAC,CAuB3B"}

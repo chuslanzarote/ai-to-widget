@@ -1,0 +1,125 @@
+import type { FastifyInstance } from "fastify";
+import type { Pool } from "pg";
+import Anthropic from "@anthropic-ai/sdk";
+import {
+  ChatRequestSchema,
+  type ChatRequest,
+  type ChatResponse,
+} from "@atw/scripts/dist/lib/types.js";
+import type { RuntimeConfig } from "../config.js";
+import { embed } from "../lib/embedding.js";
+import { runRetrieval } from "../lib/retrieval.js";
+import { formatRetrievalContext } from "../lib/retrieval-context.js";
+import { runTurn } from "../lib/opus-client.js";
+import { SYSTEM_PROMPT } from "../prompts.js";
+import { ValidationError } from "../lib/errors.js";
+import { ACTION_TOOLS } from "../tools.js";
+
+/**
+ * POST /v1/chat — runtime handler.
+ * Contract: specs/003-runtime/contracts/chat-endpoint.md §4.
+ *
+ * Phase 3 shipped the US1 grounded path (single-turn). Phase 4 (US2)
+ * extends with the tool-use loop and `actions[]` on the response.
+ */
+export function registerChat(
+  app: FastifyInstance,
+  pool: Pool,
+  config: RuntimeConfig,
+): void {
+  const anthropic = new Anthropic({ apiKey: config.anthropicApiKey });
+
+  app.addHook("onRequest", async (req) => {
+    (req as unknown as { atw_start?: number }).atw_start = Date.now();
+  });
+
+  app.post("/v1/chat", async (req, reply) => {
+    const requestId = req.id;
+    let body: ChatRequest;
+    try {
+      body = ChatRequestSchema.parse(req.body);
+    } catch (err) {
+      const rawMessage = (req.body as { message?: unknown })?.message;
+      if (typeof rawMessage === "string" && rawMessage.length > 4000) {
+        throw new ValidationError(
+          "That message is too long. Please shorten and try again.",
+          "message_too_long",
+        );
+      }
+      const msg = err instanceof Error ? err.message : "Invalid request body";
+      throw new ValidationError("Some of the fields you sent were malformed: " + msg);
+    }
+
+    const trimmedHistory = body.history.slice(-config.maxConversationTurns);
+    const historyTrimmed = trimmedHistory.length < body.history.length;
+
+    const queryVec = await embed(body.message);
+    const hits = await runRetrieval({
+      embedding: queryVec,
+      threshold: config.retrievalThreshold,
+      topK: config.retrievalTopK,
+      pool,
+    });
+    const retrievalContext = formatRetrievalContext(hits);
+
+    const historyForModel = trimmedHistory.map((t) => ({
+      role: t.role,
+      content: t.content,
+      timestamp: t.timestamp,
+    }));
+    if (historyTrimmed) {
+      historyForModel.unshift({
+        role: "assistant",
+        content:
+          "(conversation trimmed — earlier turns were dropped to fit the session cap)",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const turn = await runTurn({
+      system: SYSTEM_PROMPT,
+      history: historyForModel,
+      userMessage: body.message,
+      retrievalContext,
+      model: "claude-opus-4-7",
+      client: anthropic,
+      maxToolCalls: config.maxToolCallsPerTurn,
+      sessionContext: body.context,
+      hostApiBaseUrl: config.hostApiBaseUrl,
+      hostApiKey: config.hostApiKey,
+    });
+
+    const message =
+      turn.text.length > 0
+        ? turn.text
+        : "I'm not sure I can help with that — could you rephrase?";
+
+    // Enforce the action allowlist structurally before emit. This is the
+    // server-side half of Principle IV / FR-021.
+    const safeActions = turn.actions.filter((a) => ACTION_TOOLS.includes(a.tool));
+
+    const response: ChatResponse = {
+      message,
+      actions: safeActions,
+      request_id: requestId,
+    };
+
+    const latency =
+      Date.now() - ((req as unknown as { atw_start?: number }).atw_start ?? Date.now());
+    req.log.info(
+      {
+        req_id: requestId,
+        latency_ms: latency,
+        retrieval_hits: hits.length,
+        actions: safeActions.length,
+        input_tokens: turn.usage.input_tokens,
+        output_tokens: turn.usage.output_tokens,
+        message_preview: body.message.slice(0, 80),
+      },
+      "chat turn complete",
+    );
+
+    reply.code(200);
+    return response;
+  });
+}
