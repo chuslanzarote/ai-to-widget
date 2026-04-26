@@ -23,7 +23,7 @@ useful: this report.
 Most of the credits are gone. The data is not. This report is what came out
 of the attempt.
 
-The full, navigable report lives at **[`index.html`](index.html)**.
+The full, navigable report lives at **[`index.html`](https://chuslanzarote.github.io/ai-to-widget/)**.
 
 If this repository is published via GitHub Pages, the report is also available
 at the repository's Pages URL.
