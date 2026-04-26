@@ -21,6 +21,7 @@
         "summaryFields": [],
         "summaryTemplate": "Add a product to the cart (merge-by-product)."
       },
+      "runtimeOnly": true,
       "substitution": {
         "body": {
           "product_id": "arguments.product_id",

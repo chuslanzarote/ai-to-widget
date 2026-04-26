@@ -530,17 +530,17 @@ export declare const ParsedSQLColumnSchema: z.ZodObject<{
     isPrimaryKey: z.ZodBoolean;
     comment: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    default: string | null;
     name: string;
     dataType: string;
     nullable: boolean;
-    default: string | null;
     isPrimaryKey: boolean;
     comment: string | null;
 }, {
+    default: string | null;
     name: string;
     dataType: string;
     nullable: boolean;
-    default: string | null;
     isPrimaryKey: boolean;
     comment: string | null;
 }>;
@@ -577,17 +577,17 @@ export declare const ParsedSQLTableSchema: z.ZodObject<{
         isPrimaryKey: z.ZodBoolean;
         comment: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        default: string | null;
         name: string;
         dataType: string;
         nullable: boolean;
-        default: string | null;
         isPrimaryKey: boolean;
         comment: string | null;
     }, {
+        default: string | null;
         name: string;
         dataType: string;
         nullable: boolean;
-        default: string | null;
         isPrimaryKey: boolean;
         comment: string | null;
     }>, "many">;
@@ -639,10 +639,10 @@ export declare const ParsedSQLTableSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     columns: {
+        default: string | null;
         name: string;
         dataType: string;
         nullable: boolean;
-        default: string | null;
         isPrimaryKey: boolean;
         comment: string | null;
     }[];
@@ -669,10 +669,10 @@ export declare const ParsedSQLTableSchema: z.ZodObject<{
 }, {
     name: string;
     columns: {
+        default: string | null;
         name: string;
         dataType: string;
         nullable: boolean;
-        default: string | null;
         isPrimaryKey: boolean;
         comment: string | null;
     }[];
@@ -714,17 +714,17 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
                 isPrimaryKey: z.ZodBoolean;
                 comment: z.ZodNullable<z.ZodString>;
             }, "strip", z.ZodTypeAny, {
+                default: string | null;
                 name: string;
                 dataType: string;
                 nullable: boolean;
-                default: string | null;
                 isPrimaryKey: boolean;
                 comment: string | null;
             }, {
+                default: string | null;
                 name: string;
                 dataType: string;
                 nullable: boolean;
-                default: string | null;
                 isPrimaryKey: boolean;
                 comment: string | null;
             }>, "many">;
@@ -776,10 +776,10 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             name: string;
             columns: {
+                default: string | null;
                 name: string;
                 dataType: string;
                 nullable: boolean;
-                default: string | null;
                 isPrimaryKey: boolean;
                 comment: string | null;
             }[];
@@ -806,10 +806,10 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
         }, {
             name: string;
             columns: {
+                default: string | null;
                 name: string;
                 dataType: string;
                 nullable: boolean;
-                default: string | null;
                 isPrimaryKey: boolean;
                 comment: string | null;
             }[];
@@ -838,11 +838,11 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
             name: z.ZodString;
             values: z.ZodArray<z.ZodString, "many">;
         }, "strip", z.ZodTypeAny, {
-            name: string;
             values: string[];
+            name: string;
         }, {
-            name: string;
             values: string[];
+            name: string;
         }>, "many">;
         extensions: z.ZodArray<z.ZodString, "many">;
     }, "strip", z.ZodTypeAny, {
@@ -850,10 +850,10 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
         tables: {
             name: string;
             columns: {
+                default: string | null;
                 name: string;
                 dataType: string;
                 nullable: boolean;
-                default: string | null;
                 isPrimaryKey: boolean;
                 comment: string | null;
             }[];
@@ -879,8 +879,8 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
             inherits: string[] | null;
         }[];
         enums: {
-            name: string;
             values: string[];
+            name: string;
         }[];
         extensions: string[];
     }, {
@@ -888,10 +888,10 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
         tables: {
             name: string;
             columns: {
+                default: string | null;
                 name: string;
                 dataType: string;
                 nullable: boolean;
-                default: string | null;
                 isPrimaryKey: boolean;
                 comment: string | null;
             }[];
@@ -917,8 +917,8 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
             inherits: string[] | null;
         }[];
         enums: {
-            name: string;
             values: string[];
+            name: string;
         }[];
         extensions: string[];
     }>, "many">;
@@ -944,10 +944,10 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
         tables: {
             name: string;
             columns: {
+                default: string | null;
                 name: string;
                 dataType: string;
                 nullable: boolean;
-                default: string | null;
                 isPrimaryKey: boolean;
                 comment: string | null;
             }[];
@@ -973,8 +973,8 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
             inherits: string[] | null;
         }[];
         enums: {
-            name: string;
             values: string[];
+            name: string;
         }[];
         extensions: string[];
     }[];
@@ -992,10 +992,10 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
         tables: {
             name: string;
             columns: {
+                default: string | null;
                 name: string;
                 dataType: string;
                 nullable: boolean;
-                default: string | null;
                 isPrimaryKey: boolean;
                 comment: string | null;
             }[];
@@ -1021,8 +1021,8 @@ export declare const ParsedSQLSchemaSchema: z.ZodObject<{
             inherits: string[] | null;
         }[];
         enums: {
-            name: string;
             values: string[];
+            name: string;
         }[];
         extensions: string[];
     }[];
@@ -1371,14 +1371,14 @@ export declare const InputHashRecordSchema: z.ZodObject<{
     sha256: z.ZodString;
     seenAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
+    sha256: string;
     path: string;
     kind: "sql-dump" | "openapi" | "brief-input" | "other";
-    sha256: string;
     seenAt: string;
 }, {
+    sha256: string;
     path: string;
     kind: "sql-dump" | "openapi" | "brief-input" | "other";
-    sha256: string;
     seenAt: string;
 }>;
 export type InputHashRecord = z.infer<typeof InputHashRecordSchema>;
@@ -1390,32 +1390,32 @@ export declare const InputHashesStateSchema: z.ZodObject<{
         sha256: z.ZodString;
         seenAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
+        sha256: string;
         path: string;
         kind: "sql-dump" | "openapi" | "brief-input" | "other";
-        sha256: string;
         seenAt: string;
     }, {
+        sha256: string;
         path: string;
         kind: "sql-dump" | "openapi" | "brief-input" | "other";
-        sha256: string;
         seenAt: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
+    version: 1;
     entries: {
+        sha256: string;
         path: string;
         kind: "sql-dump" | "openapi" | "brief-input" | "other";
-        sha256: string;
         seenAt: string;
     }[];
-    version: 1;
 }, {
+    version: 1;
     entries: {
+        sha256: string;
         path: string;
         kind: "sql-dump" | "openapi" | "brief-input" | "other";
-        sha256: string;
         seenAt: string;
     }[];
-    version: 1;
 }>;
 export type InputHashesState = z.infer<typeof InputHashesStateSchema>;
 export type LoadedArtifact = {
@@ -2109,14 +2109,14 @@ export declare const ActionExecutorsStepSchema: z.ZodObject<{
     bytes: z.ZodNumber;
     warnings: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
 }, "strip", z.ZodTypeAny, {
-    path: string;
     sha256: string;
+    warnings: string[];
+    path: string;
     action: "created" | "rewritten" | "unchanged";
     bytes: number;
-    warnings: string[];
 }, {
-    path: string;
     sha256: string;
+    path: string;
     action: "created" | "rewritten" | "unchanged";
     bytes: number;
     warnings?: string[] | undefined;
@@ -2133,14 +2133,14 @@ export declare const PipelineStepsSchema: z.ZodObject<{
             bytes: z.ZodNumber;
             warnings: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
         }, "strip", z.ZodTypeAny, {
-            path: string;
             sha256: string;
+            warnings: string[];
+            path: string;
             action: "created" | "rewritten" | "unchanged";
             bytes: number;
-            warnings: string[];
         }, {
-            path: string;
             sha256: string;
+            path: string;
             action: "created" | "rewritten" | "unchanged";
             bytes: number;
             warnings?: string[] | undefined;
@@ -2149,18 +2149,18 @@ export declare const PipelineStepsSchema: z.ZodObject<{
         action: "created" | "rewritten" | "unchanged";
         files_changed: number;
         action_executors?: {
-            path: string;
             sha256: string;
+            warnings: string[];
+            path: string;
             action: "created" | "rewritten" | "unchanged";
             bytes: number;
-            warnings: string[];
         } | undefined;
     }, {
         action: "created" | "rewritten" | "unchanged";
         files_changed: number;
         action_executors?: {
-            path: string;
             sha256: string;
+            path: string;
             action: "created" | "rewritten" | "unchanged";
             bytes: number;
             warnings?: string[] | undefined;
@@ -2177,18 +2177,18 @@ export declare const PipelineStepsSchema: z.ZodObject<{
         action: z.ZodEnum<["created", "rebuilt", "unchanged", "skipped", "failed"]>;
         reason: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+        action: "skipped" | "failed" | "created" | "unchanged" | "rebuilt";
         reason?: string | undefined;
     }, {
-        action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+        action: "skipped" | "failed" | "created" | "unchanged" | "rebuilt";
         reason?: string | undefined;
     }>>;
     compose: z.ZodOptional<z.ZodObject<{
         action: z.ZodEnum<["activated", "unchanged", "skipped"]>;
     }, "strip", z.ZodTypeAny, {
-        action: "unchanged" | "skipped" | "activated";
+        action: "skipped" | "unchanged" | "activated";
     }, {
-        action: "unchanged" | "skipped" | "activated";
+        action: "skipped" | "unchanged" | "activated";
     }>>;
     scan: z.ZodOptional<z.ZodObject<{
         action: z.ZodEnum<["ran", "skipped"]>;
@@ -2205,22 +2205,22 @@ export declare const PipelineStepsSchema: z.ZodObject<{
         action: "created" | "rewritten" | "unchanged";
         files_changed: number;
         action_executors?: {
-            path: string;
             sha256: string;
+            warnings: string[];
+            path: string;
             action: "created" | "rewritten" | "unchanged";
             bytes: number;
-            warnings: string[];
         } | undefined;
     } | undefined;
     bundle?: {
         action: "created" | "rewritten" | "unchanged";
     } | undefined;
     image?: {
-        action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+        action: "skipped" | "failed" | "created" | "unchanged" | "rebuilt";
         reason?: string | undefined;
     } | undefined;
     compose?: {
-        action: "unchanged" | "skipped" | "activated";
+        action: "skipped" | "unchanged" | "activated";
     } | undefined;
     scan?: {
         action: "skipped" | "ran";
@@ -2231,8 +2231,8 @@ export declare const PipelineStepsSchema: z.ZodObject<{
         action: "created" | "rewritten" | "unchanged";
         files_changed: number;
         action_executors?: {
-            path: string;
             sha256: string;
+            path: string;
             action: "created" | "rewritten" | "unchanged";
             bytes: number;
             warnings?: string[] | undefined;
@@ -2242,11 +2242,11 @@ export declare const PipelineStepsSchema: z.ZodObject<{
         action: "created" | "rewritten" | "unchanged";
     } | undefined;
     image?: {
-        action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+        action: "skipped" | "failed" | "created" | "unchanged" | "rebuilt";
         reason?: string | undefined;
     } | undefined;
     compose?: {
-        action: "unchanged" | "skipped" | "activated";
+        action: "skipped" | "unchanged" | "activated";
     } | undefined;
     scan?: {
         action: "skipped" | "ran";
@@ -2285,13 +2285,13 @@ export declare const BuildManifestSchema: z.ZodObject<{
         skipped_unchanged: z.ZodNumber;
         failed: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        enriched: number;
         failed: number;
+        enriched: number;
         total_entities: number;
         skipped_unchanged: number;
     }, {
-        enriched: number;
         failed: number;
+        enriched: number;
         total_entities: number;
         skipped_unchanged: number;
     }>;
@@ -2379,13 +2379,13 @@ export declare const BuildManifestSchema: z.ZodObject<{
             bytes: z.ZodNumber;
             action: z.ZodEnum<["rewritten", "unchanged", "created"]>;
         }, "strip", z.ZodTypeAny, {
-            path: string;
             sha256: string;
+            path: string;
             action: "created" | "rewritten" | "unchanged";
             bytes: number;
         }, {
-            path: string;
             sha256: string;
+            path: string;
             action: "created" | "rewritten" | "unchanged";
             bytes: number;
         }>, "many">>;
@@ -2396,13 +2396,13 @@ export declare const BuildManifestSchema: z.ZodObject<{
                 bytes: z.ZodNumber;
                 gzip_bytes: z.ZodNumber;
             }, "strip", z.ZodTypeAny, {
-                path: string;
                 sha256: string;
+                path: string;
                 bytes: number;
                 gzip_bytes: number;
             }, {
-                path: string;
                 sha256: string;
+                path: string;
                 bytes: number;
                 gzip_bytes: number;
             }>;
@@ -2412,13 +2412,13 @@ export declare const BuildManifestSchema: z.ZodObject<{
                 bytes: z.ZodNumber;
                 gzip_bytes: z.ZodNumber;
             }, "strip", z.ZodTypeAny, {
-                path: string;
                 sha256: string;
+                path: string;
                 bytes: number;
                 gzip_bytes: number;
             }, {
-                path: string;
                 sha256: string;
+                path: string;
                 bytes: number;
                 gzip_bytes: number;
             }>;
@@ -2438,14 +2438,14 @@ export declare const BuildManifestSchema: z.ZodObject<{
                 tree_hash: string;
             };
             js: {
-                path: string;
                 sha256: string;
+                path: string;
                 bytes: number;
                 gzip_bytes: number;
             };
             css: {
-                path: string;
                 sha256: string;
+                path: string;
                 bytes: number;
                 gzip_bytes: number;
             };
@@ -2455,14 +2455,14 @@ export declare const BuildManifestSchema: z.ZodObject<{
                 tree_hash: string;
             };
             js: {
-                path: string;
                 sha256: string;
+                path: string;
                 bytes: number;
                 gzip_bytes: number;
             };
             css: {
-                path: string;
                 sha256: string;
+                path: string;
                 bytes: number;
                 gzip_bytes: number;
             };
@@ -2482,8 +2482,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
         }>>>;
     }, "strip", z.ZodTypeAny, {
         backend_files: {
-            path: string;
             sha256: string;
+            path: string;
             action: "created" | "rewritten" | "unchanged";
             bytes: number;
         }[];
@@ -2493,14 +2493,14 @@ export declare const BuildManifestSchema: z.ZodObject<{
                 tree_hash: string;
             };
             js: {
-                path: string;
                 sha256: string;
+                path: string;
                 bytes: number;
                 gzip_bytes: number;
             };
             css: {
-                path: string;
                 sha256: string;
+                path: string;
                 bytes: number;
                 gzip_bytes: number;
             };
@@ -2512,8 +2512,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
         } | null;
     }, {
         backend_files?: {
-            path: string;
             sha256: string;
+            path: string;
             action: "created" | "rewritten" | "unchanged";
             bytes: number;
         }[] | undefined;
@@ -2523,14 +2523,14 @@ export declare const BuildManifestSchema: z.ZodObject<{
                 tree_hash: string;
             };
             js: {
-                path: string;
                 sha256: string;
+                path: string;
                 bytes: number;
                 gzip_bytes: number;
             };
             css: {
-                path: string;
                 sha256: string;
+                path: string;
                 bytes: number;
                 gzip_bytes: number;
             };
@@ -2612,14 +2612,14 @@ export declare const BuildManifestSchema: z.ZodObject<{
                 bytes: z.ZodNumber;
                 warnings: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
             }, "strip", z.ZodTypeAny, {
-                path: string;
                 sha256: string;
+                warnings: string[];
+                path: string;
                 action: "created" | "rewritten" | "unchanged";
                 bytes: number;
-                warnings: string[];
             }, {
-                path: string;
                 sha256: string;
+                path: string;
                 action: "created" | "rewritten" | "unchanged";
                 bytes: number;
                 warnings?: string[] | undefined;
@@ -2628,18 +2628,18 @@ export declare const BuildManifestSchema: z.ZodObject<{
             action: "created" | "rewritten" | "unchanged";
             files_changed: number;
             action_executors?: {
-                path: string;
                 sha256: string;
+                warnings: string[];
+                path: string;
                 action: "created" | "rewritten" | "unchanged";
                 bytes: number;
-                warnings: string[];
             } | undefined;
         }, {
             action: "created" | "rewritten" | "unchanged";
             files_changed: number;
             action_executors?: {
-                path: string;
                 sha256: string;
+                path: string;
                 action: "created" | "rewritten" | "unchanged";
                 bytes: number;
                 warnings?: string[] | undefined;
@@ -2656,18 +2656,18 @@ export declare const BuildManifestSchema: z.ZodObject<{
             action: z.ZodEnum<["created", "rebuilt", "unchanged", "skipped", "failed"]>;
             reason: z.ZodOptional<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+            action: "skipped" | "failed" | "created" | "unchanged" | "rebuilt";
             reason?: string | undefined;
         }, {
-            action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+            action: "skipped" | "failed" | "created" | "unchanged" | "rebuilt";
             reason?: string | undefined;
         }>>;
         compose: z.ZodOptional<z.ZodObject<{
             action: z.ZodEnum<["activated", "unchanged", "skipped"]>;
         }, "strip", z.ZodTypeAny, {
-            action: "unchanged" | "skipped" | "activated";
+            action: "skipped" | "unchanged" | "activated";
         }, {
-            action: "unchanged" | "skipped" | "activated";
+            action: "skipped" | "unchanged" | "activated";
         }>>;
         scan: z.ZodOptional<z.ZodObject<{
             action: z.ZodEnum<["ran", "skipped"]>;
@@ -2684,22 +2684,22 @@ export declare const BuildManifestSchema: z.ZodObject<{
             action: "created" | "rewritten" | "unchanged";
             files_changed: number;
             action_executors?: {
-                path: string;
                 sha256: string;
+                warnings: string[];
+                path: string;
                 action: "created" | "rewritten" | "unchanged";
                 bytes: number;
-                warnings: string[];
             } | undefined;
         } | undefined;
         bundle?: {
             action: "created" | "rewritten" | "unchanged";
         } | undefined;
         image?: {
-            action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+            action: "skipped" | "failed" | "created" | "unchanged" | "rebuilt";
             reason?: string | undefined;
         } | undefined;
         compose?: {
-            action: "unchanged" | "skipped" | "activated";
+            action: "skipped" | "unchanged" | "activated";
         } | undefined;
         scan?: {
             action: "skipped" | "ran";
@@ -2710,8 +2710,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
             action: "created" | "rewritten" | "unchanged";
             files_changed: number;
             action_executors?: {
-                path: string;
                 sha256: string;
+                path: string;
                 action: "created" | "rewritten" | "unchanged";
                 bytes: number;
                 warnings?: string[] | undefined;
@@ -2721,11 +2721,11 @@ export declare const BuildManifestSchema: z.ZodObject<{
             action: "created" | "rewritten" | "unchanged";
         } | undefined;
         image?: {
-            action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+            action: "skipped" | "failed" | "created" | "unchanged" | "rebuilt";
             reason?: string | undefined;
         } | undefined;
         compose?: {
-            action: "unchanged" | "skipped" | "activated";
+            action: "skipped" | "unchanged" | "activated";
         } | undefined;
         scan?: {
             action: "skipped" | "ran";
@@ -2752,10 +2752,10 @@ export declare const BuildManifestSchema: z.ZodObject<{
     started_at: string;
     completed_at: string;
     duration_seconds: number;
-    result: "aborted" | "failed" | "success" | "partial" | "nothing-to-do";
+    result: "failed" | "aborted" | "success" | "partial" | "nothing-to-do";
     totals: {
-        enriched: number;
         failed: number;
+        enriched: number;
         total_entities: number;
         skipped_unchanged: number;
     };
@@ -2786,8 +2786,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
     input_hashes: Record<string, string>;
     outputs: {
         backend_files: {
-            path: string;
             sha256: string;
+            path: string;
             action: "created" | "rewritten" | "unchanged";
             bytes: number;
         }[];
@@ -2797,14 +2797,14 @@ export declare const BuildManifestSchema: z.ZodObject<{
                 tree_hash: string;
             };
             js: {
-                path: string;
                 sha256: string;
+                path: string;
                 bytes: number;
                 gzip_bytes: number;
             };
             css: {
-                path: string;
                 sha256: string;
+                path: string;
                 bytes: number;
                 gzip_bytes: number;
             };
@@ -2839,22 +2839,22 @@ export declare const BuildManifestSchema: z.ZodObject<{
             action: "created" | "rewritten" | "unchanged";
             files_changed: number;
             action_executors?: {
-                path: string;
                 sha256: string;
+                warnings: string[];
+                path: string;
                 action: "created" | "rewritten" | "unchanged";
                 bytes: number;
-                warnings: string[];
             } | undefined;
         } | undefined;
         bundle?: {
             action: "created" | "rewritten" | "unchanged";
         } | undefined;
         image?: {
-            action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+            action: "skipped" | "failed" | "created" | "unchanged" | "rebuilt";
             reason?: string | undefined;
         } | undefined;
         compose?: {
-            action: "unchanged" | "skipped" | "activated";
+            action: "skipped" | "unchanged" | "activated";
         } | undefined;
         scan?: {
             action: "skipped" | "ran";
@@ -2872,10 +2872,10 @@ export declare const BuildManifestSchema: z.ZodObject<{
     started_at: string;
     completed_at: string;
     duration_seconds: number;
-    result: "aborted" | "failed" | "success" | "partial" | "nothing-to-do";
+    result: "failed" | "aborted" | "success" | "partial" | "nothing-to-do";
     totals: {
-        enriched: number;
         failed: number;
+        enriched: number;
         total_entities: number;
         skipped_unchanged: number;
     };
@@ -2900,8 +2900,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
     input_hashes: Record<string, string>;
     outputs: {
         backend_files?: {
-            path: string;
             sha256: string;
+            path: string;
             action: "created" | "rewritten" | "unchanged";
             bytes: number;
         }[] | undefined;
@@ -2911,14 +2911,14 @@ export declare const BuildManifestSchema: z.ZodObject<{
                 tree_hash: string;
             };
             js: {
-                path: string;
                 sha256: string;
+                path: string;
                 bytes: number;
                 gzip_bytes: number;
             };
             css: {
-                path: string;
                 sha256: string;
+                path: string;
                 bytes: number;
                 gzip_bytes: number;
             };
@@ -2959,8 +2959,8 @@ export declare const BuildManifestSchema: z.ZodObject<{
             action: "created" | "rewritten" | "unchanged";
             files_changed: number;
             action_executors?: {
-                path: string;
                 sha256: string;
+                path: string;
                 action: "created" | "rewritten" | "unchanged";
                 bytes: number;
                 warnings?: string[] | undefined;
@@ -2970,11 +2970,11 @@ export declare const BuildManifestSchema: z.ZodObject<{
             action: "created" | "rewritten" | "unchanged";
         } | undefined;
         image?: {
-            action: "created" | "unchanged" | "rebuilt" | "skipped" | "failed";
+            action: "skipped" | "failed" | "created" | "unchanged" | "rebuilt";
             reason?: string | undefined;
         } | undefined;
         compose?: {
-            action: "unchanged" | "skipped" | "activated";
+            action: "skipped" | "unchanged" | "activated";
         } | undefined;
         scan?: {
             action: "skipped" | "ran";
@@ -3000,9 +3000,9 @@ export declare const PipelineProgressSchema: z.ZodObject<{
     eta_seconds: z.ZodNullable<z.ZodNumber>;
     message: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    ok: number;
     skipped: number;
     failed: number;
+    ok: number;
     cost_usd: number;
     phase: "BOOT" | "MIGRATE" | "IMPORT" | "ENRICH" | "RENDER" | "BUNDLE" | "IMAGE" | "SCAN" | "DONE" | "ABORT";
     processed: number;
@@ -3011,9 +3011,9 @@ export declare const PipelineProgressSchema: z.ZodObject<{
     eta_seconds: number | null;
     message?: string | undefined;
 }, {
-    ok: number;
     skipped: number;
     failed: number;
+    ok: number;
     cost_usd: number;
     phase: "BOOT" | "MIGRATE" | "IMPORT" | "ENRICH" | "RENDER" | "BUNDLE" | "IMAGE" | "SCAN" | "DONE" | "ABORT";
     processed: number;

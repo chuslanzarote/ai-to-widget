@@ -1,24 +1,24 @@
 {
   "schema_version": "1",
-  "build_id": "atw-build-20260425T164337-2328",
-  "started_at": "2026-04-25T16:43:37.388Z",
-  "completed_at": "2026-04-25T16:43:47.286Z",
-  "duration_seconds": 9.898,
-  "result": "success",
+  "build_id": "atw-build-20260425T202154-2e3d",
+  "started_at": "2026-04-25T20:21:54.887Z",
+  "completed_at": "2026-04-25T20:21:58.635Z",
+  "duration_seconds": 3.748,
+  "result": "nothing-to-do",
   "totals": {
-    "enriched": 2,
+    "enriched": 0,
     "failed": 0,
-    "skipped_unchanged": 18,
-    "total_entities": 20
+    "skipped_unchanged": 0,
+    "total_entities": 0
   },
   "failures": [],
   "opus": {
-    "calls": 2,
-    "cost_usd": 0.08,
+    "calls": 0,
+    "cost_usd": 0,
     "cost_variance_pct": 0,
     "estimated_cost_usd": 0,
-    "input_tokens": 988,
-    "output_tokens": 848
+    "input_tokens": 0,
+    "output_tokens": 0
   },
   "concurrency": {
     "configured": 10,
@@ -26,15 +26,148 @@
     "reductions": []
   },
   "input_hashes": {
-    "action-manifest.md": "sha256:4de06062612f909eb119ec389ee8bf6203c2efa0adf2996bd3855612a96243e2",
-    "brief.md": "sha256:9679ee253af3916ed58427e7a0d9d5b7ba9d2724113dbc4f7c56ca1fff86c951",
-    "build-plan.md": "sha256:96902e61aadcd6a5317a08f9b2797eb5ddfe3c2ea46c9e34bb6f09a146df6cc6",
-    "project.md": "sha256:018169d66b9586dab0aeac8acbd4526c9e64c47820fde506bfe542b770d67998",
+    "action-manifest.md": "sha256:8c7256c7a7067542cb82c0fb86a8bf149819dc56ad11ddbc49ef6e0f84ee1163",
+    "brief.md": "sha256:1699c5787beaadc85f6d419f8adc3c556e2c4efa1d5c492278e4d1dd97954f66",
+    "build-plan.md": "sha256:0d20c427be04cf36822a810702c44602fd772a18f542728b5c4a580c19baa692",
+    "project.md": "sha256:ce9ada710e8df2356eb4c1d86c0279985b7632059a3fcdac02d0576be3bc9bff",
     "prompt_template_version": "enrich-v1",
-    "schema-map.md": "sha256:deb47f9905a8370ffb9cd84e9444caee96b887a41adc8743da054ace50dceea1"
+    "schema-map.md": "sha256:e6f73eff4b30d35a103583a409aebde535d12b0e73dc37628b8e0df5b5cb3ee9"
   },
   "outputs": {
-    "backend_files": [],
+    "backend_files": [
+      {
+        "action": "rewritten",
+        "bytes": 481,
+        "path": "src/config.ts",
+        "sha256": "6dd12c9fcb58472e979817847c11515b0211ea0cc3e030fbafc39c195d5dd3cd"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 1182,
+        "path": "src/enrich-prompt-sharpen.ts",
+        "sha256": "32301056aa97a262559ac85603d67d49a98abab955ee1f4b1c04915876de5d1b"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 1026,
+        "path": "src/enrich-prompt.ts",
+        "sha256": "6a3d368a70d788c5a35b0b744c22fd6dc26b7f5d31051f79480876c9e9123789"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 2636,
+        "path": "src/index.ts",
+        "sha256": "ba2682157f1de58072008b3e691e0408bb203c9d5ee16bb8aa810db3740db237"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 3573,
+        "path": "src/lib/action-intent.ts",
+        "sha256": "6dcb24117f90a76f75a465766126be3b1e35f12c01562fbbfe4a52432922ed60"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 649,
+        "path": "src/lib/cors.ts",
+        "sha256": "7ecebc30ed987012733a51fe45c0dcd6e077f109da67f12a575cc3093b8a1503"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 962,
+        "path": "src/lib/credential-strip.ts",
+        "sha256": "8df6312ba5396c7445dfc26b5a7b0fd0357cdb940b61f9b8fd71a757a71d7eb2"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 987,
+        "path": "src/lib/embedding.ts",
+        "sha256": "8a84151392e97bd9df30d6cd76ee4e612a2fd7a15e7831a7ef687aedc1c135f4"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 2019,
+        "path": "src/lib/errors.ts",
+        "sha256": "ba0f54768f24a85dd500d226a26ab06362fdd7ced14b5adc98739bbee5e012e7"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 1290,
+        "path": "src/lib/logger.ts",
+        "sha256": "e6a5334c228ec5d4214578c2263076b0cfa38240102daa00fc5577cb9d4168c8"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 7197,
+        "path": "src/lib/opus-client.ts",
+        "sha256": "69f526ef31b7c466933ed55f0caff657e58e717a9a927b9615145e29d0653899"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 316,
+        "path": "src/lib/pii-scrub.ts",
+        "sha256": "97063bcb4eab93920b2b25180596307bc0be460a59514058ae54f3e222fdacd9"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 1058,
+        "path": "src/lib/rate-limit.ts",
+        "sha256": "6ef1775816d26089280fe8da51fe7c509135c3bdfec67eb8ced8a3abe0cd3309"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 1563,
+        "path": "src/lib/retrieval-context.ts",
+        "sha256": "6ccfc2a3c26b4d0af19ebaac39fa10f2f0f66fc6181d4003c26427c865eb7274"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 3050,
+        "path": "src/lib/retrieval.ts",
+        "sha256": "6722aa97c9801cdc9b64e8285e25e8e9690c988eb28e16fd6d6223e408083772"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 1918,
+        "path": "src/lib/tool-result-assembly.ts",
+        "sha256": "1d659729c2c9ac204ac22b89a3223067828ec17209d5d4e87b213d624658727b"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 2129,
+        "path": "src/prompts.ts",
+        "sha256": "606c2cdac4cd3bbdbe97682e6d2d5e544dca78ac469d99e00ae37349653cd8bf"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 736,
+        "path": "src/retrieval.ts",
+        "sha256": "fcbe12b298b2b38fcd90a7cd800be90b5e598fae780f01c30c36e7bca933d454"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 4015,
+        "path": "src/routes/chat.ts",
+        "sha256": "514739fdbb1801aa553e283a926dd10da976faec5dea90f5c27cc99ec837afa3"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 1038,
+        "path": "src/routes/health.ts",
+        "sha256": "01abc7545ba7a6d293c77d08fd5bfaf1f99892c8326111bc6d764e655a78656d"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 913,
+        "path": "src/routes/tools.ts",
+        "sha256": "983eced350ef7b8e5a3e2938b4eee7341d0a3ea09f2193973ef24a02c62147c6"
+      },
+      {
+        "action": "rewritten",
+        "bytes": 6117,
+        "path": "src/tools.ts",
+        "sha256": "64816d45b9b57b61e32bc816676f0342bbd3c595298811277199b061cdb837c8"
+      }
+    ],
     "backend_image": null,
     "widget_bundle": {
       "css": {
@@ -65,7 +198,7 @@
   "compliance_scan": {
     "clean": true,
     "matches": [],
-    "ran": true,
+    "ran": false,
     "values_checked": 0
   }
 }
